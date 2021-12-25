@@ -1,0 +1,28 @@
+plugins {
+    id 'java'
+}
+
+group 'org.springframework'
+version '5.3.14-SNAPSHOT'
+
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
+    implementation(project(":spring-webmvc"))
+    implementation(project(":spring-web"))
+    implementation(group: "org.apache.tomcat.embed",name: "tomcat-embed-core",version: "8.5.32")
+    implementation(group: "org.apache.tomcat",name: "tomcat-jasper",version: "8.5.9")
+    implementation group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
+    implementation group: 'com.fasterxml.jackson.core',name: 'jackson-core',version:'2.9.4'
+    implementation group: 'com.fasterxml.jackson.core',name: 'jackson-annotations',version:'2.9.4'
+    implementation group: 'com.fasterxml.jackson.core',name: 'jackson-databind',version:'2.9.4'
+
+}

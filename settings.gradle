@@ -56,4 +56,11 @@ settings.gradle.projectsLoaded {
 	}
 }
 include 'mystudy-aop'
+include 'mystudy-autoconfiguration'
+include 'mystudy-dujie-beans'
+include 'mystudy-dujie-mybatis'
+include 'mystudy-dujie-boot'
+include 'mystudy-dujie-jdbc'
+include 'mystudy-dujie-transactional'
+include 'mystudy-dujie-webmvc'
 

@@ -1,0 +1,26 @@
+group 'org.springframework'
+version '5.3.14-SNAPSHOT'
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+
+    implementation ('org.springframework.data:spring-data-redis:2.0.9.RELEASE')
+    implementation ('redis.clients:jedis:4.0.0')
+    compileOnly ('org.projectlombok:lombok:1.18.22')
+    implementation("javax.inject:javax.inject:1")
+    implementation(project(":spring-context"))
+    implementation("ch.qos.logback:logback-core:1.1.2")
+    implementation("ch.qos.logback:logback-classic:1.1.2")
+    implementation("org.slf4j:slf4j-api:1.7.7")
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.13.1'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.13.1'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.1'
+
+}

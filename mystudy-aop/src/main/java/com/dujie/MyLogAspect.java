@@ -18,7 +18,7 @@ import java.util.Arrays;
 @Order
 public class MyLogAspect {
 
-    @Pointcut("execution(* tuling.MyCalculate.*(..))")
+    @Pointcut("execution(* com.dujie.MyCalculate.*(..))")
     public void pointCut(){};
 
     @Before(value = "pointCut()")
