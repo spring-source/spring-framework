@@ -971,12 +971,12 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		 * public class String2DateConversionService implements Converter<String,Date> {
 
 			 public Date convert(String source) {
-			 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-			 try {
-			 return sdf.parse(source);
-			 } catch (ParseException e) {
-			 return null;
-			 }
+				 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+				 try {
+					return sdf.parse(source);
+				 } catch (ParseException e) {
+					return null;
+				 }
 			 }
 		 }
 
