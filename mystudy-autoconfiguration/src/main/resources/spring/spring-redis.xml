@@ -10,15 +10,18 @@
 		<property name="maxIdle" value="10" />
 	</bean>
 
-	<bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory">
+	<bean id="redisStandaloneConfiguration" class="org.springframework.data.redis.connection.RedisStandaloneConfiguration">
 		<property name="hostName" value="127.0.0.1"/>
 		<property name="database" value="0"></property>
 		<property name="port" value="6379"></property>
-		<property name="poolConfig" ref="jedisPoolConfig"></property>
 	</bean>
 
+<!--	<bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory">-->
+<!--&lt;!&ndash;		<property name="poolConfig" ref="jedisPoolConfig"></property>&ndash;&gt;-->
+<!--	</bean>-->
+
 	<bean id="redisTemplate" class="org.springframework.data.redis.core.RedisTemplate">
-		<property name="connectionFactory"  ref="jedisConnectionFactory"/>
+<!--		<property name="connectionFactory"  ref="redisStandaloneConfiguration"/>-->
 		<!--如果不配置Serializer，那么存储的时候缺省使用String，如果用User类型存储，那么会提示错误User can't cast to String！！  -->
 			<property name="keySerializer">
 				<bean class="org.springframework.data.redis.serializer.StringRedisSerializer"/>

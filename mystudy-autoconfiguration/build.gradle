@@ -10,9 +10,8 @@ repositories {
 }
 
 dependencies {
-
     implementation ('org.springframework.data:spring-data-redis:2.0.9.RELEASE')
-    implementation ('redis.clients:jedis:4.0.0')
+    implementation ('redis.clients:jedis:3.8.0')
     compileOnly ('org.projectlombok:lombok:1.18.22')
     implementation("javax.inject:javax.inject:1")
     implementation(project(":spring-context"))

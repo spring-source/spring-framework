@@ -4,14 +4,12 @@ import com.dujie.version3.support.RedisCfgProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import redis.clients.jedis.JedisPoolConfig;
 
-/**
- * Created by smlz on 2019/9/3.
- */
 @Configuration
 @PropertySource(value = {"classpath:rediscfg.properties"})
 public class SpringRedisConfig {
@@ -32,10 +30,9 @@ public class SpringRedisConfig {
 
 	@Bean
 	public JedisConnectionFactory jedisConnectionFactory(RedisCfgProperties redisCfgProperties) {
-		JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory();
-		jedisConnectionFactory.setPort(redisCfgProperties.getPort());
-		jedisConnectionFactory.setHostName(redisCfgProperties.getHost());
-		jedisConnectionFactory.setPoolConfig(jedisPoolConfig(redisCfgProperties));
+		RedisStandaloneConfiguration standaloneConfig = new RedisStandaloneConfiguration(redisCfgProperties.getHost(), redisCfgProperties.getPort());
+		standaloneConfig.setDatabase(0);
+		JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory(standaloneConfig);
 		return jedisConnectionFactory;
 	}
 
