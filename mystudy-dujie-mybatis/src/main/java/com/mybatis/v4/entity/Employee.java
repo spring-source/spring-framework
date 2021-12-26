@@ -10,14 +10,14 @@ import lombok.ToString;
 @ToString
 public class Employee {
 
-    private Integer id;
+	private Integer id;
 
-    private String lastName;
+	private String lastName;
 
-    private String email;
+	private String email;
 
-    private Integer gender;
+	private Integer gender;
 
-    private Integer deptId;
+	private Integer deptId;
 
 }

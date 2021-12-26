@@ -8,9 +8,7 @@ import java.lang.annotation.Target;
 /**
  * [来个全套]
  *
- * @slogan: 高于生活，源于生活
  * @Description: TODO
- * @author: smlz
  * @date 2020/5/5 13:53
  */
 @Target(ElementType.METHOD)

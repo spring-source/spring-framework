@@ -7,12 +7,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 
-
 /**
  * Created by smlz on 2019/8/23.
  */
 @Service
-public class EmpServiceImpl  {
+public class EmpServiceImpl {
 
 	@Autowired
 	private EmployeeMapper employeeMapper;

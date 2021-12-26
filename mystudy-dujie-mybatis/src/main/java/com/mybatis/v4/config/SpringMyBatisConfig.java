@@ -39,10 +39,9 @@ public class SpringMyBatisConfig {
 		factoryBean.setConfigLocation(new ClassPathResource("com/mybatis/mybatis-config.xml"));
 		// 设置 SQL 映射文件路径
 		factoryBean.setMapperLocations(new PathMatchingResourcePatternResolver().getResources("classpath:mybatis/mapper/*.xml"));
-		factoryBean.setTypeAliases(Employee.class,Dept.class);
+		factoryBean.setTypeAliases(Employee.class, Dept.class);
 		return factoryBean;
 	}
-
 
 
 	@Bean

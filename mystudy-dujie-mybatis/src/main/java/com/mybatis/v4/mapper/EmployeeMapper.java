@@ -13,14 +13,14 @@ import java.util.List;
 
 public interface EmployeeMapper {
 
-    @Select("select * from employee")
-    List<Employee> list();
+	@Select("select * from employee")
+	List<Employee> list();
 
-    @Select("select * from employee where id=#{id}")
+	@Select("select * from employee where id=#{id}")
 	Employee findOne(Integer id);
 
-    @Options(useGeneratedKeys =true,keyProperty = "id")
-    @Insert("insert into employee(last_name,email,gender,dept_id)values(#{lastName},#{email},#{gender},#{deptId})")
-    int save(Employee employee);
+	@Options(useGeneratedKeys = true, keyProperty = "id")
+	@Insert("insert into employee(last_name,email,gender,dept_id)values(#{lastName},#{email},#{gender},#{deptId})")
+	int save(Employee employee);
 
 }

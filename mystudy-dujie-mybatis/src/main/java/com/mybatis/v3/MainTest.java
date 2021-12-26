@@ -18,7 +18,7 @@ public class MainTest {
 
 	public static void main(String[] args) {
 		AnnotationConfigApplicationContext context
-					= new AnnotationConfigApplicationContext(SpringMybatisConfig.class);
+				= new AnnotationConfigApplicationContext(SpringMybatisConfig.class);
 
 		ProductMapper productMapper = (ProductMapper) context.getBean("productMapper");
 		productMapper.qryProductInfoById(1);

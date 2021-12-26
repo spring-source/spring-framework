@@ -14,9 +14,6 @@ import java.util.Arrays;
 /**
  * [来个全套]
  *
- * @slogan: 高于生活，源于生活
- * @Description: TODO
- * @author: smlz
  * @date 2020/5/5 14:04
  */
 public class ProductMapperFactoryBean implements FactoryBean {
@@ -24,7 +21,7 @@ public class ProductMapperFactoryBean implements FactoryBean {
 	@Nullable
 	@Override
 	public ProductMapper getObject() throws Exception {
-		return (ProductMapper) Proxy.newProxyInstance(ProductMapper.class.getClassLoader(),new Class[]{ProductMapper.class},new ProductMapperProxy());
+		return (ProductMapper) Proxy.newProxyInstance(ProductMapper.class.getClassLoader(), new Class[]{ProductMapper.class}, new ProductMapperProxy());
 	}
 
 	@Nullable
@@ -38,18 +35,19 @@ public class ProductMapperFactoryBean implements FactoryBean {
 		return true;
 	}
 }
+
 class ProductMapperProxy implements InvocationHandler {
 
 	@Override
 	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 		//处理Object原生的方法
-		if(method.getDeclaringClass().equals(Object.class)) {
+		if (method.getDeclaringClass().equals(Object.class)) {
 			return method.invoke(this, args);
 		}
 
 		TulingSelect tulingSelect = method.getAnnotation(TulingSelect.class);
 		String parseSql = tulingSelect.value();
-		System.out.println("解析业务sql:"+parseSql+"入参:"+ Arrays.asList(args));
+		System.out.println("解析业务sql:" + parseSql + "入参:" + Arrays.asList(args));
 
 		//模拟查询数据库返回
 		Class returnType = method.getReturnType();

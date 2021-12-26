@@ -5,9 +5,9 @@ import java.io.Serializable;
 /**
  * Created by smlz on 2019/3/22.
  */
-public class Dept implements Serializable{
+public class Dept implements Serializable {
 
-    private Integer id;
+	private Integer id;
 
 	@Override
 	public String toString() {
@@ -19,21 +19,21 @@ public class Dept implements Serializable{
 
 	private String departmentName;
 
-    public Integer getId() {
-        return id;
-    }
+	public Integer getId() {
+		return id;
+	}
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
+	public void setId(Integer id) {
+		this.id = id;
+	}
 
-    public String getDepartmentName() {
-        return departmentName;
-    }
+	public String getDepartmentName() {
+		return departmentName;
+	}
 
-    public void setDepartmentName(String departmentName) {
-        this.departmentName = departmentName;
-    }
+	public void setDepartmentName(String departmentName) {
+		this.departmentName = departmentName;
+	}
 
 
 }

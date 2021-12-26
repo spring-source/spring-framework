@@ -33,7 +33,7 @@ public class TulingImportBeanDefinitionRegister implements ImportBeanDefinitionR
 		AnnotationAttributes attributes = (AnnotationAttributes) importingClassMetadata.getAnnotationAttributes(EnableMapperScanner.class.getName());
 
 		//配置了EnableMapperScanner 注解
-		if(attributes ==null) {
+		if (attributes == null) {
 			return;
 		}
 		String basePackage = attributes.getString("basePackage");
@@ -51,22 +51,20 @@ public class TulingImportBeanDefinitionRegister implements ImportBeanDefinitionR
 
 		//此时扫描出来的bean定义 是一个一个的接口  //我们指定的mapper包下的接口类型bean定义.
 		//批量版的导入bean定义
-		Set<BeanDefinitionHolder> scannedBds =  mapperScanner.doScan(basePackage);
+		Set<BeanDefinitionHolder> scannedBds = mapperScanner.doScan(basePackage);
 
 
-
-		for (BeanDefinitionHolder bdh:scannedBds) {
-
+		for (BeanDefinitionHolder bdh : scannedBds) {
 
 
 			//获取bean定义
 			GenericBeanDefinition beanDefinition = (GenericBeanDefinition) bdh.getBeanDefinition();
 			//拿到bean定义中的接口的calss 字符串  com.tuling.dao.AccountMapper
 
-			String  sourceClass = beanDefinition.getBeanClassName();
+			String sourceClass = beanDefinition.getBeanClassName();
 
 
-			System.out.println("原生接口的class类型:"+sourceClass);
+			System.out.println("原生接口的class类型:" + sourceClass);
 
 			//不去就修改的话  又是去实例化接口的类型
 			beanDefinition.setBeanClass(targetClass);
@@ -74,8 +72,6 @@ public class TulingImportBeanDefinitionRegister implements ImportBeanDefinitionR
 
 			beanDefinition.getConstructorArgumentValues().addGenericArgumentValue(sourceClass);
 		}
-
-
 
 
 		System.out.println(scannedBds);

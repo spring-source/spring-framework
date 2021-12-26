@@ -42,13 +42,13 @@ public class TulingMapperRegister implements BeanDefinitionRegistryPostProcessor
 		});
 
 
-		Set<BeanDefinitionHolder> scannedBds =  mapperScanner.doScan(this.basePackage);
+		Set<BeanDefinitionHolder> scannedBds = mapperScanner.doScan(this.basePackage);
 
-		for (BeanDefinitionHolder bdh:scannedBds) {
+		for (BeanDefinitionHolder bdh : scannedBds) {
 
 			GenericBeanDefinition beanDefinition = (GenericBeanDefinition) bdh.getBeanDefinition();
-			String  sourceClass = beanDefinition.getBeanClassName();
-			System.out.println("原生接口的class类型:"+sourceClass);
+			String sourceClass = beanDefinition.getBeanClassName();
+			System.out.println("原生接口的class类型:" + sourceClass);
 			beanDefinition.setBeanClass(targetClass);
 			beanDefinition.getConstructorArgumentValues().addGenericArgumentValue(sourceClass);
 		}

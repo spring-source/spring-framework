@@ -7,9 +7,6 @@ import org.springframework.stereotype.Component;
 /**
  * [来个全套]
  *
- * @slogan: 高于生活，源于生活
- * @Description: TODO
- * @author: smlz
  * @date 2020/5/5 14:03
  */
 @Component

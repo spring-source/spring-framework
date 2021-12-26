@@ -12,14 +12,14 @@ import java.util.List;
 public interface DeptMapper {
 
 
-    Dept findOne(Integer id);
+	Dept findOne(Integer id);
 
-    List<Dept> list();
+	List<Dept> list();
 
-    int save(Dept dept);
+	int save(Dept dept);
 
-    List<Dept> findDepts(@Param("list") List<Integer> ids);
+	List<Dept> findDepts(@Param("list") List<Integer> ids);
 
-    Dept findDeptByIdAndName(@Param("id") Integer id,@Param("name") String name);
+	Dept findDeptByIdAndName(@Param("id") Integer id, @Param("name") String name);
 
 }

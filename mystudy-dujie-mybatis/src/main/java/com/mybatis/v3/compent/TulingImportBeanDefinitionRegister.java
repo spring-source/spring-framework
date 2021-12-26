@@ -24,15 +24,15 @@ public class TulingImportBeanDefinitionRegister implements ImportBeanDefinitionR
 		AnnotationAttributes attributes = (AnnotationAttributes) importingClassMetadata.getAnnotationAttributes(EnableMapperScanner.class.getName());
 
 		//配置了EnableMapperScanner 注解
-		if(attributes ==null) {
+		if (attributes == null) {
 			return;
 		}
 
 		BeanDefinitionBuilder beanDefinitionBuilder = BeanDefinitionBuilder.genericBeanDefinition(TulingMapperRegister.class);
 
-		beanDefinitionBuilder.addPropertyValue("basePackage",attributes.getString("basePackage"));
+		beanDefinitionBuilder.addPropertyValue("basePackage", attributes.getString("basePackage"));
 
-		registry.registerBeanDefinition(TulingMapperRegister.class.getName(),beanDefinitionBuilder.getBeanDefinition());
+		registry.registerBeanDefinition(TulingMapperRegister.class.getName(), beanDefinitionBuilder.getBeanDefinition());
 
 	}
 }

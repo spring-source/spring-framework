@@ -30,7 +30,7 @@ public class TulingMapperFactorybean<T> implements FactoryBean<T> {
 	@Nullable
 	@Override
 	public T getObject() throws Exception {
-		return (T) Proxy.newProxyInstance(targetClass.getClassLoader(),new Class[]{targetClass},new TulingMapperProxy());
+		return (T) Proxy.newProxyInstance(targetClass.getClassLoader(), new Class[]{targetClass}, new TulingMapperProxy());
 	}
 
 	@Nullable
@@ -45,24 +45,24 @@ public class TulingMapperFactorybean<T> implements FactoryBean<T> {
 	}
 }
 
-class TulingMapperProxy implements InvocationHandler{
+class TulingMapperProxy implements InvocationHandler {
 
 	@Override
 	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 		//处理Object原生的方法
-		if(method.getDeclaringClass().equals(Object.class)) {
+		if (method.getDeclaringClass().equals(Object.class)) {
 			return method.invoke(this, args);
 		}
 
 		TulingSelect tulingSelect = method.getAnnotation(TulingSelect.class);
 		String parseSql = tulingSelect.value();
-		System.out.println("解析业务sql:"+parseSql+"入参:"+ Arrays.asList(args));
+		System.out.println("解析业务sql:" + parseSql + "入参:" + Arrays.asList(args));
 
 		Class<?> clazz = method.getReturnType();
-		if(clazz.equals(ProductInfo.class)) {
+		if (clazz.equals(ProductInfo.class)) {
 			return new ProductInfo();
 		}
-		if(clazz.equals(AccountInfo.class)) {
+		if (clazz.equals(AccountInfo.class)) {
 			return new AccountInfo();
 		}
 		return null;
