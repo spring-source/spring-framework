@@ -44,3 +44,7 @@ atlassian-ide-plugin.xml
 
 # VS Code
 .vscode/
+*.jar
+*.bin
+*.MF
+*.war
