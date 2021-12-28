@@ -2,6 +2,7 @@ package com.dujie.version2.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
@@ -23,10 +24,12 @@ public class SpringRedisonfig {
 
 	@Bean
 	public JedisConnectionFactory jedisConnectionFactory() {
-		JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory();
-		jedisConnectionFactory.setPort(6379);
-		jedisConnectionFactory.setHostName("127.0.0.1");
-		jedisConnectionFactory.setPoolConfig(jedisPoolConfig());
+		RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration("127.0.0.1", 6379);
+		redisStandaloneConfiguration.setDatabase(1);
+		JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory(redisStandaloneConfiguration);
+//		jedisConnectionFactory.setPort(6379);
+//		jedisConnectionFactory.setHostName("127.0.0.1");
+//		jedisConnectionFactory.setPoolConfig(jedisPoolConfig());
 		return jedisConnectionFactory;
 	}
 

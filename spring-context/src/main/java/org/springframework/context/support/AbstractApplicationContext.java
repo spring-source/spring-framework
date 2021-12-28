@@ -683,6 +683,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		 * 而springmvc的环境的时候，bean工厂还没有创建 需要通过refreshBeanFactory();创建
 		 */
 		refreshBeanFactory();
+		//返回我们的bean工厂
 		return getBeanFactory();
 	}
 

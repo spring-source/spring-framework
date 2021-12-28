@@ -5,9 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.data.redis.core.RedisTemplate;
 
-/**
- * Created by smlz on 2019/8/31.
- */
 @Slf4j
 public class TestBaseJavaConfig {
 

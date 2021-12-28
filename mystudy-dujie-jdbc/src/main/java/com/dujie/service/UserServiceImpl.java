@@ -24,6 +24,6 @@ public class UserServiceImpl {
 	}
 
 	public void findUserName(Integer userId) {
-		System.out.println(userInfoDao.findUserName(userId));
+		System.out.println(userInfoDao.findOne(userId).toString());
 	}
 }

@@ -1,2 +1,2 @@
-com.tuling.version3.compent.TulingEnableAutoConfig=\
-com.tuling.version3.config.SpringRedisConfig
+com.dujie.version3.compent.TulingEnableAutoConfig=\
+com.dujie.version3.config.SpringRedisConfig

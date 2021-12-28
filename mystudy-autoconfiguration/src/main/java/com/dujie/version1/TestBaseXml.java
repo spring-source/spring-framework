@@ -12,9 +12,9 @@ public class TestBaseXml {
 				new ClassPathXmlApplicationContext("classpath:spring/spring-redis.xml");
 		RedisTemplate redisTemplate = (RedisTemplate) context.getBean("redisTemplate");
 
-		redisTemplate.opsForValue().set("smlz","司马");
+		redisTemplate.opsForValue().set("redisXmlTest","原生自动引入redis的xml配置");
 
-		System.out.println("从redis获取===="+redisTemplate.opsForValue().get("smlz"));
+		System.out.println("从redis获取===="+redisTemplate.opsForValue().get("redisXmlTest"));
 	}
 
 }
