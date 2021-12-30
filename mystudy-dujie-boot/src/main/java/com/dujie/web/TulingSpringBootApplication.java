@@ -14,7 +14,7 @@ public class TulingSpringBootApplication {
         tomcat.setPort(8080);
 
         try {
-            tomcat.addWebapp("/","/Users/a2021/logs");
+            tomcat.addWebapp("/","/Users/mac/logs");
 
             tomcat.start();
 

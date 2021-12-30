@@ -24,7 +24,8 @@ import javax.servlet.ServletRegistration;
  */
 public class TulingWebApplicationInitializer implements WebApplicationInitializer {
 
-    public void onStartup(ServletContext servletContext) throws ServletException {
+    @Override
+	public void onStartup(ServletContext servletContext) throws ServletException {
 		System.out.println("初始化TulingWebApplicationInitializer...");
 
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
