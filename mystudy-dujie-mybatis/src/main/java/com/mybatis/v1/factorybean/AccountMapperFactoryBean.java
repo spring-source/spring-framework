@@ -20,7 +20,7 @@ public class AccountMapperFactoryBean implements FactoryBean {
 
 	@Nullable
 	@Override
-	public AccountMapper getObject() throws Exception {
+	public AccountMapper getObject() {
 
 
 		return (AccountMapper) Proxy.newProxyInstance(AccountMapper.class.getClassLoader(), new Class[]{AccountMapper.class}, new AccountMapperProxy());
@@ -31,11 +31,6 @@ public class AccountMapperFactoryBean implements FactoryBean {
 	@Override
 	public Class<?> getObjectType() {
 		return AccountMapper.class;
-	}
-
-	@Override
-	public boolean isSingleton() {
-		return true;
 	}
 }
 

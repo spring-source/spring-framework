@@ -34,12 +34,7 @@ public class TulingMapperRegister implements BeanDefinitionRegistryPostProcessor
 		//扫描bean定义
 		TulingClassPathMapperScanner mapperScanner = new TulingClassPathMapperScanner(registry);
 
-		mapperScanner.addIncludeFilter(new TypeFilter() {
-			@Override
-			public boolean match(MetadataReader metadataReader, MetadataReaderFactory metadataReaderFactory) throws IOException {
-				return true;
-			}
-		});
+		mapperScanner.addIncludeFilter((metadataReader, metadataReaderFactory) -> true);
 
 
 		Set<BeanDefinitionHolder> scannedBds = mapperScanner.doScan(this.basePackage);

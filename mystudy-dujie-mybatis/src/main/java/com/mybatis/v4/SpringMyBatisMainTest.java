@@ -23,7 +23,7 @@ public class SpringMyBatisMainTest {
 
 		Employee employee = empService.qryById(1);
 
-		System.out.println(employee);
+		System.out.println("获取的当前对象内容为" + employee);
 
 	}
 }

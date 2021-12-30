@@ -20,7 +20,7 @@ public class ProductMapperFactoryBean implements FactoryBean {
 
 	@Nullable
 	@Override
-	public ProductMapper getObject() throws Exception {
+	public ProductMapper getObject() {
 		return (ProductMapper) Proxy.newProxyInstance(ProductMapper.class.getClassLoader(), new Class[]{ProductMapper.class}, new ProductMapperProxy());
 	}
 
@@ -28,11 +28,6 @@ public class ProductMapperFactoryBean implements FactoryBean {
 	@Override
 	public Class<?> getObjectType() {
 		return ProductMapper.class;
-	}
-
-	@Override
-	public boolean isSingleton() {
-		return true;
 	}
 }
 

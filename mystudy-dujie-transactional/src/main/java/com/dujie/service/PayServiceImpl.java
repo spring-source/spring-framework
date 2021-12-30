@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 /**
  * Created by smlz on 2019/6/17.
  */
-@Component
+@Component("payServiceImpl")
 public class PayServiceImpl implements PayService {
 
     @Autowired
@@ -21,6 +21,7 @@ public class PayServiceImpl implements PayService {
     @Autowired
     private ProductInfoDao productInfoDao;
 
+	@Override
 	@Transactional(rollbackFor = Exception.class)
     public void pay(String accountId, double money) {
         //查询余额
@@ -39,7 +40,8 @@ public class PayServiceImpl implements PayService {
         int retVal = accountInfoDao.updateAccountBlance(accountId,money);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Override
+	@Transactional(propagation = Propagation.REQUIRES_NEW,rollbackFor = Exception.class)
     public void updateProductStore(Integer productId) {
         try{
             productInfoDao.updateProductInfo(productId);

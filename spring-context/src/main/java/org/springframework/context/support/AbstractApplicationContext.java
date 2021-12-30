@@ -1463,6 +1463,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	}
 
 	/**
+	 * 方法实现说明:获取我们spring上下文对象的父上下文，然后通过父上下文获取父工厂
+	 * Spring 根的上下文对象不会有父容器，但是我们的springmvc就在这里存在父工厂.
 	 * Return the internal bean factory of the parent context if it implements
 	 * ConfigurableApplicationContext; else, return the parent context itself.
 	 * @see org.springframework.context.ConfigurableApplicationContext#getBeanFactory

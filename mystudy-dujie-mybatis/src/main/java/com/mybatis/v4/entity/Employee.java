@@ -1,13 +1,11 @@
 package com.mybatis.v4.entity;
 
 import lombok.Data;
-import lombok.ToString;
 
 /**
  * Created by smlz on 2019/3/22.
  */
 @Data
-@ToString
 public class Employee {
 
 	private Integer id;
@@ -20,4 +18,20 @@ public class Employee {
 
 	private Integer deptId;
 
+	@Override
+	public String toString() {
+		final StringBuilder sb = new StringBuilder("{");
+		sb.append("\"id\":")
+				.append(id);
+		sb.append(",\"lastName\":\"")
+				.append(lastName).append('\"');
+		sb.append(",\"email\":\"")
+				.append(email).append('\"');
+		sb.append(",\"gender\":")
+				.append(gender);
+		sb.append(",\"deptId\":")
+				.append(deptId);
+		sb.append('}');
+		return sb.toString();
+	}
 }

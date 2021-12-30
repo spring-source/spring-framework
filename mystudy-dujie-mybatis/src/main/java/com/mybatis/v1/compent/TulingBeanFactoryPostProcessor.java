@@ -20,12 +20,12 @@ public class TulingBeanFactoryPostProcessor implements BeanFactoryPostProcessor 
 	@Override
 	public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		GenericBeanDefinition accountMapperBd = (GenericBeanDefinition) beanFactory.getBeanDefinition("accountMapper");
-		System.out.println("accountMapperBd:" + accountMapperBd.toString());
 		accountMapperBd.setBeanClass(AccountMapperFactoryBean.class);
+		System.out.println("accountMapperBd:" + accountMapperBd.toString());
 
 		GenericBeanDefinition productMapperBd = (GenericBeanDefinition) beanFactory.getBeanDefinition("productMapper");
-		System.out.println("productMapperBd:" + productMapperBd.toString());
 		productMapperBd.setBeanClass(ProductMapperFactoryBean.class);
+		System.out.println("productMapperBd:" + productMapperBd.toString());
 
 	}
 }
