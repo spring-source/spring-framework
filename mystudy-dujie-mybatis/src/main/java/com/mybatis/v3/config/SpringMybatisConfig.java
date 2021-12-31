@@ -1,6 +1,6 @@
 package com.mybatis.v3.config;
 
-import com.mybatis.v2.anno.EnableMapperScanner;
+import com.mybatis.v3.anno.EnableMapperScanner;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
@@ -13,8 +13,8 @@ import org.springframework.context.annotation.Configuration;
  * @date 2020/5/4 15:06
  */
 @Configuration
-@ComponentScan(value = {"com.mybatis.v2"})
-@EnableMapperScanner(basePackage = "com.mybatis.v2.dao")
+@ComponentScan(value = {"com.mybatis.v3"})
+@EnableMapperScanner(basePackage = "com.mybatis.v3.dao")
 public class SpringMybatisConfig {
 
 /*	@Bean

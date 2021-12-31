@@ -1,6 +1,6 @@
 package com.mybatis.v3.compent;
 
-import com.mybatis.v2.anno.EnableMapperScanner;
+import com.mybatis.v3.anno.EnableMapperScanner;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
