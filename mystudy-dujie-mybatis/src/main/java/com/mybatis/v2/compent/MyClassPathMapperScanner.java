@@ -16,9 +16,9 @@ import java.util.Set;
  * @date 2020/5/5 14:15
  */
 
-public class TulingClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
+public class MyClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
 
-	public TulingClassPathMapperScanner(BeanDefinitionRegistry registry) {
+	public MyClassPathMapperScanner(BeanDefinitionRegistry registry) {
 		super(registry);
 	}
 

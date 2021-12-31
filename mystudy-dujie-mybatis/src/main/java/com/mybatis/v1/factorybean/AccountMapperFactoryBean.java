@@ -1,10 +1,11 @@
 package com.mybatis.v1.factorybean;
 
-import com.mybatis.v1.anno.TulingSelect;
+import com.mybatis.v1.anno.MySelect;
 import com.mybatis.v1.dao.AccountMapper;
 import com.mybatis.v1.entity.AccountInfo;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.lang.Nullable;
+import org.springframework.stereotype.Component;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -16,6 +17,7 @@ import java.util.Arrays;
  *
  * @date 2020/5/5 13:43
  */
+@Component
 public class AccountMapperFactoryBean implements FactoryBean {
 
 	@Nullable
@@ -43,7 +45,7 @@ class AccountMapperProxy implements InvocationHandler {
 			return method.invoke(this, args);
 		}
 
-		TulingSelect tulingSelect = method.getAnnotation(TulingSelect.class);
+		MySelect tulingSelect = method.getAnnotation(MySelect.class);
 		String parseSql = tulingSelect.value();
 		System.out.println("解析业务sql:" + parseSql + "入参:" + Arrays.asList(args));
 

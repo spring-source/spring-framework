@@ -5,6 +5,10 @@ package com.mybatis.v2.entity;
  */
 public class ProductInfo {
 
+	private Integer productId;
+	private String productName;
+	private Integer store;
+
 	@Override
 	public String toString() {
 		return "ProductInfo{" +
@@ -13,12 +17,6 @@ public class ProductInfo {
 				", store=" + store +
 				'}';
 	}
-
-	private Integer productId;
-
-	private String productName;
-
-	private Integer store;
 
 	public Integer getProductId() {
 		return productId;

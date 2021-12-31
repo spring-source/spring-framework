@@ -1,6 +1,6 @@
 package com.mybatis.v1.dao;
 
-import com.mybatis.v1.anno.TulingSelect;
+import com.mybatis.v1.anno.MySelect;
 import com.mybatis.v1.entity.AccountInfo;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 @Component
 public interface AccountMapper {
 
-	@TulingSelect(value = "select * from account_info where account_id=?")
+	@MySelect(value = "select * from account_info where account_id=?")
 	AccountInfo qryById(String accountId);
 
 }

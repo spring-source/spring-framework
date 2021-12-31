@@ -1,6 +1,6 @@
 package com.mybatis.v3.dao;
 
-import com.mybatis.v2.anno.TulingSelect;
+import com.mybatis.v2.anno.MySelect;
 import com.mybatis.v3.entity.AccountInfo;
 
 /**
@@ -14,6 +14,6 @@ import com.mybatis.v3.entity.AccountInfo;
 
 public interface AccountMapper {
 
-	@TulingSelect(value = "select * from account_info where account_id=?")
+	@MySelect(value = "select * from account_info where account_id=?")
 	AccountInfo qryAccount(Integer accountId);
 }

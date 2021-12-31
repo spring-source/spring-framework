@@ -1,6 +1,6 @@
 package com.mybatis.v2.factorybean;
 
-import com.mybatis.v2.anno.TulingSelect;
+import com.mybatis.v2.anno.MySelect;
 import com.mybatis.v2.entity.AccountInfo;
 import com.mybatis.v2.entity.ProductInfo;
 import org.springframework.beans.factory.FactoryBean;
@@ -19,18 +19,18 @@ import java.util.Arrays;
  * @author: smlz
  * @date 2020/5/5 14:44
  */
-public class TulingMapperFactorybean<T> implements FactoryBean<T> {
+public class MyMapperFactorybean<T> implements FactoryBean<T> {
 
 	private Class<T> targetClass;
 
-	public TulingMapperFactorybean(Class<T> targetClass) {
+	public MyMapperFactorybean(Class<T> targetClass) {
 		this.targetClass = targetClass;
 	}
 
 	@Nullable
 	@Override
 	public T getObject() throws Exception {
-		return (T) Proxy.newProxyInstance(targetClass.getClassLoader(), new Class[]{targetClass}, new TulingMapperProxy());
+		return (T) Proxy.newProxyInstance(targetClass.getClassLoader(), new Class[]{targetClass}, new MyMapperProxy());
 	}
 
 	@Nullable
@@ -45,7 +45,7 @@ public class TulingMapperFactorybean<T> implements FactoryBean<T> {
 	}
 }
 
-class TulingMapperProxy implements InvocationHandler {
+class MyMapperProxy implements InvocationHandler {
 
 	@Override
 	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
@@ -54,8 +54,8 @@ class TulingMapperProxy implements InvocationHandler {
 			return method.invoke(this, args);
 		}
 
-		TulingSelect tulingSelect = method.getAnnotation(TulingSelect.class);
-		String parseSql = tulingSelect.value();
+		MySelect mySelect = method.getAnnotation(MySelect.class);
+		String parseSql = mySelect.value();
 		System.out.println("解析业务sql:" + parseSql + "入参:" + Arrays.asList(args));
 
 		Class<?> clazz = method.getReturnType();

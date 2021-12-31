@@ -5,6 +5,10 @@ package com.mybatis.v3.entity;
  */
 public class AccountInfo {
 
+	private Integer id;
+	private String accoutId;
+	private double blance;
+
 	@Override
 	public String toString() {
 		return "AccountInfo{" +
@@ -13,12 +17,6 @@ public class AccountInfo {
 				", blance=" + blance +
 				'}';
 	}
-
-	private Integer id;
-
-	private String accoutId;
-
-	private double blance;
 
 	public Integer getId() {
 		return id;

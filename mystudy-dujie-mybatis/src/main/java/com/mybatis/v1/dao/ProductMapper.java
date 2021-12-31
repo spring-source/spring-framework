@@ -1,6 +1,6 @@
 package com.mybatis.v1.dao;
 
-import com.mybatis.v1.anno.TulingSelect;
+import com.mybatis.v1.anno.MySelect;
 import com.mybatis.v1.entity.ProductInfo;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +12,6 @@ import org.springframework.stereotype.Component;
 @Component
 public interface ProductMapper {
 
-	@TulingSelect(value = "select * from product_info where product_id=?")
+	@MySelect(value = "select * from product_info where product_id=?")
 	ProductInfo qryById(Integer productId);
 }

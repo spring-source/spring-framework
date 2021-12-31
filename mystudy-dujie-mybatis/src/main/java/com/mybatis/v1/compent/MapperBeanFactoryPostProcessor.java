@@ -16,9 +16,10 @@ import org.springframework.stereotype.Component;
  * @date 2020/5/5 13:31
  */
 @Component
-public class TulingBeanFactoryPostProcessor implements BeanFactoryPostProcessor {
+public class MapperBeanFactoryPostProcessor implements BeanFactoryPostProcessor {
 	@Override
 	public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
+
 		GenericBeanDefinition accountMapperBd = (GenericBeanDefinition) beanFactory.getBeanDefinition("accountMapper");
 		accountMapperBd.setBeanClass(AccountMapperFactoryBean.class);
 		System.out.println("accountMapperBd:" + accountMapperBd.toString());

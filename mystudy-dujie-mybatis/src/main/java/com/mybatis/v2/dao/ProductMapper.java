@@ -1,6 +1,6 @@
 package com.mybatis.v2.dao;
 
-import com.mybatis.v2.anno.TulingSelect;
+import com.mybatis.v2.anno.MySelect;
 import com.mybatis.v2.entity.ProductInfo;
 
 /**
@@ -14,6 +14,6 @@ import com.mybatis.v2.entity.ProductInfo;
 
 public interface ProductMapper {
 
-	@TulingSelect(value = "select * from product_info where product_id=?")
+	@MySelect(value = "select * from product_info where product_id=?")
 	ProductInfo qryProductInfoById(Integer productId);
 }

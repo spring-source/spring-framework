@@ -1,4 +1,4 @@
-package com.mybatis.v3.anno;
+package com.mybatis.v2.anno;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface TulingSelect {
+public @interface MySelect {
 
 	String value();
 }

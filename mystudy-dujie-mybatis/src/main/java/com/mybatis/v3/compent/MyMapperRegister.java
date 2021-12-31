@@ -1,17 +1,13 @@
 package com.mybatis.v3.compent;
 
-import com.mybatis.v2.factorybean.TulingMapperFactorybean;
+import com.mybatis.v2.factorybean.MyMapperFactorybean;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
-import org.springframework.core.type.classreading.MetadataReader;
-import org.springframework.core.type.classreading.MetadataReaderFactory;
-import org.springframework.core.type.filter.TypeFilter;
 
-import java.io.IOException;
 import java.util.Set;
 
 /**
@@ -22,17 +18,15 @@ import java.util.Set;
  * @author: smlz
  * @date 2020/5/5 15:12
  */
-public class TulingMapperRegister implements BeanDefinitionRegistryPostProcessor {
+public class MyMapperRegister implements BeanDefinitionRegistryPostProcessor {
 
+	private static Class targetClass = MyMapperFactorybean.class;
 	private String basePackage;
-
-	private static Class targetClass = TulingMapperFactorybean.class;
-
 
 	@Override
 	public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException {
 		//扫描bean定义
-		TulingClassPathMapperScanner mapperScanner = new TulingClassPathMapperScanner(registry);
+		MyClassPathMapperScanner mapperScanner = new MyClassPathMapperScanner(registry);
 
 		mapperScanner.addIncludeFilter((metadataReader, metadataReaderFactory) -> true);
 

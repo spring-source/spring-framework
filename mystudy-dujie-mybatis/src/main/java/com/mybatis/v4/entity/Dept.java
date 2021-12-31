@@ -8,6 +8,7 @@ import java.io.Serializable;
 public class Dept implements Serializable {
 
 	private Integer id;
+	private String departmentName;
 
 	@Override
 	public String toString() {
@@ -16,8 +17,6 @@ public class Dept implements Serializable {
 				", departmentName='" + departmentName + '\'' +
 				'}';
 	}
-
-	private String departmentName;
 
 	public Integer getId() {
 		return id;

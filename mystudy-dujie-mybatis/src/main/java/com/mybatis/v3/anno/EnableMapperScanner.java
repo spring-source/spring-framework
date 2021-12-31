@@ -1,6 +1,6 @@
 package com.mybatis.v3.anno;
 
-import com.mybatis.v2.compent.TulingImportBeanDefinitionRegister;
+import com.mybatis.v3.compent.MyImportBeanDefinitionRegister;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.ElementType;
@@ -18,7 +18,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@Import(value = TulingImportBeanDefinitionRegister.class)
+@Import(value = MyImportBeanDefinitionRegister.class)
 public @interface EnableMapperScanner {
 
 	String basePackage();

@@ -15,7 +15,7 @@ import org.springframework.core.type.AnnotationMetadata;
  * @author: smlz
  * @date 2020/5/5 14:29
  */
-public class TulingImportBeanDefinitionRegister implements ImportBeanDefinitionRegistrar {
+public class MyImportBeanDefinitionRegister implements ImportBeanDefinitionRegistrar {
 
 
 	@Override
@@ -28,11 +28,11 @@ public class TulingImportBeanDefinitionRegister implements ImportBeanDefinitionR
 			return;
 		}
 
-		BeanDefinitionBuilder beanDefinitionBuilder = BeanDefinitionBuilder.genericBeanDefinition(TulingMapperRegister.class);
+		BeanDefinitionBuilder beanDefinitionBuilder = BeanDefinitionBuilder.genericBeanDefinition(MyMapperRegister.class);
 
 		beanDefinitionBuilder.addPropertyValue("basePackage", attributes.getString("basePackage"));
 
-		registry.registerBeanDefinition(TulingMapperRegister.class.getName(), beanDefinitionBuilder.getBeanDefinition());
+		registry.registerBeanDefinition(MyMapperRegister.class.getName(), beanDefinitionBuilder.getBeanDefinition());
 
 	}
 }

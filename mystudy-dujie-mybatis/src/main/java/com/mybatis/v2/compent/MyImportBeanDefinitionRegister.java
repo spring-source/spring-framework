@@ -1,7 +1,7 @@
 package com.mybatis.v2.compent;
 
 import com.mybatis.v2.anno.EnableMapperScanner;
-import com.mybatis.v2.factorybean.TulingMapperFactorybean;
+import com.mybatis.v2.factorybean.MyMapperFactorybean;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
@@ -23,9 +23,9 @@ import java.util.Set;
  * @author: smlz
  * @date 2020/5/5 14:29
  */
-public class TulingImportBeanDefinitionRegister implements ImportBeanDefinitionRegistrar {
+public class MyImportBeanDefinitionRegister implements ImportBeanDefinitionRegistrar {
 
-	private static Class targetClass = TulingMapperFactorybean.class;
+	private static Class targetClass = MyMapperFactorybean.class;
 
 	@Override
 	public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
@@ -39,7 +39,7 @@ public class TulingImportBeanDefinitionRegister implements ImportBeanDefinitionR
 		String basePackage = attributes.getString("basePackage");
 
 		//扫描bean定义
-		TulingClassPathMapperScanner mapperScanner = new TulingClassPathMapperScanner(registry);
+		MyClassPathMapperScanner mapperScanner = new MyClassPathMapperScanner(registry);
 
 		mapperScanner.addIncludeFilter(new TypeFilter() {
 			@Override
