@@ -3,7 +3,7 @@ package com.dujie.dynamicproxy.anno;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
- * Created by smlz on 2020/3/31.
+ * Created by dujie on 2020/3/31.
  */
 public class MainClass {
 

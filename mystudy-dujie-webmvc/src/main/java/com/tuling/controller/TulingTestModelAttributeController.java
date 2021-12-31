@@ -12,7 +12,7 @@ import java.util.Map;
 
 /**
  * 测试@ModelAttribute的作用
- * Created by smlz on 2019/8/12.
+ * Created by dujie on 2019/8/12.
  */
 @RestController
 public class TulingTestModelAttributeController {
@@ -27,7 +27,7 @@ public class TulingTestModelAttributeController {
 
 	/**
 	 * 方法实现说明:修改数据库操作，要求年龄不能改
-	 * @author:smlz
+	 * @author:dujie
 	 * @param user 前端传过来的user对象(由于年龄不能改,那么前端不会传入年龄过来)
 	 * @return:
 	 * @exception:

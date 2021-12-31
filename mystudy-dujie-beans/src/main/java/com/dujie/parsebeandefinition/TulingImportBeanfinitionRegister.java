@@ -7,7 +7,7 @@ import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.stereotype.Component;
 
 /**
- * Created by smlz on 2019/7/15.
+ * Created by dujie on 2019/7/15.
  */
 @Component
 public class TulingImportBeanfinitionRegister implements ImportBeanDefinitionRegistrar {

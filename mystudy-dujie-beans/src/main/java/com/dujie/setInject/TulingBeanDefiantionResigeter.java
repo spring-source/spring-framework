@@ -8,7 +8,7 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.stereotype.Component;
 
 /**
- * Created by smlz on 2019/8/26.
+ * Created by dujie on 2019/8/26.
  */
 @Component
 public class TulingBeanDefiantionResigeter implements BeanDefinitionRegistryPostProcessor {

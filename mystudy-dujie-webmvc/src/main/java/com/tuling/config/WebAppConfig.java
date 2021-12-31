@@ -19,7 +19,7 @@ import java.util.List;
 /**
 * @vlog: 高于生活，源于生活
 * @desc: 类的描述 web子容器
-* @author: smlz
+* @author: dujie
 * @createDate: 2019/7/31 20:22
 * @version: 1.0
 */
@@ -68,7 +68,7 @@ public class WebAppConfig implements WebMvcConfigurer{
 
 	/**
 	 * 方法实现说明:配置试图解析器
-	 * @author:smlz
+	 * @author:dujie
 	 * @exception:
 	 * @date:2019/8/6 16:23
 	 */

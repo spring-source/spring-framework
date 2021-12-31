@@ -14,7 +14,7 @@ import static org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE;
 /**
 * @vlog: 高于生活，源于生活
 * @desc: 类的描述:IOC根容器,不扫描Controller的注解
-* @author: smlz
+* @author: dujie
 * @createDate: 2019/7/31 20:20
 * @version: 1.0
 */

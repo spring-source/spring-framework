@@ -5,7 +5,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Created by smlz on 2019/8/15.
+ * Created by dujie on 2019/8/15.
  */
 @Configuration
 @ComponentScan(basePackages = {"com.dujie.iocbeanlifecicle"})

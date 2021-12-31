@@ -3,7 +3,7 @@ package com.dujie.version3.support;
 import org.springframework.beans.factory.annotation.Value;
 
 /**
- * Created by smlz on 2019/8/31.
+ * Created by dujie on 2019/8/31.
  */
 public class RedisCfgProperties {
 

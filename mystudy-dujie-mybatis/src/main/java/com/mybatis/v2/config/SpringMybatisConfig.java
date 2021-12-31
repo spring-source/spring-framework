@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
  *
  * @slogan: 高于生活，源于生活
  * @Description: TODO
- * @author: smlz
+ * @author: dujie
  * @date 2020/5/4 15:06
  */
 @Configuration

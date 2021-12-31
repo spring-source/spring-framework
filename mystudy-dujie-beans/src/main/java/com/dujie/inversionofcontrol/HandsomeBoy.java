@@ -2,7 +2,7 @@ package com.dujie.inversionofcontrol;
 
 /**
  * 帅气的年轻小伙
- * Created by smlz on 2019/8/1.
+ * Created by dujie on 2019/8/1.
  */
 public class HandsomeBoy {
 

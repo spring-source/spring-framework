@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
 /**
- * Created by smlz on 2019/8/22.
+ * Created by dujie on 2019/8/22.
  */
 @ComponentScan(basePackages = {"com.dujie.setInject"})
 //@Import(value = {InstC.class,TulingImportBeanDefinitionRegister.class,TulingImportSelector.class})

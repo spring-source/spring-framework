@@ -3,7 +3,7 @@ package com.tuling.initbinder;
 import java.util.Date;
 
 /**
- * Created by smlz on 2019/8/12.
+ * Created by dujie on 2019/8/12.
  */
 
 public class User {

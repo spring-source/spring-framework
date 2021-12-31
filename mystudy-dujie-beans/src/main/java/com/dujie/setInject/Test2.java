@@ -8,7 +8,7 @@ import org.springframework.core.PriorityOrdered;
 import org.springframework.stereotype.Component;
 
 /**
- * Created by smlz on 2019/10/28.
+ * Created by dujie on 2019/10/28.
  */
 @Component
 public class Test2 implements BeanDefinitionRegistryPostProcessor,PriorityOrdered {

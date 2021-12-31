@@ -20,7 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Created by smlz on 2019/7/31.
+ * Created by dujie on 2019/7/31.
  */
 @RestController
 public class TulingController {
@@ -36,13 +36,13 @@ public class TulingController {
 		System.out.println("serlvetPath:"+httpServletRequest.getServletPath());
 		ServletContext servletContext = httpServletRequest.getServletContext();
 		tulingServiceImpl.sayHello();
-		return "smlz";
+		return "dujie";
 	}
 
 	@RequestMapping(value = {"/tuling"})
 	public String testAngle(HttpServletRequest httpServletRequest) {
 		ServletContext servletContext = httpServletRequest.getServletContext();
-		return "smlz";
+		return "dujie";
 	}
 
 	@RequestMapping("/returnJson")

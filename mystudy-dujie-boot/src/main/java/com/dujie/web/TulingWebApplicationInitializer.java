@@ -20,7 +20,7 @@ import javax.servlet.ServletRegistration;
  *	 WebappServiceLoader<ServletContainerInitializer> loader = new WebappServiceLoader<>(context);
  detectedScis = loader.load(ServletContainerInitializer.class);
  *
- * Created by smlz on 2019/7/31.
+ * Created by dujie on 2019/7/31.
  */
 public class TulingWebApplicationInitializer implements WebApplicationInitializer {
 

@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 测试tulingDao
- * Created by smlz on 2019/7/7.
+ * Created by dujie on 2019/7/7.
  */
 @Component
 public class TulingDao {

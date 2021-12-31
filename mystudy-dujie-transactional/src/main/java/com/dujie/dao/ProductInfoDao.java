@@ -5,7 +5,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * Created by smlz on 2019/6/23.
+ * Created by dujie on 2019/6/23.
  */
 @Repository
 public class ProductInfoDao {

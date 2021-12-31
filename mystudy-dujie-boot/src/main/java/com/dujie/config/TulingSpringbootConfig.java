@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * 简单版本springboot的配置类
- * Created by smlz on 2019/8/16.
+ * Created by dujie on 2019/8/16.
  */
 @Configuration
 @ComponentScan(basePackages = {"com.dujie"})

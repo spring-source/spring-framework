@@ -7,7 +7,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProce
 import org.springframework.stereotype.Component;
 
 /**
- * Created by smlz on 2020/4/10.
+ * Created by dujie on 2020/4/10.
  */
 @Component
 public class TulingBeanDefinitionRegistryPostProcessor implements BeanDefinitionRegistryPostProcessor {

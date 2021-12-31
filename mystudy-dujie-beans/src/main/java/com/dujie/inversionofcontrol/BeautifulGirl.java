@@ -2,7 +2,7 @@ package com.dujie.inversionofcontrol;
 
 /**
  * 漂亮的小姐姐
- * Created by smlz on 2019/8/1.
+ * Created by dujie on 2019/8/1.
  */
 public class BeautifulGirl {
 

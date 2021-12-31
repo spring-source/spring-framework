@@ -1,7 +1,7 @@
 package com.dujie.inversionofcontrol;
 
 /**
- * Created by smlz on 2019/8/1.
+ * Created by dujie on 2019/8/1.
  */
 public class MainStarter {
 

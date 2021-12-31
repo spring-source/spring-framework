@@ -4,7 +4,7 @@ package com.dujie.setInject;
 import org.springframework.stereotype.Component;
 
 /**
- * Created by smlz on 2019/8/22.
+ * Created by dujie on 2019/8/22.
  */
 @Component
 public class InstA {

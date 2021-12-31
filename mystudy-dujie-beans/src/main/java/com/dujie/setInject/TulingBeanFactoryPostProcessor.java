@@ -9,7 +9,7 @@ import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.stereotype.Component;
 
 /**
- * Created by smlz on 2019/8/23.
+ * Created by dujie on 2019/8/23.
  */
 @Component
 public class TulingBeanFactoryPostProcessor implements BeanFactoryPostProcessor {

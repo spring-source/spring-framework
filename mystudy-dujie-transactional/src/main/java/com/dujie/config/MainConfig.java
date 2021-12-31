@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import javax.sql.DataSource;
 
 /**
- * Created by smlz on 2019/6/17.
+ * Created by dujie on 2019/6/17.
  */
 @EnableTransactionManagement
 @EnableAspectJAutoProxy(exposeProxy = true)

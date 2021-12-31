@@ -7,7 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
 /**
- * Created by smlz on 2019/3/22.
+ * Created by dujie on 2019/3/22.
  */
 public interface DeptMapper {
 

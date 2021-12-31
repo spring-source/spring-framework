@@ -3,7 +3,7 @@ package com.dujie.circulardependencies;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
- * Created by smlz on 2019/5/29.
+ * Created by dujie on 2019/5/29.
  */
 public class MainClass {
 

@@ -3,7 +3,7 @@ package com.dujie.parsebeandefinition;
 import org.springframework.stereotype.Component;
 
 /**
- * Created by smlz on 2019/7/15.
+ * Created by dujie on 2019/7/15.
  */
 @Component
 public class CompentE {

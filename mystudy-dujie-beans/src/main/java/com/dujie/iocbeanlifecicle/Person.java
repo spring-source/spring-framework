@@ -5,7 +5,7 @@ import org.springframework.beans.factory.InitializingBean;
 import javax.annotation.PostConstruct;
 
 /**
- * Created by smlz on 2019/8/15.
+ * Created by dujie on 2019/8/15.
  */
 public class Person implements InitializingBean {
 

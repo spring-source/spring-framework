@@ -1,7 +1,7 @@
 package com.dujie.parsebeandefinition;
 
 /**
- * Created by smlz on 2019/7/15.
+ * Created by dujie on 2019/7/15.
  */
 public class CompentB {
 

@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.SessionAttributes;
 import org.springframework.web.servlet.ModelAndView;
 
 /**
- * Created by smlz on 2019/8/14.
+ * Created by dujie on 2019/8/14.
  */
 @Controller
 @SessionAttributes(names = {"user"})

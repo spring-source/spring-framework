@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import java.lang.reflect.Method;
 
 /**
- * Created by smlz on 2020/3/31.
+ * Created by dujie on 2020/3/31.
  */
 @Component
 public class GenProxyBeanPostProcessor implements BeanPostProcessor {

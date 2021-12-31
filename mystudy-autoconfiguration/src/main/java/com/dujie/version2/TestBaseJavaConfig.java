@@ -6,7 +6,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.data.redis.core.RedisTemplate;
 
 /**
- * Created by smlz on 2019/8/31.
+ * Created by dujie on 2019/8/31.
  */
 @Slf4j
 public class TestBaseJavaConfig {
@@ -17,8 +17,8 @@ public class TestBaseJavaConfig {
 		AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(SpringRedisonfig.class);
 		RedisTemplate redisTemplate = (RedisTemplate) context.getBean("redisTemplate");
 
-		redisTemplate.opsForValue().set("smlz","司马");
+		redisTemplate.opsForValue().set("dujie","司马");
 
-		System.out.println("从redis获取===="+redisTemplate.opsForValue().get("smlz"));
+		System.out.println("从redis获取===="+redisTemplate.opsForValue().get("dujie"));
 	}
 }

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 
 /**
- * Created by smlz on 2019/5/29.
+ * Created by dujie on 2019/5/29.
  */
 @Component
 public class InstanceA  {

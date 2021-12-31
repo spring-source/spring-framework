@@ -14,9 +14,9 @@ public class TestBaseJavaConfig {
 
 		RedisTemplate redisTemplate = (RedisTemplate) context.getBean("redisTemplate");
 
-		redisTemplate.opsForValue().set("smlz","司马");
+		redisTemplate.opsForValue().set("dujie","司马");
 
-		System.out.println("================"+redisTemplate.opsForValue().get("smlz"));
+		System.out.println("================"+redisTemplate.opsForValue().get("dujie"));
 		/*MultiValueMap<String,String> provinceMappingCity = new LinkedMultiValueMap<String, String>();
 		provinceMappingCity.add("湖南","长沙");
 		provinceMappingCity.add("湖南","常德");

@@ -6,7 +6,7 @@ import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.core.type.AnnotationMetadata;
 
 /**
- * Created by smlz on 2019/8/23.
+ * Created by dujie on 2019/8/23.
  */
 public class TulingImportBeanDefinitionRegister implements ImportBeanDefinitionRegistrar {
 	@Override

@@ -9,7 +9,7 @@ import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import redis.clients.jedis.JedisPoolConfig;
 
 /**
- * Created by smlz on 2019/9/3.
+ * Created by dujie on 2019/9/3.
  */
 @Configuration
 public class SpringRedisonfig {

@@ -2,7 +2,7 @@ package com.dujie;
 
 /**
  * 计算类接口
- * Created by smlz on 2019/6/10.
+ * Created by dujie on 2019/6/10.
  */
 public interface Calculate {
 

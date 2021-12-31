@@ -5,7 +5,7 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.stereotype.Component;
 
 /**
- * Created by smlz on 2019/8/15.
+ * Created by dujie on 2019/8/15.
  */
 @Component
 public class PersonBeanPostprocessor implements BeanPostProcessor {

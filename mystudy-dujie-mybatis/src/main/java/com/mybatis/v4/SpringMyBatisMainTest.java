@@ -10,7 +10,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
  *
  * @slogan: 高于生活，源于生活
  * @Description: TODO
- * @author: smlz
+ * @author: dujie
  * @date 2020/5/7 14:27
  */
 public class SpringMyBatisMainTest {

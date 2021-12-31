@@ -1,7 +1,7 @@
 package com.mybatis.v3.entity;
 
 /**
- * Created by smlz on 2019/6/17.
+ * Created by dujie on 2019/6/17.
  */
 public class AccountInfo {
 

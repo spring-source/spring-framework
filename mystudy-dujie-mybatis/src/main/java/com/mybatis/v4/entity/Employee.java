@@ -3,7 +3,7 @@ package com.mybatis.v4.entity;
 import lombok.Data;
 
 /**
- * Created by smlz on 2019/3/22.
+ * Created by dujie on 2019/3/22.
  */
 @Data
 public class Employee {

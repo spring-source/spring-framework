@@ -1,7 +1,7 @@
 package com.dujie.entity;
 
 /**
- * Created by smlz on 2019/8/18.
+ * Created by dujie on 2019/8/18.
  */
 public class UserInfo {
 

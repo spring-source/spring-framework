@@ -1,7 +1,7 @@
 package com.mybatis.v1.entity;
 
 /**
- * Created by smlz on 2019/6/23.
+ * Created by dujie on 2019/6/23.
  */
 public class ProductInfo {
 

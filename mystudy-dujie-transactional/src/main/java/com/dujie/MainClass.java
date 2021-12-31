@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
- * Created by smlz on 2019/6/17.
+ * Created by dujie on 2019/6/17.
  */
 @Slf4j
 public class MainClass {

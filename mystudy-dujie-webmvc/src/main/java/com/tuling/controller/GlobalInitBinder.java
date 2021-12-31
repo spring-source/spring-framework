@@ -1,7 +1,7 @@
 package com.tuling.controller;
 
 /**
- * Created by smlz on 2019/8/12.
+ * Created by dujie on 2019/8/12.
  */
 
 import org.springframework.beans.propertyeditors.CustomDateEditor;
@@ -18,7 +18,7 @@ import java.util.Date;
 /**
 * @vlog: 高于生活，源于生活
 * @desc: 类的描述:全局的数据绑定器对象
-* @author: smlz
+* @author: dujie
 * @createDate: 2019/8/12 14:34
 * @version: 1.0
 */

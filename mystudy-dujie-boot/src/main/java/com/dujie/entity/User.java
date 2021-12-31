@@ -1,7 +1,7 @@
 package com.dujie.entity;
 
 /**
- * Created by smlz on 2019/8/28.
+ * Created by dujie on 2019/8/28.
  */
 
 public class User {

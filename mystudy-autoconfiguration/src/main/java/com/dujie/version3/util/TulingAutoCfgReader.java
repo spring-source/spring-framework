@@ -6,7 +6,7 @@ import java.util.Properties;
 
 /**
  * 自动装配读取器
- * Created by smlz on 2019/9/17.
+ * Created by dujie on 2019/9/17.
  */
 public class TulingAutoCfgReader {
 
