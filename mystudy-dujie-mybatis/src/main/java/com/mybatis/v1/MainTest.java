@@ -17,9 +17,7 @@ public class MainTest {
 	public static void main(String[] args) {
 		AnnotationConfigApplicationContext context
 				= new AnnotationConfigApplicationContext(SpringMybatisConfig.class);
-
 		AccountMapper accountMapper = (AccountMapper) context.getBean("accountMapper");
-
 		System.out.println("获取的mapper实例" + accountMapper);
 		System.out.println(accountMapper.qryById("11111") + "==================");
 
