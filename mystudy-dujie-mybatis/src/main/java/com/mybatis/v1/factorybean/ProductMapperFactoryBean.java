@@ -17,7 +17,7 @@ import java.util.Arrays;
  *
  * @date 2020/5/5 14:04
  */
-@Component
+@Component("productMapper")
 public class ProductMapperFactoryBean implements FactoryBean {
 
 	@Nullable
