@@ -70,7 +70,10 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 	@Nullable
 	private Boolean allowCircularReferences;
 
-	/** Bean factory for this context. */
+	/** Bean factory for this context.
+	 * 初始化beanfactory时在线程安全的情况下，返回this.beanFactory，这个beanFactory是谁呢，原来就是刚刚refreshBeanFactory()
+	 * 方法赋值的那个AbstractRefreshableApplicationContext.java中的DefaultListableBeanFactory beanFactory
+	 **/
 	@Nullable
 	private volatile DefaultListableBeanFactory beanFactory;
 
