@@ -540,7 +540,19 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	public Collection<ApplicationListener<?>> getApplicationListeners() {
 		return this.applicationListeners;
 	}
-
+	/**
+	 * 那在spring中bean的生命周期究竟是怎样的呢
+	 * 1. 容器寻找Bean的定义信息并将其实例化
+	 * 2. 使用依赖注入，spring按照Bean定义信息配置Bean的所有属性
+	 * 3. 如果Bean实现了BeanNameAware接口，工厂调用Bean的SetBeanName()方法传递Bean的ID
+	 * 4. 如果Bean实现了BeanFactoryAware接口，工厂调用setBeanFactory()方法传入工厂自身
+	 * 5. 如果BeanPostProcessor和Bean关联，那么其postProcessBeforeInitialization()方法将被调用
+	 * 6. 如果Bean指定了init-method方法，将被调用
+	 * 7. 最后，如果有BeanPostProcessor和Bean关联,那么其postProcessAfterInitialization()方法将被调用
+	 * 此时，Bean已经可以被应用系统使用，并将被保留在BeanFactory中知道他不再被需要。有两种可以将其从BeanFactory中删除掉的方法
+	 * ①　如果Bean实现了DisposableBean接口，destroy()方法将被调用
+	 * ②　如指定了定制的销毁方法，就调用这个方法
+	 */
 	@Override
 	public void refresh() throws BeansException, IllegalStateException {
 		synchronized (this.startupShutdownMonitor) {
@@ -732,7 +744,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		//注册了一个完整的ApplicationContextAwareProcessor 后置处理器用来处理ApplicationContextAware接口的回调方法
 		beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
 		/**
-		 * 当 Spring 将 Applie础onContextAwareProcessor 注册后，那么在 invokeAwarelnterfaces 方法中间接调用的 Aware 类已经不是普通的 bean 了 ，
+		 * 当 Spring 将 ApplicationContextAwareProcessor 注册后，那么在 invokeAwarelnterfaces 方法中间接调用的 Aware 类已经不是普通的 bean 了 ，
 		 * 如 ResourceLoaderAware、 ApplicationEventPublisher 等，那么当然需要在 Spring 做 bean 的依赖注入的时候忽略它们。
 		 * 而 ignoreDependencyInterface 的作用正是在此
 		 * 跳过以下6个属性的自动注入  因为在ApplicationContextAwareProcessor中已经完成了手动注入

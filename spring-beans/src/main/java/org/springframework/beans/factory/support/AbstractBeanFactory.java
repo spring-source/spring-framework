@@ -696,7 +696,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// Attempt to get the actual ResolvableType for the bean.
 		ResolvableType beanType = null;
 
-		// If it's a FactoryBean, we want to look at what it creates, not the factory class.
+		// If it's a FactoryBean, we want to look at what it creates, not the factory class.  如果是FactoryBean，我们要看它创建了什么，而不是工厂类
 		if (FactoryBean.class.isAssignableFrom(predictedType)) {
 			if (beanInstance == null && !isFactoryDereference) {
 				beanType = getTypeForFactoryBean(beanName, mbd, allowFactoryBeanInit);

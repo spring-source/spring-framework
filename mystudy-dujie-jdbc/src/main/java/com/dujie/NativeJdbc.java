@@ -50,10 +50,10 @@ public class NativeJdbc {
 
 	private static void defenseSqlInject() throws ClassNotFoundException, SQLException {
 		//1:加载驱动
-		Class.forName("com.mysql.jdbc.Driver");
+		Class.forName("com.mysql.cj.jdbc.Driver");
 
 		//2:创建连接
-		Connection connection = DriverManager.getConnection(url,"root","123456");
+		Connection connection = DriverManager.getConnection(url,"root","root");
 
 		String sql = "select * from user_info where user_name = ? and password= ? ";
 
