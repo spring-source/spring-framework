@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
  * 测试tulingDao
  * Created by dujie on 2019/7/7.
  */
-@Component
+@Component("tulingDao")
 public class TulingDao {
 
 	@Autowired

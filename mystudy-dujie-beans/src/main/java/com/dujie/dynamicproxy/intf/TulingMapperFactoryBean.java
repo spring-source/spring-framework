@@ -2,6 +2,7 @@ package com.dujie.dynamicproxy.intf;
 
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.lang.Nullable;
+import org.springframework.stereotype.Component;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -12,6 +13,7 @@ import java.util.Arrays;
 /**
  * Created by dujie on 2020/3/31.
  */
+@Component("userInfoMapper")
 public class TulingMapperFactoryBean implements FactoryBean {
 
 	private Class targetClass;

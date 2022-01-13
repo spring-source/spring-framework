@@ -9,6 +9,5 @@ import org.springframework.stereotype.Component;
 public interface UserInfoMapper {
 
 	@TulingSelect(value = "select * from user_info where id=?")
-
 	void UserInfo(Integer userId);
 }

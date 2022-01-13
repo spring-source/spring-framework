@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class PersonBeanPostprocessor implements BeanPostProcessor {
 
+	@Override
 	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
 
 		if(bean instanceof Person) {

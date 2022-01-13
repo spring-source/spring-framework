@@ -11,6 +11,6 @@ public class TulingImportSelect implements ImportSelector {
 
 	@Override
 	public String[] selectImports(AnnotationMetadata importingClassMetadata) {
-		return new String[]{"com.tuling.parsebeandefinition.CompentA"};
+		return new String[]{"com.dujie.parsebeandefinition.CompentA"};
 	}
 }

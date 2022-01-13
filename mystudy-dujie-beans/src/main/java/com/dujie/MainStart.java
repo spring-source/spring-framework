@@ -1,6 +1,6 @@
 package com.dujie;
 
-import com.dujie.setInject.MainConfig;
+import com.dujie.config.MainConfig;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 public class MainStart {
