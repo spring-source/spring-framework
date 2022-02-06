@@ -45,7 +45,7 @@ configure(allprojects) { project ->
 				entry 'log4j-jul'
 				entry 'log4j-slf4j-impl'
 			}
-			dependency "org.slf4j:slf4j-api:1.7.33"
+			dependency "org.slf4j:slf4j-api:1.7.35"
 			dependency("com.google.code.findbugs:findbugs:3.0.1") {
 				exclude group: "dom4j", name: "dom4j"
 			}
@@ -68,16 +68,16 @@ configure(allprojects) { project ->
 			dependency "io.reactivex:rxjava-reactive-streams:1.2.1"
 			dependency "io.reactivex.rxjava2:rxjava:2.2.21"
 			dependency "io.reactivex.rxjava3:rxjava:3.1.3"
-			dependency "io.smallrye.reactive:mutiny:1.2.0"
+			dependency "io.smallrye.reactive:mutiny:1.3.1"
 			dependency "io.projectreactor.tools:blockhound:1.0.6.RELEASE"
 
 			dependency "com.caucho:hessian:4.0.63"
-			dependency "com.fasterxml:aalto-xml:1.3.0"
-			dependency("com.fasterxml.woodstox:woodstox-core:6.2.7") {
+			dependency "com.fasterxml:aalto-xml:1.3.1"
+			dependency("com.fasterxml.woodstox:woodstox-core:6.2.8") {
 				exclude group: "stax", name: "stax-api"
 			}
 			dependency "com.google.code.gson:gson:2.8.9"
-			dependency "com.google.protobuf:protobuf-java-util:3.19.1"
+			dependency "com.google.protobuf:protobuf-java-util:3.19.3"
 			dependency "com.googlecode.protobuf-java-format:protobuf-java-format:1.4"
 			dependency("com.thoughtworks.xstream:xstream:1.4.18") {
 				exclude group: "xpp3", name: "xpp3_min"
@@ -94,10 +94,10 @@ configure(allprojects) { project ->
 			dependency "org.ogce:xpp3:1.1.6"
 			dependency "org.yaml:snakeyaml:1.30"
 
-			dependency "com.h2database:h2:2.0.206"
+			dependency "com.h2database:h2:2.1.210"
 			dependency "com.github.ben-manes.caffeine:caffeine:2.9.3"
 			dependency "com.github.librepdf:openpdf:1.3.26"
-			dependency "com.rometools:rome:1.16.0"
+			dependency "com.rometools:rome:1.18.0"
 			dependency "commons-io:commons-io:2.5"
 			dependency "io.vavr:vavr:0.10.4"
 			dependency "net.sf.jopt-simple:jopt-simple:5.0.4"
@@ -128,14 +128,14 @@ configure(allprojects) { project ->
 			dependency "org.webjars:webjars-locator-core:0.48"
 			dependency "org.webjars:underscorejs:1.8.3"
 
-			dependencySet(group: 'org.apache.tomcat', version: '9.0.56') {
+			dependencySet(group: 'org.apache.tomcat', version: '9.0.58') {
 				entry 'tomcat-util'
 				entry('tomcat-websocket') {
 					exclude group: "org.apache.tomcat", name: "tomcat-servlet-api"
 					exclude group: "org.apache.tomcat", name: "tomcat-websocket-api"
 				}
 			}
-			dependencySet(group: 'org.apache.tomcat.embed', version: '9.0.56') {
+			dependencySet(group: 'org.apache.tomcat.embed', version: '9.0.58') {
 				entry 'tomcat-embed-core'
 				entry 'tomcat-embed-websocket'
 			}
@@ -151,8 +151,8 @@ configure(allprojects) { project ->
 			}
 
 			dependency "org.eclipse.jetty:jetty-reactive-httpclient:1.1.10"
-			dependency 'org.apache.httpcomponents.client5:httpclient5:5.1.2'
-			dependency 'org.apache.httpcomponents.core5:httpcore5-reactive:5.1.2'
+			dependency 'org.apache.httpcomponents.client5:httpclient5:5.1.3'
+			dependency 'org.apache.httpcomponents.core5:httpcore5-reactive:5.1.3'
 			dependency("org.apache.httpcomponents:httpclient:4.5.13") {
 				exclude group: "commons-logging", name: "commons-logging"
 			}
@@ -192,13 +192,13 @@ configure(allprojects) { project ->
 			dependency "org.hamcrest:hamcrest:2.1"
 			dependency "org.awaitility:awaitility:3.1.6"
 			dependency "org.assertj:assertj-core:3.22.0"
-			dependencySet(group: 'org.xmlunit', version: '2.8.4') {
+			dependencySet(group: 'org.xmlunit', version: '2.9.0') {
 				entry 'xmlunit-assertj'
 				entry('xmlunit-matchers') {
 					exclude group: "org.hamcrest", name: "hamcrest-core"
 				}
 			}
-			dependencySet(group: 'org.mockito', version: '4.2.0') {
+			dependencySet(group: 'org.mockito', version: '4.3.1') {
 				entry('mockito-core') {
 					exclude group: "org.hamcrest", name: "hamcrest-core"
 				}
@@ -206,10 +206,10 @@ configure(allprojects) { project ->
 			}
 			dependency "io.mockk:mockk:1.12.1"
 
-			dependency("net.sourceforge.htmlunit:htmlunit:2.56.0") {
+			dependency("net.sourceforge.htmlunit:htmlunit:2.58.0") {
 				exclude group: "commons-logging", name: "commons-logging"
 			}
-			dependency("org.seleniumhq.selenium:htmlunit-driver:2.56.0") {
+			dependency("org.seleniumhq.selenium:htmlunit-driver:2.58.0") {
 				exclude group: "commons-logging", name: "commons-logging"
 			}
 			dependency("org.seleniumhq.selenium:selenium-java:3.141.59") {
@@ -342,7 +342,7 @@ configure([rootProject] + javaProjects) { project ->
 	}
 
 	checkstyle {
-		toolVersion = "9.2"
+		toolVersion = "9.3"
 		configDirectory.set(rootProject.file("src/checkstyle"))
 	}
 
@@ -364,7 +364,7 @@ configure([rootProject] + javaProjects) { project ->
 		// JSR-305 only used for non-required meta-annotations
 		compileOnly("com.google.code.findbugs:jsr305")
 		testCompileOnly("com.google.code.findbugs:jsr305")
-		checkstyle("io.spring.javaformat:spring-javaformat-checkstyle:0.0.29")
+		checkstyle("io.spring.javaformat:spring-javaformat-checkstyle:0.0.31")
 	}
 
 	ext.javadocLinks = [
@@ -407,7 +407,6 @@ configure(moduleProjects) { project ->
 configure(rootProject) {
 	description = "Spring Framework"
 
-	apply plugin: "groovy"
 	apply plugin: "kotlin"
 	apply plugin: "io.spring.nohttp"
 	apply plugin: 'org.springframework.build.api-diff'
