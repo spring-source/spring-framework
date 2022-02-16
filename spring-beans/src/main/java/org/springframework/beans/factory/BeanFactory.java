@@ -87,7 +87,7 @@ import org.springframework.lang.Nullable;
  * <li>a custom {@code init-method} definition
  * <li>{@code postProcessAfterInitialization} methods of BeanPostProcessors
  * </ol>
- *
+ * 定义获取Bean及Bean的各种属性
  * <p>On shutdown of a bean factory, the following lifecycle methods apply:
  * <ol>
  * <li>{@code postProcessBeforeDestruction} methods of DestructionAwareBeanPostProcessors
