@@ -80,18 +80,20 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * singletonFactories，生产单例的工厂的缓存，存储工厂。
 	 * earlySingletonObjects，提前暴露的单例缓存，这时候的单例刚刚创建完，但还会注入依赖。
 	 */
-	/** 一级缓存 这个就是我们大名鼎鼎的单例缓存池 用于保存我们所有的单实例bean */
+	/** 一级缓存 这个就是我们大名鼎鼎的单例缓存池 用于保存我们所有的单实例bean key:BeanName value:bean实例 */
 	private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
 
 	/** Cache of singleton factories: bean name to ObjectFactory. */
-	/** 三级缓存 该map用户缓存 key为 beanName  value 为ObjectFactory(包装为早期对象) */
+	/** 三级缓存 该map用户缓存 key为 beanName  value 为ObjectFactory(包装为早期对象) key：BeanName value：创建的bean工厂*/
 	private final Map<String, ObjectFactory<?>> singletonFactories = new HashMap<>(16);
 
 	/** Cache of early singleton objects: bean name to bean instance. */
 	/** 二级缓存 ，用户缓存我们的key为beanName value是我们的早期对象(对象属性还没有来得及进行赋值) */
 	private final Map<String, Object> earlySingletonObjects = new ConcurrentHashMap<>(16);
 
-	/** Set of registered singletons, containing the bean names in registration order. */
+	/** Set of registered singletons, containing the bean names in registration order.
+	 * 用来保存当前所有已经注册的bean
+	 **/
 	private final Set<String> registeredSingletons = new LinkedHashSet<>(256);
 
 	/** Names of beans that are currently in creation. */

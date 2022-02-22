@@ -85,7 +85,7 @@ public class AnnotatedBeanDefinitionReader {
 		Assert.notNull(environment, "Environment must not be null");
 		//把ApplicationContext对象赋值给AnnotatedBeanDefinitionReader
 		this.registry = registry;
-		//用户处理条件表达式计算 @Conditionl主机呃呃
+		//用户处理条件表达式计算 @Conditionl主机
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, null);
 		//注册一些配置的后置处理器
 		AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
