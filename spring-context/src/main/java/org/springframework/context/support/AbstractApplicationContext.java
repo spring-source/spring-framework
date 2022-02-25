@@ -561,7 +561,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			//1:准备刷新上下文环境 此时主要初始化项目开始启动时间 早期监听器和早期事件
 			prepareRefresh();
 
-			//2:获取告诉子类初始化Bean工厂
+			//2:获取告诉子类初始化Bean工厂，可能是XML文件读取
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
 			//3:对bean工厂进行填充属性
@@ -575,7 +575,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				// 5、调用我们的bean工厂的后置处理器.
 				invokeBeanFactoryPostProcessors(beanFactory);
 
-				// 6、调用我们bean的后置处理器
+				// 6、调用我们bean的后置处理器，这里只是进行注册真正的调用是在getBean的时候
 				registerBeanPostProcessors(beanFactory);
 				beanPostProcess.end();
 
@@ -691,6 +691,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected ConfigurableListableBeanFactory obtainFreshBeanFactory() {
 		/**
+		 * 如果是  ClassPathXmlApplicationContext 那么此处进行了XML 文件的读取，并将得到的 BeanFactory 记录在当前实体的属性中
 		 * 普通的spring环境的时候，那么这这里bean工厂已经被创建，所以调用GenericApplicationContext#refreshBeanFactory()刷新工厂。
 		 * 而springmvc的环境的时候，bean工厂还没有创建 需要通过refreshBeanFactory();创建
 		 */

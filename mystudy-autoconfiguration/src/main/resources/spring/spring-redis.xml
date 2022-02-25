@@ -3,6 +3,27 @@
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
 
+	<!--	自定义属性编辑器注册到Spring-->
+	<bean class="org.springframework.beans.factory.config.CustomEditorConfigurer">
+		<property name="customEditors">
+			<map>
+				<entry key="java.util.Date">
+					<bean class="com.dujie.property.DatePropertyEditor">
+						<property name="format" value="yyyy-MM-dd"/>
+					</bean>
+				</entry>
+			</map>
+		</property>
+	</bean>
+
+	<bean class="org.springframework.beans.factory.config.CustomEditorConfigurer">
+		<property name="propertyEditorRegistrars">
+			<list>
+				<bean class="com.dujie.property.DatePropertyEditorRegistrar"/>
+			</list>
+		</property>
+	</bean>
+
 	<bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
 		<!-- 最大连接数 -->
 		<property name="maxTotal" value="30" />
