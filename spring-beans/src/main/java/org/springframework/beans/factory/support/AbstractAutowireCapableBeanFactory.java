@@ -2065,7 +2065,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			throws Throwable {
 		//判断我们的容器中是否实现了InitializingBean接口
 		boolean isInitializingBean = (bean instanceof InitializingBean);
-		if (isInitializingBean && (mbd == null || !mbd.isExternallyManagedInitMethod("afterPropertiesSet"))) {
+		if (isInitializingBean && (mbd == null || !mbd.hasAnyExternallyManagedInitMethod("afterPropertiesSet"))) {
 			if (logger.isTraceEnabled()) {
 				logger.trace("Invoking afterPropertiesSet() on bean with name '" + beanName + "'");
 			}
@@ -2092,7 +2092,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			//判断自定义的init方法名称不叫afterPropertiesSet
 			if (StringUtils.hasLength(initMethodName) &&
 					!(isInitializingBean && "afterPropertiesSet".equals(initMethodName)) &&
-					!mbd.isExternallyManagedInitMethod(initMethodName)) {
+					!mbd.hasAnyExternallyManagedInitMethod(initMethodName)) {
 				//调用我们自己的初始化方法
 				invokeCustomInitMethod(beanName, bean, mbd);
 			}
