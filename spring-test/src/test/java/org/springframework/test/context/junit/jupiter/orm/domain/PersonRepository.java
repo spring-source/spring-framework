@@ -14,24 +14,22 @@
  * limitations under the License.
  */
 
-package org.springframework.context.annotation.configuration.spr8955;
-
-import org.junit.jupiter.api.Test;
-
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+package org.springframework.test.context.junit.jupiter.orm.domain;
 
 /**
- * @author Chris Beams
- * @author Willem Dekker
+ * Person repository API.
+ *
+ * @author Sam Brannen
+ * @since 5.3.18
  */
-class Spr8955Tests {
+public interface PersonRepository {
 
-	@Test
-	void repro() {
-		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
-		ctx.scan("org.springframework.context.annotation.configuration.spr8955");
-		ctx.refresh();
-		ctx.close();
-	}
+	Person findById(Long id);
+
+	Person findByName(String name);
+
+	Person save(Person person);
+
+	void remove(Person person);
 
 }
