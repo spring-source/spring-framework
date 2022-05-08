@@ -166,16 +166,17 @@ public abstract class AbstractReactiveTransactionManager implements ReactiveTran
 	 */
 	private Mono<ReactiveTransaction> handleExistingTransaction(TransactionSynchronizationManager synchronizationManager,
 			TransactionDefinition definition, Object transaction, boolean debugEnabled) throws TransactionException {
-
+		//如果是NEVER传播级别则抛出异常
 		if (definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_NEVER) {
 			return Mono.error(new IllegalTransactionStateException(
 					"Existing transaction found for transaction marked with propagation 'never'"));
 		}
-
+		// 如果是不支持，则挂起事务
 		if (definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_NOT_SUPPORTED) {
 			if (debugEnabled) {
 				logger.debug("Suspending current transaction");
 			}
+			//挂起事务同时将当前事务设置为null,newTransaction设置为false，把线程的相关Threadlocal变量改的就像当前不存在事务一样
 			Mono<SuspendedResourcesHolder> suspend = suspend(synchronizationManager, transaction);
 			return suspend.map(suspendedResources -> prepareReactiveTransaction(synchronizationManager,
 					definition, null, false, debugEnabled, suspendedResources)) //
@@ -183,7 +184,7 @@ public abstract class AbstractReactiveTransactionManager implements ReactiveTran
 							definition, null, false, debugEnabled, null)))
 					.cast(ReactiveTransaction.class);
 		}
-
+		//如果是required_NEW的话，则挂起当前事务，同时创建一个新的事务，执行doBegin操作
 		if (definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_REQUIRES_NEW) {
 			if (debugEnabled) {
 				logger.debug("Suspending current transaction, creating new transaction with name [" +
@@ -200,7 +201,7 @@ public abstract class AbstractReactiveTransactionManager implements ReactiveTran
 										.then(Mono.error(beginEx)));
 			});
 		}
-
+		// 如果是嵌入事务，则创建一个SAVEPOINT
 		if (definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_NESTED) {
 			if (debugEnabled) {
 				logger.debug("Creating nested transaction with name [" + definition.getName() + "]");
@@ -509,6 +510,7 @@ public abstract class AbstractReactiveTransactionManager implements ReactiveTran
 			GenericReactiveTransaction status) {
 
 		return triggerBeforeCompletion(synchronizationManager, status).then(Mono.defer(() -> {
+					// 如果是新的事务，当传播级别为RUQUIRED_NEW时会走到这里来
 			if (status.isNewTransaction()) {
 				if (status.isDebug()) {
 					logger.debug("Initiating transaction rollback");
@@ -518,6 +520,8 @@ public abstract class AbstractReactiveTransactionManager implements ReactiveTran
 			else {
 				Mono<Void> beforeCompletion = Mono.empty();
 				// Participating in larger transaction
+				// 加入到事务中，设置回滚状态，适用于REQUIRED传播级别
+				// 并不会真的回滚，而是设置回滚标志位
 				if (status.hasTransaction()) {
 					if (status.isDebug()) {
 						logger.debug("Participating transaction failed - marking existing transaction as rollback-only");

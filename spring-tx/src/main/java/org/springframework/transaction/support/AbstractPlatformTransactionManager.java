@@ -343,10 +343,19 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 
 		// Use defaults if no transaction definition given.
 		TransactionDefinition def = (definition != null ? definition : TransactionDefinition.withDefaults());
+		/**
+		 * 		从当前的transactionManager获取DataSource对象
+		 * 		然后以该DataSource对象为Key，
+		 * 		去一个ThreadLocal变量中的map中获取该DataSource的连接
+		 * 		然后设置到DataSourceTransactionObject中返回。
+		 */
 
 		Object transaction = doGetTransaction();
 		boolean debugEnabled = logger.isDebugEnabled();
-
+		/**
+		 * 如果当前线程已经在一个事务中了，则需要根据事务的传播级别
+		 * 来决定如何处理并获取事务状态对象
+		 */
 		if (isExistingTransaction(transaction)) {
 			// Existing transaction found -> check propagation behavior to find out how to behave.
 			return handleExistingTransaction(def, transaction, debugEnabled);
@@ -393,11 +402,14 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	 */
 	private TransactionStatus startTransaction(TransactionDefinition definition, Object transaction,
 			boolean debugEnabled, @Nullable SuspendedResourcesHolder suspendedResources) {
-
+		//如果当前不在一个事务中，则执行事务的准备操作
 		boolean newSynchronization = (getTransactionSynchronization() != SYNCHRONIZATION_NEVER);
+		// 构造事务状态对象,注意这里第三个参数为true,代表是一个新事务
 		DefaultTransactionStatus status = newTransactionStatus(
 				definition, transaction, true, newSynchronization, debugEnabled, suspendedResources);
+		//执行begin操作,核心操作是设置隔离级别，执行   conn.setAutoCommit(false); 同时将数据连接绑定到当前线程
 		doBegin(transaction, definition);
+		// 针对事务相关属性如隔离级别，是否在事务中，设置绑定到当前线程
 		prepareSynchronization(status, definition);
 		return status;
 	}

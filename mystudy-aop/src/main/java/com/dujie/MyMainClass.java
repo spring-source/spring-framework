@@ -20,18 +20,18 @@ public class MyMainClass {
 
 		Calculate calculate = (Calculate) ctx.getBean("calculate");
 
-		ExecutorService commonExecutorService = (ExecutorService) ctx.getBean("commonThreadPool");
+//		ExecutorService commonExecutorService = (ExecutorService) ctx.getBean("commonThreadPool");
 		calculate.div(6, 2);
-		final Future<String> submit = commonExecutorService.submit(() -> {
-			return "SUCCESS";
-		});
+//		final Future<String> submit = commonExecutorService.submit(() -> {
+//			return "SUCCESS";
+//		});
 
-		try {
-			System.out.println(submit.get());
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			e.printStackTrace();
-		}
+//		try {
+//			System.out.println(submit.get());
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		} catch (ExecutionException e) {
+//			e.printStackTrace();
+//		}
 	}
 }
