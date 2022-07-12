@@ -22,6 +22,7 @@ public class MyMainClass {
 
 //		ExecutorService commonExecutorService = (ExecutorService) ctx.getBean("commonThreadPool");
 		calculate.div(6, 2);
+		System.out.println(calculate);
 //		final Future<String> submit = commonExecutorService.submit(() -> {
 //			return "SUCCESS";
 //		});
