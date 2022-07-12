@@ -19,7 +19,7 @@ public class DatePropertyEditor extends PropertyEditorSupport {
 
 	@Override
 	public void setAsText(String text) throws IllegalArgumentException {
-		System.out.println("arg0: " + text);
+		System.out.println("传入的参数为: " + text);
 		SimpleDateFormat sdf = new SimpleDateFormat(format);
 		try{
 			Date date = sdf.parse(text);
