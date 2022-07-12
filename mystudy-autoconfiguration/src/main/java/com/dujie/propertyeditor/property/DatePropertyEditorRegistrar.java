@@ -1,4 +1,4 @@
-package com.dujie.property;
+package com.dujie.propertyeditor.property;
 
 import org.springframework.beans.PropertyEditorRegistrar;
 import org.springframework.beans.PropertyEditorRegistry;

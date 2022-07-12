@@ -1,4 +1,4 @@
-package com.dujie.version1;
+package com.dujie.propertyeditor;
 
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 

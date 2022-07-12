@@ -1,4 +1,4 @@
-package com.dujie.property;
+package com.dujie.propertyeditor.property;
 
 import java.beans.PropertyEditorSupport;
 import java.text.SimpleDateFormat;
