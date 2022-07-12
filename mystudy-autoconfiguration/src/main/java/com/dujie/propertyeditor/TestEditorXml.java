@@ -1,13 +1,13 @@
 package com.dujie.propertyeditor;
 
+import com.alibaba.fastjson2.JSON;
 import com.dujie.propertyeditor.domain.UserBean;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 @Slf4j
 public class TestEditorXml {
-
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		/**
 		 * 1、初始化前的准备工作
 		 * 2、初始化BeanFactory 并进行 XML文件读取
@@ -27,7 +27,8 @@ public class TestEditorXml {
 				new MyClassPathXmlApplicationContext("classpath:spring/property-editor.xml");
 
 		final UserBean userBean = (UserBean) context.getBean("userBean");
-		System.out.println(userBean.toString());
+
+		System.out.println(JSON.toJSONString(userBean));
 
 	}
 

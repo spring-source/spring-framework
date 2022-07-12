@@ -13,7 +13,7 @@ dependencies {
     testImplementation group: 'junit', name: 'junit', version: '4.12'
     implementation(project(":spring-beans"))
     implementation(project(":spring-core"))
-    implementation("org.aspectj:aspectjweaver:1.9.6")
+    implementation('org.aspectj:aspectjweaver:1.9.9.1')
     implementation(project(":spring-aop"))
     implementation(project(":spring-context"))
 

@@ -48,7 +48,7 @@ public class SpringMyBatisConfig {
 	public DataSource dataSource() {
 		DruidDataSource dataSource = new DruidDataSource();
 		dataSource.setUsername("root");
-		dataSource.setPassword("root");
+		dataSource.setPassword("123456");
 		dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
 		dataSource.setUrl("jdbc:mysql://localhost:3306/spring-trans?serverTimezone=UTC&useSSL=false&useUnicode=true&characterEncoding=UTF-8");
 		return dataSource;

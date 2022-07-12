@@ -2,6 +2,9 @@ package com.dujie;
 
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.WeakHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -20,19 +23,16 @@ public class MyMainClass {
 
 		Calculate calculate = (Calculate) ctx.getBean("calculate");
 
+		Thread thread = new Thread();
+		WeakHashMap<String,String> weakHashMap = new WeakHashMap<>();
+		weakHashMap.put("","");
+//		List<String> test = new ArrayList<>();
+//		test.add("");
 //		ExecutorService commonExecutorService = (ExecutorService) ctx.getBean("commonThreadPool");
 		calculate.div(6, 2);
 		System.out.println(calculate);
 //		final Future<String> submit = commonExecutorService.submit(() -> {
 //			return "SUCCESS";
 //		});
-
-//		try {
-//			System.out.println(submit.get());
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//		} catch (ExecutionException e) {
-//			e.printStackTrace();
-//		}
 	}
 }
