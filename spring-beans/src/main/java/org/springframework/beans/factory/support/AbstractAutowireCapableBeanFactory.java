@@ -1685,7 +1685,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				//获取 PropertyDescriptor 实例
 				PropertyDescriptor pd = bw.getPropertyDescriptor(propertyName);
 				// Don't try autowiring by type for type Object: never makes sense,
-				// even if it technically is a unsatisfied, non-simple property.
+				// even if it technically is an unsatisfied, non-simple property.
 				//判断当前正在创建的bean中所依赖的属性描述的类型不是为object类型的
 				if (Object.class != pd.getPropertyType()) {
 					//获取当前正常创建备案所依赖的属性的setter方法对象
