@@ -252,6 +252,8 @@ configure(allprojects) { project ->
 			cacheChangingModulesFor 0, "seconds"
 		}
 		repositories {
+			maven{ url 'https://maven.aliyun.com/nexus/content/groups/public/'}
+			maven { url "https://repo.spring.io/libs-release" }
 			mavenCentral()
 			maven { url "https://repo.spring.io/libs-spring-framework-build" }
 			maven { url "https://repo.spring.io/milestone" } // temporarily for context-propagation via Reactor Netty

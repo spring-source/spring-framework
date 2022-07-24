@@ -42,6 +42,9 @@ import org.springframework.lang.Nullable;
  * @see org.springframework.transaction.support.TransactionTemplate
  * @see org.springframework.transaction.interceptor.TransactionInterceptor
  * @see org.springframework.transaction.ReactiveTransactionManager
+ *
+ * TransactionManager是做什么的？它保存着当前的数据源连接，对外提供对该数据源的事务提交回滚操作接口，
+ * 同时实现了事务相关操作的方法。一个数据源DataSource需要一个事务管理器。
  */
 public interface PlatformTransactionManager extends TransactionManager {
 

@@ -337,11 +337,23 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 			final InvocationCallback invocation) throws Throwable {
 
 		// If the transaction attribute is null, the method is non-transactional.
+		/**
+		 * 1、获取事务的属性（@Transactional注解中的配置）
+		 * 2、加载配置中的TransactionManager.
+		 * 3、获取收集事务信息TransactionInfo
+		 * 4、执行目标方法
+		 * 5、出现异常，尝试处理。
+		 * 6、清理事务相关信息
+		 * 7、提交事务
+		 */
+		//1. 获取@Transactional注解的相关参数
 		TransactionAttributeSource tas = getTransactionAttributeSource();
+		// 2. 获取事务管理器
 		final TransactionAttribute txAttr = (tas != null ? tas.getTransactionAttribute(method, targetClass) : null);
 		final TransactionManager tm = determineTransactionManager(txAttr);
 
 		if (this.reactiveAdapterRegistry != null && tm instanceof ReactiveTransactionManager) {
+			// 3. 获取TransactionInfo，包含了tm和TransactionStatus
 			boolean isSuspendingFunction = KotlinDetector.isSuspendingFunction(method);
 			boolean hasSuspendingFlowReturnType = isSuspendingFunction &&
 					COROUTINES_FLOW_CLASS_NAME.equals(new MethodParameter(method, -1).getParameterType().getName());
@@ -385,14 +397,17 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 			try {
 				// This is an around advice: Invoke the next interceptor in the chain.
 				// This will normally result in a target object being invoked.
+				// 4.执行目标方法
 				retVal = invocation.proceedWithInvocation();
 			}
 			catch (Throwable ex) {
 				// target invocation exception
+				//5.回滚
 				completeTransactionAfterThrowing(txInfo, ex);
 				throw ex;
 			}
 			finally {
+				// 6. 清理当前线程的事务相关信息
 				cleanupTransactionInfo(txInfo);
 			}
 
@@ -403,7 +418,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 					retVal = VavrDelegate.evaluateTryFailure(retVal, txAttr, status);
 				}
 			}
-
+			// 提交事务
 			commitTransactionAfterReturning(txInfo);
 			return retVal;
 		}
@@ -489,13 +504,16 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 		}
 
 		String qualifier = txAttr.getQualifier();
+		//如果指定了Bean则取指定的PlatformTransactionManager类型的Bean
 		if (StringUtils.hasText(qualifier)) {
 			return determineQualifiedTransactionManager(this.beanFactory, qualifier);
 		}
+		//如果指定了Bean的名称,则根据bean名称获取对应的bean
 		else if (StringUtils.hasText(this.transactionManagerBeanName)) {
 			return determineQualifiedTransactionManager(this.beanFactory, this.transactionManagerBeanName);
 		}
 		else {
+			// 默认取一个PlatformTransactionManager类型的Bean
 			TransactionManager defaultTransactionManager = getTransactionManager();
 			if (defaultTransactionManager == null) {
 				defaultTransactionManager = this.transactionManagerCache.get(DEFAULT_TRANSACTION_MANAGER_KEY);
@@ -715,6 +733,23 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	/**
 	 * Opaque object used to hold transaction information. Subclasses
 	 * must pass it back to methods on this class, but not see its internals.
+	 *
+	 * TransactionInfo是对当前事务的描述，其中记录了事务的状态等信息。它记录了和一个事务所有的相关信息。
+	 * 它没有什么方法，只是对事务相关对象的一个组合。最关键的对象是TransactionStatus，它代表当前正在运行的是哪个事务。
+	 * 1.核心属性：事务状态TransactionStatus
+	 * 2.事务管理器
+	 * 3.事务属性
+	 * 4.上一个事务信息oldTransactionInfo，REQUIRE_NEW传播级别时，事务挂起后前一个事务的事务信息
+	 *
+	 * 当前事务状态TransactionStatus
+	 * 通过TransactionManager的getTransaction方法，获取当前事务的状态。
+	 * 具体是在AbstractPlatformTransactionManager中实现.
+	 * TransactionStatus被用来做什么:TransactionManager对事务进行提交或回滚时需要用到该对象
+	 * 作用：
+	 * 判断当前事务是否是一个新的事务，否则加入到一个已经存在的事务中。事务传播级别REQUIRED和REQUIRE_NEW有用到。
+	 * 当前事务是否携带保存点，嵌套事务用到。
+	 * setRollbackOnly,isRollbackOnly，当子事务回滚时，并不真正回滚事务，而是对子事务设置一个标志位。
+	 * 事务是否已经完成，已经提交或者已经回滚。
 	 */
 	protected static final class TransactionInfo {
 

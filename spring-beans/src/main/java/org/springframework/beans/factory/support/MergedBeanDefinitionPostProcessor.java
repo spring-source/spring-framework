@@ -38,6 +38,7 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 public interface MergedBeanDefinitionPostProcessor extends BeanPostProcessor {
 
 	/**
+	 * 缓存bean的注入信息的后置处理器，仅仅是缓存或者干脆叫做查找更加合适，没有完成注入，注入是另外一个后置处理器的作用。
 	 * Post-process the given merged bean definition for the specified bean.
 	 * @param beanDefinition the merged bean definition for the bean
 	 * @param beanType the actual type of the managed bean instance

@@ -22,6 +22,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.lang.Nullable;
 
 /**
+ * 智能实例化Bean后置处理器（继承InstantiationAwareBeanPostProcessor）
  * Extension of the {@link InstantiationAwareBeanPostProcessor} interface,
  * adding a callback for predicting the eventual type of a processed bean.
  *
@@ -52,6 +53,7 @@ public interface SmartInstantiationAwareBeanPostProcessor extends InstantiationA
 	}
 
 	/**
+	 * 检测Bean的构造器，可以检测出多个候选构造器。
 	 * Determine the candidate constructors to use for the given bean.
 	 * <p>The default implementation returns {@code null}.
 	 * @param beanClass the raw class of the bean (never {@code null})
@@ -67,6 +69,7 @@ public interface SmartInstantiationAwareBeanPostProcessor extends InstantiationA
 	}
 
 	/**
+	 * 循环引用的后置处理器，这个东西比较复杂， 获得提前暴露的bean引用。主要用于解决循环引用的问题，只有单例对象才会调用此方法。
 	 * Obtain a reference for early access to the specified bean,
 	 * typically for the purpose of resolving a circular reference.
 	 * <p>This callback gives post-processors a chance to expose a wrapper

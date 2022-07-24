@@ -55,8 +55,14 @@ import org.springframework.util.Assert;
  */
 public class AnnotationConfigApplicationContext extends GenericApplicationContext implements AnnotationConfigRegistry {
 
+	/**
+	 * 注解的bean定义读取器
+	 */
 	private final AnnotatedBeanDefinitionReader reader;
 
+	/**
+	 * 类路径下的bean定义扫描器
+	 */
 	private final ClassPathBeanDefinitionScanner scanner;
 
 
@@ -65,9 +71,16 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
 	 */
 	public AnnotationConfigApplicationContext() {
+		/**
+		 * 初始化注解模式下的bean定义扫描器
+		 * 调用AnnotatedBeanDefinitionReader构造方法，传入的是this(AnnotationConfigApplicationContext)对象
+		 */
 		StartupStep createAnnotatedBeanDefReader = this.getApplicationStartup().start("spring.context.annotated-bean-reader.create");
 		this.reader = new AnnotatedBeanDefinitionReader(this);
 		createAnnotatedBeanDefReader.end();
+		/**
+		 * 初始化我们的classPath类型的bean定义扫描器
+		 */
 		this.scanner = new ClassPathBeanDefinitionScanner(this);
 	}
 
@@ -88,8 +101,11 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * {@link Configuration @Configuration} classes
 	 */
 	public AnnotationConfigApplicationContext(Class<?>... componentClasses) {
+		//调用构造函数
 		this();
+		//注册我们的配置类
 		register(componentClasses);
+		//IOC容器刷新接口
 		refresh();
 	}
 
@@ -152,7 +168,7 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	//---------------------------------------------------------------------
 
 	/**
-	 * Register one or more component classes to be processed.
+	 * Register one or more component classes to be processed. 注册一个或多个要处理的组件类
 	 * <p>Note that {@link #refresh()} must be called in order for the context
 	 * to fully process the new classes.
 	 * @param componentClasses one or more component classes &mdash; for example,

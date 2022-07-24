@@ -34,7 +34,7 @@ public interface ApplicationStartup {
 	ApplicationStartup DEFAULT = new DefaultApplicationStartup();
 
 	/**
-	 * Create a new step and marks its beginning.
+	 * Create a new step and marks its beginning. 创建一个新步骤并标记它的开始。
 	 * <p>A step name describes the current action or phase. This technical
 	 * name should be "." namespaced and can be reused to describe other instances of
 	 * the same step during application startup.

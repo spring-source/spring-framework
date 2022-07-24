@@ -1,0 +1,40 @@
+package com.dujie.version2.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import redis.clients.jedis.JedisPoolConfig;
+
+/**
+ * Created by dujie on 2019/9/3.
+ */
+@Configuration
+public class SpringRedisonfig {
+
+	@Bean
+	public JedisPoolConfig jedisPoolConfig() {
+		JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
+		jedisPoolConfig.setMaxTotal(30);
+		jedisPoolConfig.setMinIdle(10);
+		return jedisPoolConfig;
+	}
+
+	@Bean
+	public JedisConnectionFactory jedisConnectionFactory() {
+		RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration("127.0.0.1", 6379);
+		redisStandaloneConfiguration.setDatabase(1);
+		JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory(redisStandaloneConfiguration);
+		return jedisConnectionFactory;
+	}
+
+	@Bean
+	public RedisTemplate redisTemplate() {
+		RedisTemplate redisTemplate = new RedisTemplate();
+		redisTemplate.setConnectionFactory(jedisConnectionFactory());
+		redisTemplate.setDefaultSerializer(new Jackson2JsonRedisSerializer<Object>(Object.class));
+		return redisTemplate;
+	}
+}

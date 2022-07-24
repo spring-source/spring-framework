@@ -63,6 +63,10 @@ class ReactiveTestTransactionManager extends AbstractReactiveTransactionManager 
 		return this.existingTransaction;
 	}
 
+	/**
+	 * 在执行createTransactionIfNecessary获取事务状态时，就准备好了开启事务的所有内容，
+	 * 主要是执行了JDBC的con.setAutoCommit(false)方法。同时处理了很多和数据库连接相关的ThreadLocal变量。
+	 */
 	@Override
 	protected Mono<Void> doBegin(TransactionSynchronizationManager synchronizationManager, Object transaction, TransactionDefinition definition) {
 		if (!TRANSACTION.equals(transaction)) {

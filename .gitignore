@@ -51,3 +51,31 @@ atlassian-ide-plugin.xml
 
 # VS Code
 .vscode/
+
+*.jar
+*.bin
+*.MF
+*.war
+Thumbs.db
+.DS_Store
+bin/
+build/
+.settings
+.gradle
+.classpath
+.project
+.git/
+catalina*
+logs/
+classes/
+test-classes/
+.idea
+*.iml
+*.ipr
+*.iws
+*.log
+*.cache
+out/
+target
+.factorypath
+build

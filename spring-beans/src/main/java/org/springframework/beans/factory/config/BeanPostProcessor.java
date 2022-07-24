@@ -58,6 +58,10 @@ import org.springframework.lang.Nullable;
 public interface BeanPostProcessor {
 
 	/**
+	 * 在目标对象实例化之前调用，方法的返回值类型是Object，我们可以返回任何类型的值。由于这个时候目标对象还未实例化，
+	 * 所以这个返回值可以用来代替原本该生成的目标对象的实例(一般都是代理对象)。如果该方法的返回值代替原本该生成的目标对象，
+	 * 后续只有postProcessAfterInitialization方法会调用，其它方法不再调用；否则按照正常的流程走。
+	 *
 	 * Apply this {@code BeanPostProcessor} to the given new bean instance <i>before</i> any bean
 	 * initialization callbacks (like InitializingBean's {@code afterPropertiesSet}
 	 * or a custom init-method). The bean will already be populated with property values.
@@ -76,6 +80,9 @@ public interface BeanPostProcessor {
 	}
 
 	/**
+	 * 方法在目标对象实例化之后调用，这个时候对象已经被实例化，但是该实例的属性还未被设置，都是null。
+	 * 如果该方法返回false，会忽略属性值的设置；如果返回true，会按照正常流程设置。
+	 *
 	 * Apply this {@code BeanPostProcessor} to the given new bean instance <i>after</i> any bean
 	 * initialization callbacks (like InitializingBean's {@code afterPropertiesSet}
 	 * or a custom init-method). The bean will already be populated with property values.
