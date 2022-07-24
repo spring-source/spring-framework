@@ -1,11 +1,6 @@
-group 'org.springframework'
-version '5.3.14-SNAPSHOT'
 
 apply plugin: 'war'
 
-repositories {
-    mavenCentral()
-}
 dependencies {
     testImplementation group: 'junit', name: 'junit', version: '4.12'
     implementation(project(":spring-webmvc"))
