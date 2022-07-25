@@ -26,13 +26,7 @@ public class MyMainClass {
 		Thread thread = new Thread();
 		WeakHashMap<String,String> weakHashMap = new WeakHashMap<>();
 		weakHashMap.put("","");
-//		List<String> test = new ArrayList<>();
-//		test.add("");
-//		ExecutorService commonExecutorService = (ExecutorService) ctx.getBean("commonThreadPool");
 		calculate.div(6, 2);
 		System.out.println(calculate);
-//		final Future<String> submit = commonExecutorService.submit(() -> {
-//			return "SUCCESS";
-//		});
 	}
 }

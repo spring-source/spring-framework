@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:context="http://www.springframework.org/schema/context"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+    http://www.springframework.org/schema/context
+            http://www.springframework.org/schema/context/spring-context.xsd">
+
+	<!--******Advisor : 代表一般切面，Advice 本身就是一个切面，对目标类所有方法进行拦截(* 不带有切点的切面.针对所有方法进行拦截)*******-->
+	<!-- 定义目标（target）对象 -->
+	<bean id="userDao" class="com.dujie.v1.UserDaoImpl"></bean>
+
+	<!-- 定义增强 -->
+	<bean id="beforeAdvice" class="com.dujie.v1.UserDaoBeforeAdvice"></bean>
+
+	<!--通过配置生成代理 UserDao 的代理对象 -->
+	<bean id="userDaoProxy" class="org.springframework.aop.framework.ProxyFactoryBean">
+		<!-- 设置目标对象 -->
+		<property name="target" ref="userDao"/>
+		<!-- 设置实现的接口 ,value 中写接口的全路径 -->
+		<property name="proxyInterfaces" value="com.dujie.v1.UserDao"/>
+		<!-- 需要使用value:增强 Bean 的名称 -->
+		<property name="interceptorNames" value="beforeAdvice"/>
+	</bean>
+
+
+	<!--带切点的切面-->
+	<!-- 定义目标（target）对象 -->
+	<bean id="orderDao" class="com.dujie.v2.OrderDao"></bean>
+
+	<!-- 定义增强 -->
+	<bean id="aroundAdvice" class="com.dujie.v2.OrderDaoAroundAdvice"></bean>
+	<!--定义切面-->
+	<bean id="myPointCutAdvisor" class="org.springframework.aop.support.RegexpMethodPointcutAdvisor">
+		<!--定义表达式，规定哪些方法进行拦截 .* 表示所有方法-->
+		<!--<property name="pattern" value=".*"></property>-->
+		<property name="patterns" value="com.dujie.v2.OrderDao.add.*,com.dujie.v2.OrderDao.delete.*"></property>
+		<property name="advice" ref="aroundAdvice"></property>
+	</bean>
+	<!--Spring 通过配置生成代理-->
+	<bean id="orderDaoProxy" class="org.springframework.aop.framework.ProxyFactoryBean">
+		<!-- 配置目标 -->
+		<property name="target" ref="orderDao"></property>
+		<!-- 针对类的代理,该属性默认取值为 false（可省略）, 表示使用 JDK 动态代理；取值为 true,表示使用 CGlib 动态代理-->
+		<property name="proxyTargetClass" value="true"></property>
+		<!-- 在目标上应用增强 -->
+		<property name="interceptorNames" value="myPointCutAdvisor"></property>
+	</bean>
+
+</beans>
