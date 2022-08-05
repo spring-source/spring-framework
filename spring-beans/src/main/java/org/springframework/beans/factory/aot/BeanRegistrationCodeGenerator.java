@@ -37,7 +37,7 @@ import org.springframework.util.Assert;
  */
 class BeanRegistrationCodeGenerator implements BeanRegistrationCode {
 
-	private static final Predicate<String> NO_ATTRIBUTE_FILTER = attribute -> true;
+	private static final Predicate<String> REJECT_ALL_ATTRIBUTES_FILTER = attribute -> false;
 
 	private final ClassName className;
 
@@ -85,12 +85,12 @@ class BeanRegistrationCodeGenerator implements BeanRegistrationCode {
 				this.registeredBean.getBeanType(), this));
 		builder.add(this.codeFragments.generateSetBeanDefinitionPropertiesCode(
 				generationContext, this, this.registeredBean.getMergedBeanDefinition(),
-				NO_ATTRIBUTE_FILTER));
+				REJECT_ALL_ATTRIBUTES_FILTER));
 		CodeBlock instanceSupplierCode = this.codeFragments.generateInstanceSupplierCode(
 				generationContext, this, this.constructorOrFactoryMethod,
 				this.instancePostProcessors.isEmpty());
 		builder.add(this.codeFragments.generateSetBeanInstanceSupplierCode(generationContext,
-						this, instanceSupplierCode, this.instancePostProcessors));
+				this, instanceSupplierCode, this.instancePostProcessors));
 		builder.add(this.codeFragments.generateReturnCode(generationContext, this));
 		return builder.build();
 	}

@@ -24,7 +24,6 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiFunction;
@@ -41,6 +40,7 @@ import org.springframework.beans.BeanInfoFactory;
 import org.springframework.beans.ExtendedBeanInfoFactory;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValue;
+import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.config.ConstructorArgumentValues.ValueHolder;
@@ -108,7 +108,7 @@ class BeanDefinitionPropertiesCodeGenerator {
 	}
 
 
-	CodeBlock generateCode(BeanDefinition beanDefinition) {
+	CodeBlock generateCode(RootBeanDefinition beanDefinition) {
 		CodeBlock.Builder builder = CodeBlock.builder();
 		addStatementForValue(builder, beanDefinition, BeanDefinition::isPrimary,
 				"$L.setPrimary($L)");
@@ -120,18 +120,14 @@ class BeanDefinitionPropertiesCodeGenerator {
 				"$L.setAutowireCandidate($L)");
 		addStatementForValue(builder, beanDefinition, BeanDefinition::getRole,
 				this::hasRole, "$L.setRole($L)", this::toRole);
-		if (beanDefinition instanceof AbstractBeanDefinition abstractBeanDefinition) {
-			addStatementForValue(builder, beanDefinition,
-					AbstractBeanDefinition::getLazyInit, "$L.setLazyInit($L)");
-			addStatementForValue(builder, beanDefinition,
-					AbstractBeanDefinition::isSynthetic, "$L.setSynthetic($L)");
-			addInitDestroyMethods(builder, abstractBeanDefinition,
-					abstractBeanDefinition.getInitMethodNames(),
-					"$L.setInitMethodNames($L)");
-			addInitDestroyMethods(builder, abstractBeanDefinition,
-					abstractBeanDefinition.getDestroyMethodNames(),
-					"$L.setDestroyMethodNames($L)");
-		}
+		addStatementForValue(builder, beanDefinition, AbstractBeanDefinition::getLazyInit,
+				"$L.setLazyInit($L)");
+		addStatementForValue(builder, beanDefinition, AbstractBeanDefinition::isSynthetic,
+				"$L.setSynthetic($L)");
+		addInitDestroyMethods(builder, beanDefinition, beanDefinition.getInitMethodNames(),
+				"$L.setInitMethodNames($L)");
+		addInitDestroyMethods(builder, beanDefinition, beanDefinition.getDestroyMethodNames(),
+				"$L.setDestroyMethodNames($L)");
 		addConstructorArgumentValues(builder, beanDefinition);
 		addPropertyValues(builder, beanDefinition);
 		addAttributes(builder, beanDefinition);
@@ -140,21 +136,14 @@ class BeanDefinitionPropertiesCodeGenerator {
 
 	private void addInitDestroyMethods(Builder builder,
 			AbstractBeanDefinition beanDefinition, @Nullable String[] methodNames, String format) {
-		List<String> filteredMethodNames = (!ObjectUtils.isEmpty(methodNames))
-				? Arrays.stream(methodNames).filter(this::isNotInferredMethod).toList()
-				: Collections.emptyList();
-		if (!filteredMethodNames.isEmpty()) {
+		if (!ObjectUtils.isEmpty(methodNames)) {
 			Class<?> beanType = ClassUtils.getUserClass(beanDefinition.getResolvableType().toClass());
-			filteredMethodNames.forEach(methodName -> addInitDestroyHint(beanType, methodName));
-			CodeBlock arguments = filteredMethodNames.stream()
+			Arrays.stream(methodNames).forEach(methodName -> addInitDestroyHint(beanType, methodName));
+			CodeBlock arguments = Arrays.stream(methodNames)
 					.map(name -> CodeBlock.of("$S", name))
 					.collect(CodeBlock.joining(", "));
 			builder.addStatement(format, BEAN_DEFINITION_VARIABLE, arguments);
 		}
-	}
-
-	private boolean isNotInferredMethod(String candidate) {
-		return !AbstractBeanDefinition.INFER_METHOD.equals(candidate);
 	}
 
 	private void addInitDestroyHint(Class<?> beanUserClass, String methodName) {
@@ -185,7 +174,7 @@ class BeanDefinitionPropertiesCodeGenerator {
 	}
 
 	private void addPropertyValues(CodeBlock.Builder builder,
-			BeanDefinition beanDefinition) {
+			RootBeanDefinition beanDefinition) {
 
 		MutablePropertyValues propertyValues = beanDefinition.getPropertyValues();
 		if (!propertyValues.isEmpty()) {
@@ -199,9 +188,8 @@ class BeanDefinitionPropertiesCodeGenerator {
 				builder.addStatement("$L.getPropertyValues().addPropertyValue($S, $L)",
 						BEAN_DEFINITION_VARIABLE, propertyValue.getName(), code);
 			}
-			Class<?> beanType = ClassUtils
-					.getUserClass(beanDefinition.getResolvableType().toClass());
-			BeanInfo beanInfo = (beanType != Object.class) ? getBeanInfo(beanType) : null;
+			Class<?> infrastructureType = getInfrastructureType(beanDefinition);
+			BeanInfo beanInfo = (infrastructureType != Object.class) ? getBeanInfo(infrastructureType) : null;
 			if (beanInfo != null) {
 				Map<String, Method> writeMethods = getWriteMethods(beanInfo);
 				for (PropertyValue propertyValue : propertyValues) {
@@ -212,6 +200,16 @@ class BeanDefinitionPropertiesCodeGenerator {
 				}
 			}
 		}
+	}
+
+	private Class<?> getInfrastructureType(RootBeanDefinition beanDefinition) {
+		if (beanDefinition.hasBeanClass()) {
+			Class<?> beanClass = beanDefinition.getBeanClass();
+			if (FactoryBean.class.isAssignableFrom(beanClass)) {
+				return beanClass;
+			}
+		}
+		return ClassUtils.getUserClass(beanDefinition.getResolvableType().toClass());
 	}
 
 	@Nullable

@@ -27,10 +27,8 @@ import javax.lang.model.element.Modifier;
 
 import org.junit.jupiter.api.Test;
 
-import org.springframework.aot.generate.DefaultGenerationContext;
 import org.springframework.aot.generate.GeneratedMethod;
 import org.springframework.aot.generate.GenerationContext;
-import org.springframework.aot.generate.InMemoryGeneratedFiles;
 import org.springframework.aot.generate.MethodReference;
 import org.springframework.aot.test.generator.compile.CompileWithTargetClassAccess;
 import org.springframework.aot.test.generator.compile.Compiled;
@@ -64,9 +62,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class BeanDefinitionMethodGeneratorTests {
 
-	private final InMemoryGeneratedFiles generatedFiles;
-
-	private final DefaultGenerationContext generationContext;
+	private final TestGenerationContext generationContext;
 
 	private final DefaultListableBeanFactory beanFactory;
 
@@ -76,11 +72,10 @@ class BeanDefinitionMethodGeneratorTests {
 
 
 	BeanDefinitionMethodGeneratorTests() {
-		this.generatedFiles = new InMemoryGeneratedFiles();
-		this.generationContext = new TestGenerationContext(this.generatedFiles);
+		this.generationContext = new TestGenerationContext();
 		this.beanFactory = new DefaultListableBeanFactory();
 		this.methodGeneratorFactory = new BeanDefinitionMethodGeneratorFactory(
-				new AotFactoriesLoader(this.beanFactory, new MockSpringFactoriesLoader()));
+				AotServices.factoriesAndBeans(new MockSpringFactoriesLoader(), this.beanFactory));
 		this.beanRegistrationsCode = new MockBeanRegistrationsCode(this.generationContext);
 	}
 
@@ -231,6 +226,23 @@ class BeanDefinitionMethodGeneratorTests {
 			}
 
 		};
+	}
+
+	@Test
+	void generateBeanDefinitionMethodDoesNotGenerateAttributesByDefault() {
+		RootBeanDefinition beanDefinition = new RootBeanDefinition(TestBean.class);
+		beanDefinition.setAttribute("a", "A");
+		beanDefinition.setAttribute("b", "B");
+		RegisteredBean registeredBean = registerBean(beanDefinition);
+		BeanDefinitionMethodGenerator generator = new BeanDefinitionMethodGenerator(
+				this.methodGeneratorFactory, registeredBean, null,
+				Collections.emptyList());
+		MethodReference method = generator.generateBeanDefinitionMethod(
+				this.generationContext, this.beanRegistrationsCode);
+		compile(method, (actual, compiled) -> {
+			assertThat(actual.hasAttribute("a")).isFalse();
+			assertThat(actual.hasAttribute("b")).isFalse();
+		});
 	}
 
 	@Test
@@ -412,7 +424,7 @@ class BeanDefinitionMethodGeneratorTests {
 					.addCode("return $L;", method.toInvokeCodeBlock()).build());
 		});
 		this.generationContext.writeGeneratedContent();
-		TestCompiler.forSystem().withFiles(this.generatedFiles).printFiles(System.out).compile(compiled ->
+		TestCompiler.forSystem().withFiles(this.generationContext.getGeneratedFiles()).compile(compiled ->
 				result.accept((RootBeanDefinition) compiled.getInstance(Supplier.class).get(), compiled));
 	}
 

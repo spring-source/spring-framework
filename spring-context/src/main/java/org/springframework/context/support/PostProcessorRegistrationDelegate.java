@@ -478,7 +478,7 @@ final class PostProcessorRegistrationDelegate {
 	 * Register the given BeanPostProcessor beans.
 	 */
 	private static void registerBeanPostProcessors(
-			ConfigurableListableBeanFactory beanFactory, List<BeanPostProcessor> postProcessors) {
+			ConfigurableListableBeanFactory beanFactory, List<? extends BeanPostProcessor> postProcessors) {
 
 		if (beanFactory instanceof AbstractBeanFactory) {
 			// Bulk addition is more efficient against our CopyOnWriteArrayList there
@@ -553,6 +553,7 @@ final class PostProcessorRegistrationDelegate {
 				Class<?> beanType = resolveBeanType(bd);
 				postProcessRootBeanDefinition(postProcessors, beanName, beanType, bd);
 			}
+			registerBeanPostProcessors(this.beanFactory, postProcessors);
 		}
 
 		private void postProcessRootBeanDefinition(List<MergedBeanDefinitionPostProcessor> postProcessors,

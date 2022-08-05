@@ -23,10 +23,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.OS;
 import org.mockito.ArgumentCaptor;
 
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.config.AbstractFactoryBean;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.beans.factory.support.MergedBeanDefinitionPostProcessor;
@@ -404,6 +406,33 @@ class GenericApplicationContextTests {
 		verify(bpp).postProcessMergedBeanDefinition(getBeanDefinition(context, "test"), BeanD.class, "test");
 		verify(bpp).postProcessMergedBeanDefinition(any(RootBeanDefinition.class), eq(Integer.class), captor.capture());
 		assertThat(captor.getValue()).startsWith("(inner bean)");
+		context.close();
+	}
+
+	@Test
+	void refreshForAotInvokesBeanPostProcessorContractOnMergedBeanDefinitionPostProcessors() {
+		MergedBeanDefinitionPostProcessor bpp = new MergedBeanDefinitionPostProcessor() {
+			@Override
+			public void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) {
+				beanDefinition.setAttribute("mbdppCalled", true);
+			}
+
+			@Override
+			public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+				return (beanName.equals("test") ? "42" : bean);
+			}
+		};
+		GenericApplicationContext context = new GenericApplicationContext();
+		context.registerBeanDefinition("bpp", BeanDefinitionBuilder.rootBeanDefinition(
+						MergedBeanDefinitionPostProcessor.class, () -> bpp)
+				.setRole(BeanDefinition.ROLE_INFRASTRUCTURE).getBeanDefinition());
+		AbstractBeanDefinition bd = BeanDefinitionBuilder.rootBeanDefinition(String.class)
+				.addConstructorArgValue("value").getBeanDefinition();
+		context.registerBeanDefinition("test", bd);
+		context.refreshForAotProcessing();
+		assertThat(context.getBeanFactory().getMergedBeanDefinition("test")
+				.hasAttribute("mbdppCalled")).isTrue();
+		assertThat(context.getBean("test")).isEqualTo("42");
 		context.close();
 	}
 
