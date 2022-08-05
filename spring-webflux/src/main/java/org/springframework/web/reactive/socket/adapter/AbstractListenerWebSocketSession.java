@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -247,7 +247,13 @@ public abstract class AbstractListenerWebSocketSession<T> extends AbstractWebSoc
 		if (this.handlerCompletionMono != null) {
 			this.handlerCompletionMono.onError(ex);
 		}
-		close(CloseStatus.SERVER_ERROR.withReason(ex.getMessage()));
+		if (logger.isDebugEnabled()) {
+			logger.debug("WebSocket session completed with error", ex);
+		}
+		else if (logger.isInfoEnabled()) {
+			logger.info("WebSocket session completed with error: " + ex.getMessage());
+		}
+		close(CloseStatus.SERVER_ERROR);
 	}
 
 	@Override
