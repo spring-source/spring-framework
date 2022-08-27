@@ -64,7 +64,6 @@ import org.springframework.context.ApplicationStartupAware;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.ResourceLoaderAware;
 import org.springframework.context.annotation.ConfigurationClassEnhancer.EnhancedConfiguration;
-import org.springframework.core.NativeDetector;
 import org.springframework.core.Ordered;
 import org.springframework.core.PriorityOrdered;
 import org.springframework.core.env.Environment;
@@ -286,11 +285,8 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	}
 
 	@Override
-	public BeanFactoryInitializationAotContribution processAheadOfTime(
-			ConfigurableListableBeanFactory beanFactory) {
-
-		return (beanFactory.containsBean(IMPORT_REGISTRY_BEAN_NAME)
-				? new AotContribution(beanFactory) : null);
+	public BeanFactoryInitializationAotContribution processAheadOfTime(ConfigurableListableBeanFactory beanFactory) {
+		return (beanFactory.containsBean(IMPORT_REGISTRY_BEAN_NAME) ? new AotContribution(beanFactory) : null);
 	}
 
 	/**
@@ -476,7 +472,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 				configBeanDefs.put(beanName, abd);
 			}
 		}
-		if (configBeanDefs.isEmpty() || NativeDetector.inNativeImage()) {
+		if (configBeanDefs.isEmpty()) {
 			// nothing to enhance -> return immediately
 			enhanceConfigClasses.end();
 			return;
@@ -538,8 +534,8 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 
 		private static final String BEAN_FACTORY_VARIABLE = BeanFactoryInitializationCode.BEAN_FACTORY_VARIABLE;
 
-		private static final ParameterizedTypeName STRING_STRING_MAP = ParameterizedTypeName
-				.get(Map.class, String.class, String.class);
+		private static final ParameterizedTypeName STRING_STRING_MAP =
+				ParameterizedTypeName.get(Map.class, String.class, String.class);
 
 		private static final String MAPPINGS_VARIABLE = "mappings";
 
@@ -547,14 +543,11 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 
 		private static final String BEAN_NAME = "org.springframework.context.annotation.internalImportAwareAotProcessor";
 
-
 		private final ConfigurableListableBeanFactory beanFactory;
-
 
 		public AotContribution(ConfigurableListableBeanFactory beanFactory) {
 			this.beanFactory = beanFactory;
 		}
-
 
 		@Override
 		public void applyTo(GenerationContext generationContext,
@@ -574,31 +567,28 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			}
 		}
 
-		private void generateAddPostProcessorMethod(MethodSpec.Builder method,
-				Map<String, String> mappings) {
-
-			method.addJavadoc(
-					"Add ImportAwareBeanPostProcessor to support ImportAware beans");
+		private void generateAddPostProcessorMethod(MethodSpec.Builder method, Map<String, String> mappings) {
+			method.addJavadoc("Add ImportAwareBeanPostProcessor to support ImportAware beans");
 			method.addModifiers(Modifier.PRIVATE);
 			method.addParameter(DefaultListableBeanFactory.class, BEAN_FACTORY_VARIABLE);
 			method.addCode(generateAddPostProcessorCode(mappings));
 		}
 
 		private CodeBlock generateAddPostProcessorCode(Map<String, String> mappings) {
-			CodeBlock.Builder builder = CodeBlock.builder();
-			builder.addStatement("$T $L = new $T<>()", STRING_STRING_MAP,
+			CodeBlock.Builder code = CodeBlock.builder();
+			code.addStatement("$T $L = new $T<>()", STRING_STRING_MAP,
 					MAPPINGS_VARIABLE, HashMap.class);
-			mappings.forEach((type, from) -> builder.addStatement("$L.put($S, $S)",
+			mappings.forEach((type, from) -> code.addStatement("$L.put($S, $S)",
 					MAPPINGS_VARIABLE, type, from));
-			builder.addStatement("$T $L = new $T($T.class)", RootBeanDefinition.class,
+			code.addStatement("$T $L = new $T($T.class)", RootBeanDefinition.class,
 					BEAN_DEFINITION_VARIABLE, RootBeanDefinition.class, ImportAwareAotBeanPostProcessor.class);
-			builder.addStatement("$L.setRole($T.ROLE_INFRASTRUCTURE)",
+			code.addStatement("$L.setRole($T.ROLE_INFRASTRUCTURE)",
 					BEAN_DEFINITION_VARIABLE, BeanDefinition.class);
-			builder.addStatement("$L.setInstanceSupplier(() -> new $T($L))",
+			code.addStatement("$L.setInstanceSupplier(() -> new $T($L))",
 					BEAN_DEFINITION_VARIABLE, ImportAwareAotBeanPostProcessor.class, MAPPINGS_VARIABLE);
-			builder.addStatement("$L.registerBeanDefinition($S, $L)",
+			code.addStatement("$L.registerBeanDefinition($S, $L)",
 					BEAN_FACTORY_VARIABLE, BEAN_NAME, BEAN_DEFINITION_VARIABLE);
-			return builder.build();
+			return code.build();
 		}
 
 		private Map<String, String> buildImportAwareMappings() {

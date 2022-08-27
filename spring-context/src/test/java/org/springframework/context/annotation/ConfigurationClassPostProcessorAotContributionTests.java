@@ -63,15 +63,11 @@ import static org.assertj.core.api.Assertions.entry;
  */
 class ConfigurationClassPostProcessorAotContributionTests {
 
-	private final TestGenerationContext generationContext;
+	private final TestGenerationContext generationContext = new TestGenerationContext();
 
-	private final MockBeanFactoryInitializationCode beanFactoryInitializationCode;
+	private final MockBeanFactoryInitializationCode beanFactoryInitializationCode =
+			new MockBeanFactoryInitializationCode(this.generationContext);
 
-
-	ConfigurationClassPostProcessorAotContributionTests() {
-		this.generationContext = new TestGenerationContext();
-		this.beanFactoryInitializationCode = new MockBeanFactoryInitializationCode(this.generationContext);
-	}
 
 	@Test
 	void processAheadOfTimeWhenNoImportAwareConfigurationReturnsNull() {
@@ -80,8 +76,7 @@ class ConfigurationClassPostProcessorAotContributionTests {
 
 	@Test
 	void applyToWhenHasImportAwareConfigurationRegistersBeanPostProcessorWithMapEntry() {
-		BeanFactoryInitializationAotContribution contribution = getContribution(
-				ImportConfiguration.class);
+		BeanFactoryInitializationAotContribution contribution = getContribution(ImportConfiguration.class);
 		contribution.applyTo(this.generationContext, this.beanFactoryInitializationCode);
 		compile((initializer, compiled) -> {
 			GenericApplicationContext freshContext = new GenericApplicationContext();
@@ -91,13 +86,13 @@ class ConfigurationClassPostProcessorAotContributionTests {
 			assertThat(freshBeanFactory.getBeanPostProcessors()).filteredOn(ImportAwareAotBeanPostProcessor.class::isInstance)
 					.singleElement().satisfies(postProcessor -> assertPostProcessorEntry(postProcessor, ImportAwareConfiguration.class,
 							ImportConfiguration.class));
+			freshContext.close();
 		});
 	}
 
 	@Test
 	void applyToWhenHasImportAwareConfigurationRegistersBeanPostProcessorAfterApplicationContextAwareProcessor() {
-		BeanFactoryInitializationAotContribution contribution = getContribution(
-				TestAwareCallbackConfiguration.class);
+		BeanFactoryInitializationAotContribution contribution = getContribution(TestAwareCallbackConfiguration.class);
 		contribution.applyTo(this.generationContext, this.beanFactoryInitializationCode);
 		compile((initializer, compiled) -> {
 			GenericApplicationContext freshContext = new GenericApplicationContext();
@@ -110,6 +105,7 @@ class ConfigurationClassPostProcessorAotContributionTests {
 			assertThat(bean.instances.get(0)).isEqualTo(freshContext);
 			assertThat(bean.instances.get(1)).isInstanceOfSatisfying(AnnotationMetadata.class, metadata ->
 					assertThat(metadata.getClassName()).isEqualTo(TestAwareCallbackConfiguration.class.getName()));
+			freshContext.close();
 		});
 	}
 
@@ -131,13 +127,13 @@ class ConfigurationClassPostProcessorAotContributionTests {
 			assertThat(freshContext.getBean("testProcessing")).isInstanceOfSatisfying(AnnotationMetadata.class, metadata ->
 					assertThat(metadata.getClassName()).isEqualTo(TestImportAwareBeanPostProcessorConfiguration.class.getName())
 			);
+			freshContext.close();
 		});
 	}
 
 	@Test
 	void applyToWhenHasImportAwareConfigurationRegistersHints() {
-		BeanFactoryInitializationAotContribution contribution = getContribution(
-				ImportConfiguration.class);
+		BeanFactoryInitializationAotContribution contribution = getContribution(ImportConfiguration.class);
 		contribution.applyTo(this.generationContext, this.beanFactoryInitializationCode);
 		assertThat(generationContext.getRuntimeHints().resources().resourcePatterns())
 				.singleElement()
@@ -156,8 +152,7 @@ class ConfigurationClassPostProcessorAotContributionTests {
 		return postProcessor.processAheadOfTime(beanFactory);
 	}
 
-	private void assertPostProcessorEntry(BeanPostProcessor postProcessor,
-			Class<?> key, Class<?> value) {
+	private void assertPostProcessorEntry(BeanPostProcessor postProcessor, Class<?> key, Class<?> value) {
 		assertThat(postProcessor).extracting("importsMapping")
 				.asInstanceOf(InstanceOfAssertFactories.MAP)
 				.containsExactly(entry(key.getName(), value.getName()));
@@ -165,8 +160,7 @@ class ConfigurationClassPostProcessorAotContributionTests {
 
 	@SuppressWarnings("unchecked")
 	private void compile(BiConsumer<Consumer<DefaultListableBeanFactory>, Compiled> result) {
-		MethodReference methodReference = this.beanFactoryInitializationCode
-				.getInitializers().get(0);
+		MethodReference methodReference = this.beanFactoryInitializationCode.getInitializers().get(0);
 		this.beanFactoryInitializationCode.getTypeBuilder().set(type -> {
 			type.addModifiers(Modifier.PUBLIC);
 			type.addSuperinterface(ParameterizedTypeName.get(Consumer.class, DefaultListableBeanFactory.class));
@@ -180,10 +174,10 @@ class ConfigurationClassPostProcessorAotContributionTests {
 				result.accept(compiled.getInstance(Consumer.class), compiled));
 	}
 
+
 	@Configuration(proxyBeanMethods = false)
 	@Import(TestAwareCallbackBean.class)
 	static class TestAwareCallbackConfiguration {
-
 	}
 
 	static class TestAwareCallbackBean implements ImportAware, ApplicationContextAware {
@@ -205,7 +199,6 @@ class ConfigurationClassPostProcessorAotContributionTests {
 	@Configuration(proxyBeanMethods = false)
 	@Import(TestImportAwareBeanPostProcessor.class)
 	static class TestImportAwareBeanPostProcessorConfiguration {
-
 	}
 
 	static class TestImportAwareBeanPostProcessor implements BeanPostProcessor, ImportAware,

@@ -25,6 +25,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -45,7 +46,6 @@ import org.springframework.aot.generate.GeneratedClass;
 import org.springframework.aot.generate.GeneratedMethod;
 import org.springframework.aot.generate.GenerationContext;
 import org.springframework.aot.generate.MethodReference;
-import org.springframework.aot.hint.ExecutableHint;
 import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.aot.hint.FieldHint;
 import org.springframework.aot.hint.RuntimeHints;
@@ -69,6 +69,9 @@ import org.springframework.beans.factory.aot.BeanRegistrationCode;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.DependencyDescriptor;
 import org.springframework.beans.factory.config.SmartInstantiationAwareBeanPostProcessor;
+import org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory;
+import org.springframework.beans.factory.support.AutowireCandidateResolver;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.LookupOverride;
 import org.springframework.beans.factory.support.MergedBeanDefinitionPostProcessor;
 import org.springframework.beans.factory.support.RegisteredBean;
@@ -288,7 +291,7 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 		InjectionMetadata metadata = findInjectionMetadata(beanName, beanClass, beanDefinition);
 		Collection<AutowiredElement> autowiredElements = getAutowiredElements(metadata);
 		if (!ObjectUtils.isEmpty(autowiredElements)) {
-			return new AotContribution(beanClass, autowiredElements);
+			return new AotContribution(beanClass, autowiredElements, getAutowireCandidateResolver());
 		}
 		return null;
 	}
@@ -297,6 +300,14 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Collection<AutowiredElement> getAutowiredElements(InjectionMetadata metadata) {
 		return (Collection) metadata.getInjectedElements();
+	}
+
+	@Nullable
+	private AutowireCandidateResolver getAutowireCandidateResolver() {
+		if (this.beanFactory instanceof DefaultListableBeanFactory lbf) {
+			return lbf.getAutowireCandidateResolver();
+		}
+		return null;
 	}
 
 	private InjectionMetadata findInjectionMetadata(String beanName, Class<?> beanType, RootBeanDefinition beanDefinition) {
@@ -312,43 +323,25 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 	}
 
 	@Override
+	public Class<?> determineBeanType(Class<?> beanClass, String beanName) throws BeanCreationException {
+		checkLookupMethods(beanClass, beanName);
+
+		// Pick up subclass with fresh lookup method override from above
+		if (this.beanFactory instanceof AbstractAutowireCapableBeanFactory aacbf) {
+			RootBeanDefinition mbd = (RootBeanDefinition) this.beanFactory.getMergedBeanDefinition(beanName);
+			if (mbd.getFactoryMethodName() == null && mbd.hasBeanClass()) {
+				return aacbf.getInstantiationStrategy().getActualBeanClass(mbd, beanName, this.beanFactory);
+			}
+		}
+		return beanClass;
+	}
+
+	@Override
 	@Nullable
 	public Constructor<?>[] determineCandidateConstructors(Class<?> beanClass, final String beanName)
 			throws BeanCreationException {
 
-		// Let's check for lookup methods here...
-		if (!this.lookupMethodsChecked.contains(beanName)) {
-			if (AnnotationUtils.isCandidateClass(beanClass, Lookup.class)) {
-				try {
-					Class<?> targetClass = beanClass;
-					do {
-						ReflectionUtils.doWithLocalMethods(targetClass, method -> {
-							Lookup lookup = method.getAnnotation(Lookup.class);
-							if (lookup != null) {
-								Assert.state(this.beanFactory != null, "No BeanFactory available");
-								LookupOverride override = new LookupOverride(method, lookup.value());
-								try {
-									RootBeanDefinition mbd = (RootBeanDefinition)
-											this.beanFactory.getMergedBeanDefinition(beanName);
-									mbd.getMethodOverrides().addOverride(override);
-								}
-								catch (NoSuchBeanDefinitionException ex) {
-									throw new BeanCreationException(beanName,
-											"Cannot apply @Lookup to beans without corresponding bean definition");
-								}
-							}
-						});
-						targetClass = targetClass.getSuperclass();
-					}
-					while (targetClass != null && targetClass != Object.class);
-
-				}
-				catch (IllegalStateException ex) {
-					throw new BeanCreationException(beanName, "Lookup method resolution failed", ex);
-				}
-			}
-			this.lookupMethodsChecked.add(beanName);
-		}
+		checkLookupMethods(beanClass, beanName);
 
 		// Quick check on the concurrent map first, with minimal locking.
 		Constructor<?>[] candidateConstructors = this.candidateConstructorsCache.get(beanClass);
@@ -448,6 +441,41 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 			}
 		}
 		return (candidateConstructors.length > 0 ? candidateConstructors : null);
+	}
+
+	private void checkLookupMethods(Class<?> beanClass, final String beanName) throws BeanCreationException {
+		if (!this.lookupMethodsChecked.contains(beanName)) {
+			if (AnnotationUtils.isCandidateClass(beanClass, Lookup.class)) {
+				try {
+					Class<?> targetClass = beanClass;
+					do {
+						ReflectionUtils.doWithLocalMethods(targetClass, method -> {
+							Lookup lookup = method.getAnnotation(Lookup.class);
+							if (lookup != null) {
+								Assert.state(this.beanFactory != null, "No BeanFactory available");
+								LookupOverride override = new LookupOverride(method, lookup.value());
+								try {
+									RootBeanDefinition mbd = (RootBeanDefinition)
+											this.beanFactory.getMergedBeanDefinition(beanName);
+									mbd.getMethodOverrides().addOverride(override);
+								}
+								catch (NoSuchBeanDefinitionException ex) {
+									throw new BeanCreationException(beanName,
+											"Cannot apply @Lookup to beans without corresponding bean definition");
+								}
+							}
+						});
+						targetClass = targetClass.getSuperclass();
+					}
+					while (targetClass != null && targetClass != Object.class);
+
+				}
+				catch (IllegalStateException ex) {
+					throw new BeanCreationException(beanName, "Lookup method resolution failed", ex);
+				}
+			}
+			this.lookupMethodsChecked.add(beanName);
+		}
 	}
 
 	@Override
@@ -885,9 +913,6 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 
 		private static final String INSTANCE_PARAMETER = "instance";
 
-		private static final Consumer<ExecutableHint.Builder> INTROSPECT = builder -> builder
-				.withMode(ExecutableMode.INTROSPECT);
-
 		private static final Consumer<FieldHint.Builder> ALLOW_WRITE = builder -> builder
 				.allowWrite(true);
 
@@ -896,10 +921,15 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 
 		private final Collection<AutowiredElement> autowiredElements;
 
+		@Nullable
+		private final AutowireCandidateResolver candidateResolver;
 
-		AotContribution(Class<?> target, Collection<AutowiredElement> autowiredElements) {
+		AotContribution(Class<?> target, Collection<AutowiredElement> autowiredElements,
+				@Nullable AutowireCandidateResolver candidateResolver) {
+
 			this.target = target;
 			this.autowiredElements = autowiredElements;
+			this.candidateResolver = candidateResolver;
 		}
 
 
@@ -922,16 +952,20 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 			});
 			beanRegistrationCode.addInstancePostProcessor(
 					MethodReference.ofStatic(generatedClass.getName(), generateMethod.getName()));
+
+			if (this.candidateResolver != null) {
+				registerHints(generationContext.getRuntimeHints());
+			}
 		}
 
 		private CodeBlock generateMethodCode(RuntimeHints hints) {
-			CodeBlock.Builder builder = CodeBlock.builder();
+			CodeBlock.Builder code = CodeBlock.builder();
 			for (AutowiredElement autowiredElement : this.autowiredElements) {
-				builder.addStatement(
+				code.addStatement(
 						generateMethodStatementForElement(autowiredElement, hints));
 			}
-			builder.addStatement("return $L", INSTANCE_PARAMETER);
-			return builder.build();
+			code.addStatement("return $L", INSTANCE_PARAMETER);
+			return code.build();
 		}
 
 		private CodeBlock generateMethodStatementForElement(
@@ -969,40 +1003,69 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 		private CodeBlock generateMethodStatementForMethod(Method method,
 				boolean required, RuntimeHints hints) {
 
-			CodeBlock.Builder builder = CodeBlock.builder();
-			builder.add("$T.$L", AutowiredMethodArgumentsResolver.class,
+			CodeBlock.Builder code = CodeBlock.builder();
+			code.add("$T.$L", AutowiredMethodArgumentsResolver.class,
 					(!required) ? "forMethod" : "forRequiredMethod");
-			builder.add("($S", method.getName());
+			code.add("($S", method.getName());
 			if (method.getParameterCount() > 0) {
-				builder.add(", $L",
+				code.add(", $L",
 						generateParameterTypesCode(method.getParameterTypes()));
 			}
-			builder.add(")");
+			code.add(")");
 			AccessVisibility visibility = AccessVisibility.forMember(method);
 			if (visibility == AccessVisibility.PRIVATE
 					|| visibility == AccessVisibility.PROTECTED) {
 				hints.reflection().registerMethod(method);
-				builder.add(".resolveAndInvoke($L, $L)", REGISTERED_BEAN_PARAMETER,
+				code.add(".resolveAndInvoke($L, $L)", REGISTERED_BEAN_PARAMETER,
 						INSTANCE_PARAMETER);
 			}
 			else {
-				hints.reflection().registerMethod(method, INTROSPECT);
+				hints.reflection().registerMethod(method, ExecutableMode.INTROSPECT);
 				CodeBlock arguments = new AutowiredArgumentsCodeGenerator(this.target,
 						method).generateCode(method.getParameterTypes());
 				CodeBlock injectionCode = CodeBlock.of("args -> $L.$L($L)",
 						INSTANCE_PARAMETER, method.getName(), arguments);
-				builder.add(".resolve($L, $L)", REGISTERED_BEAN_PARAMETER, injectionCode);
+				code.add(".resolve($L, $L)", REGISTERED_BEAN_PARAMETER, injectionCode);
 			}
-			return builder.build();
+			return code.build();
 		}
 
 		private CodeBlock generateParameterTypesCode(Class<?>[] parameterTypes) {
-			CodeBlock.Builder builder = CodeBlock.builder();
+			CodeBlock.Builder code = CodeBlock.builder();
 			for (int i = 0; i < parameterTypes.length; i++) {
-				builder.add(i != 0 ? ", " : "");
-				builder.add("$T.class", parameterTypes[i]);
+				code.add(i != 0 ? ", " : "");
+				code.add("$T.class", parameterTypes[i]);
 			}
-			return builder.build();
+			return code.build();
+		}
+
+		private void registerHints(RuntimeHints runtimeHints) {
+			this.autowiredElements.forEach(autowiredElement -> {
+				boolean required = autowiredElement.required;
+				Member member = autowiredElement.getMember();
+				if (member instanceof Field field) {
+					DependencyDescriptor dependencyDescriptor = new DependencyDescriptor(
+							field, required);
+					registerProxyIfNecessary(runtimeHints, dependencyDescriptor);
+				}
+				if (member instanceof Method method) {
+					Class<?>[] parameterTypes = method.getParameterTypes();
+					for (int i = 0; i < parameterTypes.length; i++) {
+						MethodParameter methodParam = new MethodParameter(method, i);
+						DependencyDescriptor dependencyDescriptor = new DependencyDescriptor(
+								methodParam, required);
+						registerProxyIfNecessary(runtimeHints, dependencyDescriptor);
+					}
+				}
+			});
+		}
+
+		private void registerProxyIfNecessary(RuntimeHints runtimeHints, DependencyDescriptor dependencyDescriptor) {
+			Class<?> proxyType = this.candidateResolver
+					.getLazyResolutionProxyClass(dependencyDescriptor, null);
+			if (proxyType != null && Proxy.isProxyClass(proxyType)) {
+				runtimeHints.proxies().registerJdkProxy(proxyType.getInterfaces());
+			}
 		}
 
 	}

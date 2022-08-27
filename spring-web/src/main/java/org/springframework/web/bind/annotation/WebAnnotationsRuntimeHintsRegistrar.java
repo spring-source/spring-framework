@@ -25,8 +25,8 @@ import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Controller;
 
 /**
- * {@link RuntimeHintsRegistrar} implementation that make web binding
- * annotations at runtime.
+ * {@link RuntimeHintsRegistrar} implementation that makes web binding
+ * annotations available at runtime.
  *
  * @author Stephane Nicoll
  * @since 6.0
@@ -36,15 +36,12 @@ public final class WebAnnotationsRuntimeHintsRegistrar implements RuntimeHintsRe
 	@Override
 	public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
 		Stream.of(Controller.class, ControllerAdvice.class, CookieValue.class,
-				CrossOrigin.class, DeleteMapping.class, ExceptionHandler.class,
-				GetMapping.class, InitBinder.class, Mapping.class, MatrixVariable.class,
-				ModelAttribute.class, PatchMapping.class, PathVariable.class,
-				PostMapping.class, PutMapping.class, RequestAttribute.class,
-				RequestBody.class, RequestHeader.class, RequestMapping.class,
-				RequestParam.class, RequestPart.class, ResponseBody.class,
-				ResponseStatus.class, RestController.class, RestControllerAdvice.class,
-				SessionAttribute.class, SessionAttributes.class).forEach(
-				annotationType -> RuntimeHintsUtils.registerAnnotation(hints, annotationType));
+						CrossOrigin.class, MatrixVariable.class, ModelAttribute.class,
+						PathVariable.class, RequestAttribute.class, RequestHeader.class,
+						RequestMapping.class, RequestParam.class, RequestPart.class,
+						ResponseStatus.class, SessionAttribute.class, SessionAttributes.class)
+				.forEach(annotationType ->
+						RuntimeHintsUtils.registerSynthesizedAnnotation(hints, annotationType));
 	}
 
 }

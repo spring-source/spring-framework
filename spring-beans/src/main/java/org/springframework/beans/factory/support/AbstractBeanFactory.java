@@ -1802,14 +1802,14 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			//全局加锁
 			synchronized (this.mergedBeanDefinitions) {
 				//再次检查一次：DCL 双检查模式
-				if (!this.alreadyCreated.contains(beanName)) {
+				if (!isBeanEligibleForMetadataCaching(beanName)) {
 					// Let the bean definition get re-merged now that we're actually creating
 					// the bean... just in case some of its metadata changed in the meantime.
 					//从 mergedBeanDefinitions 中删除 beanName，并在下次访问时重新创建它
 					clearMergedBeanDefinition(beanName);
-					// 添加到已创建 bean 集合中
-					this.alreadyCreated.add(beanName);
 				}
+				// 添加到已创建 bean 集合中
+				this.alreadyCreated.add(beanName);
 			}
 		}
 	}

@@ -16,43 +16,41 @@
 
 package org.springframework.core.testfixture.aot.generate;
 
-import java.io.IOException;
-
 import org.springframework.aot.generate.ClassNameGenerator;
 import org.springframework.aot.generate.DefaultGenerationContext;
 import org.springframework.aot.generate.GenerationContext;
 import org.springframework.aot.generate.InMemoryGeneratedFiles;
 
 /**
- * Test {@link GenerationContext} implementation that uses
+ * {@link GenerationContext} test implementation that uses
  * {@link InMemoryGeneratedFiles} and provides a convenient
  * {@link TestTarget} by default.
  *
  * @author Stephane Nicoll
+ * @author Sam Brannen
+ * @since 6.0
  */
 public class TestGenerationContext extends DefaultGenerationContext {
 
-	public TestGenerationContext(ClassNameGenerator classNameGenerator) {
-		super(classNameGenerator, new InMemoryGeneratedFiles());
-	}
-
+	/**
+	 * Create an instance using {@link TestTarget} as the default target class.
+	 */
 	public TestGenerationContext() {
 		this(new ClassNameGenerator(TestTarget.class));
 	}
 
+	/**
+	 * Create an instance using the specified {@link ClassNameGenerator}.
+	 * @param classNameGenerator the class name generator to use
+	 */
+	public TestGenerationContext(ClassNameGenerator classNameGenerator) {
+		super(classNameGenerator, new InMemoryGeneratedFiles());
+	}
+
+
 	@Override
 	public InMemoryGeneratedFiles getGeneratedFiles() {
 		return (InMemoryGeneratedFiles) super.getGeneratedFiles();
-	}
-
-	@Override
-	public void writeGeneratedContent() {
-		try {
-			super.writeGeneratedContent();
-		}
-		catch (IOException ex) {
-			throw new IllegalStateException(ex);
-		}
 	}
 
 }

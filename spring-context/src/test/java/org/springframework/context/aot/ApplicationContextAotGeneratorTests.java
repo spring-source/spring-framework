@@ -16,10 +16,21 @@
 
 package org.springframework.context.aot;
 
+import java.io.IOException;
+import java.lang.reflect.Proxy;
+import java.util.List;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 
+import org.springframework.aot.generate.GeneratedFiles.Kind;
+import org.springframework.aot.generate.GenerationContext;
+import org.springframework.aot.hint.JdkProxyHint;
+import org.springframework.aot.hint.MemberCategory;
+import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.TypeReference;
+import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
 import org.springframework.aot.test.generator.compile.Compiled;
 import org.springframework.aot.test.generator.compile.TestCompiler;
 import org.springframework.beans.BeansException;
@@ -36,12 +47,21 @@ import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.RegisteredBean;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigUtils;
 import org.springframework.context.annotation.CommonAnnotationBeanPostProcessor;
+import org.springframework.context.annotation.ContextAnnotationAutowireCandidateResolver;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.context.testfixture.context.generator.SimpleComponent;
 import org.springframework.context.testfixture.context.generator.annotation.AutowiredComponent;
+import org.springframework.context.testfixture.context.generator.annotation.CglibConfiguration;
 import org.springframework.context.testfixture.context.generator.annotation.InitDestroyComponent;
+import org.springframework.context.testfixture.context.generator.annotation.LazyAutowiredFieldComponent;
+import org.springframework.context.testfixture.context.generator.annotation.LazyAutowiredMethodComponent;
+import org.springframework.context.testfixture.context.generator.annotation.LazyConstructorArgumentComponent;
+import org.springframework.context.testfixture.context.generator.annotation.LazyFactoryMethodArgumentComponent;
+import org.springframework.core.env.Environment;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.testfixture.aot.generate.TestGenerationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,6 +103,91 @@ class ApplicationContextAotGeneratorTests {
 			AutowiredComponent bean = freshApplicationContext.getBean(AutowiredComponent.class);
 			assertThat(bean.getEnvironment()).isSameAs(freshApplicationContext.getEnvironment());
 			assertThat(bean.getCounter()).isEqualTo(42);
+		});
+	}
+
+	@Test
+	void processAheadOfTimeWhenHasLazyAutowiringOnField() {
+		testAutowiredComponent(LazyAutowiredFieldComponent.class, (bean, generationContext) -> {
+			Environment environment = bean.getEnvironment();
+			assertThat(environment).isInstanceOf(Proxy.class);
+			ResourceLoader resourceLoader = bean.getResourceLoader();
+			assertThat(resourceLoader).isNotInstanceOf(Proxy.class);
+			RuntimeHints runtimeHints = generationContext.getRuntimeHints();
+			assertThat(runtimeHints.proxies().jdkProxies()).satisfies(doesNotHaveProxyFor(ResourceLoader.class));
+			assertThat(runtimeHints.proxies().jdkProxies()).anySatisfy(proxyHint ->
+					assertThat(proxyHint.getProxiedInterfaces()).isEqualTo(TypeReference.listOf(
+							environment.getClass().getInterfaces())));
+
+		});
+	}
+
+	@Test
+	void processAheadOfTimeWhenHasLazyAutowiringOnMethod() {
+		testAutowiredComponent(LazyAutowiredMethodComponent.class, (bean, generationContext) -> {
+			Environment environment = bean.getEnvironment();
+			assertThat(environment).isNotInstanceOf(Proxy.class);
+			ResourceLoader resourceLoader = bean.getResourceLoader();
+			assertThat(resourceLoader).isInstanceOf(Proxy.class);
+			RuntimeHints runtimeHints = generationContext.getRuntimeHints();
+			assertThat(runtimeHints.proxies().jdkProxies()).satisfies(doesNotHaveProxyFor(Environment.class));
+			assertThat(runtimeHints.proxies().jdkProxies()).anySatisfy(proxyHint ->
+					assertThat(proxyHint.getProxiedInterfaces()).isEqualTo(TypeReference.listOf(
+							resourceLoader.getClass().getInterfaces())));
+		});
+	}
+
+	@Test
+	void processAheadOfTimeWhenHasLazyAutowiringOnConstructor() {
+		testAutowiredComponent(LazyConstructorArgumentComponent.class, (bean, generationContext) -> {
+			Environment environment = bean.getEnvironment();
+			assertThat(environment).isInstanceOf(Proxy.class);
+			ResourceLoader resourceLoader = bean.getResourceLoader();
+			assertThat(resourceLoader).isNotInstanceOf(Proxy.class);
+			RuntimeHints runtimeHints = generationContext.getRuntimeHints();
+			assertThat(runtimeHints.proxies().jdkProxies()).satisfies(doesNotHaveProxyFor(ResourceLoader.class));
+			assertThat(runtimeHints.proxies().jdkProxies()).anySatisfy(proxyHint ->
+					assertThat(proxyHint.getProxiedInterfaces()).isEqualTo(TypeReference.listOf(
+							environment.getClass().getInterfaces())));
+		});
+	}
+
+	@Test
+	void processAheadOfTimeWhenHasLazyAutowiringOnFactoryMethod() {
+		RootBeanDefinition bd = new RootBeanDefinition(LazyFactoryMethodArgumentComponent.class);
+		bd.setFactoryMethodName("of");
+		testAutowiredComponent(LazyFactoryMethodArgumentComponent.class, bd, (bean, generationContext) -> {
+			Environment environment = bean.getEnvironment();
+			assertThat(environment).isInstanceOf(Proxy.class);
+			ResourceLoader resourceLoader = bean.getResourceLoader();
+			assertThat(resourceLoader).isNotInstanceOf(Proxy.class);
+			RuntimeHints runtimeHints = generationContext.getRuntimeHints();
+			assertThat(runtimeHints.proxies().jdkProxies()).satisfies(doesNotHaveProxyFor(ResourceLoader.class));
+			assertThat(runtimeHints.proxies().jdkProxies()).anySatisfy(proxyHint ->
+					assertThat(proxyHint.getProxiedInterfaces()).isEqualTo(TypeReference.listOf(
+							environment.getClass().getInterfaces())));
+		});
+	}
+
+	private <T> void testAutowiredComponent(Class<T> type, BiConsumer<T, GenerationContext> assertions) {
+		testAutowiredComponent(type, new RootBeanDefinition(type), assertions);
+	}
+
+	private <T> void testAutowiredComponent(Class<T> type, RootBeanDefinition beanDefinition,
+			BiConsumer<T, GenerationContext> assertions) {
+		GenericApplicationContext applicationContext = new GenericApplicationContext();
+		applicationContext.getDefaultListableBeanFactory().setAutowireCandidateResolver(
+				new ContextAnnotationAutowireCandidateResolver());
+		applicationContext.registerBeanDefinition(AnnotationConfigUtils.AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME,
+				BeanDefinitionBuilder
+						.rootBeanDefinition(AutowiredAnnotationBeanPostProcessor.class)
+						.setRole(BeanDefinition.ROLE_INFRASTRUCTURE).getBeanDefinition());
+		applicationContext.registerBeanDefinition("testComponent", beanDefinition);
+		TestGenerationContext generationContext = processAheadOfTime(applicationContext);
+		testCompiledResult(generationContext, (initializer, compiled) -> {
+			GenericApplicationContext freshApplicationContext = toFreshApplicationContext(initializer);
+			assertThat(freshApplicationContext.getBeanDefinitionNames()).containsOnly("testComponent");
+			assertions.accept(freshApplicationContext.getBean("testComponent", type), generationContext);
 		});
 	}
 
@@ -134,8 +239,9 @@ class ApplicationContextAotGeneratorTests {
 		testCompiledResult(applicationContext, (initializer, compiled) -> {
 			GenericApplicationContext freshApplicationContext = toFreshApplicationContext(initializer);
 			assertThat(freshApplicationContext.getBeanDefinitionNames()).isEmpty();
-			assertThat(compiled.getSourceFile()).contains(
-					"beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver())");
+			assertThat(compiled.getSourceFile())
+					.contains("beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver())")
+					.contains("beanFactory.setDependencyComparator(AnnotationAwareOrderComparator.INSTANCE)");
 		});
 	}
 
@@ -161,13 +267,38 @@ class ApplicationContextAotGeneratorTests {
 		});
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private void testCompiledResult(GenericApplicationContext applicationContext,
-			BiConsumer<ApplicationContextInitializer<GenericApplicationContext>, Compiled> result) {
+	@Test
+	void processAheadOfTimeWhenHasCglibProxyWriteProxyAndGenerateReflectionHints() throws IOException {
+		GenericApplicationContext applicationContext = new AnnotationConfigApplicationContext();
+		applicationContext.registerBean(CglibConfiguration.class);
+		TestGenerationContext context = processAheadOfTime(applicationContext);
+		String proxyClassName = CglibConfiguration.class.getName() + "$$SpringCGLIB$$0";
+		assertThat(context.getGeneratedFiles()
+				.getGeneratedFileContent(Kind.CLASS, proxyClassName.replace('.', '/') + ".class")).isNotNull();
+		assertThat(RuntimeHintsPredicates.reflection().onType(TypeReference.of(proxyClassName))
+				.withMemberCategory(MemberCategory.INVOKE_DECLARED_CONSTRUCTORS)).accepts(context.getRuntimeHints());
+	}
+
+	private Consumer<List<? extends JdkProxyHint>> doesNotHaveProxyFor(Class<?> target) {
+		return hints -> assertThat(hints).noneMatch(hint -> hint.getProxiedInterfaces().get(0).equals(target));
+	}
+
+	private static TestGenerationContext processAheadOfTime(GenericApplicationContext applicationContext) {
 		ApplicationContextAotGenerator generator = new ApplicationContextAotGenerator();
 		TestGenerationContext generationContext = new TestGenerationContext();
 		generator.processAheadOfTime(applicationContext, generationContext);
 		generationContext.writeGeneratedContent();
+		return generationContext;
+	}
+
+	private void testCompiledResult(GenericApplicationContext applicationContext,
+			BiConsumer<ApplicationContextInitializer<GenericApplicationContext>, Compiled> result) {
+		testCompiledResult(processAheadOfTime(applicationContext), result);
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private void testCompiledResult(TestGenerationContext generationContext,
+			BiConsumer<ApplicationContextInitializer<GenericApplicationContext>, Compiled> result) {
 		TestCompiler.forSystem().withFiles(generationContext.getGeneratedFiles()).compile(compiled ->
 				result.accept(compiled.getInstance(ApplicationContextInitializer.class), compiled));
 	}

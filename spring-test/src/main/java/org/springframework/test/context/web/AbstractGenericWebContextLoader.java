@@ -22,6 +22,7 @@ import org.apache.commons.logging.LogFactory;
 
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigUtils;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -29,6 +30,7 @@ import org.springframework.core.io.FileSystemResourceLoader;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.mock.web.MockServletContext;
 import org.springframework.test.context.MergedContextConfiguration;
+import org.springframework.test.context.aot.AotContextLoader;
 import org.springframework.test.context.support.AbstractContextLoader;
 import org.springframework.util.Assert;
 import org.springframework.web.context.WebApplicationContext;
@@ -57,12 +59,10 @@ import org.springframework.web.context.support.GenericWebApplicationContext;
  * @see #loadContext(MergedContextConfiguration)
  * @see #loadContext(String...)
  */
-public abstract class AbstractGenericWebContextLoader extends AbstractContextLoader {
+public abstract class AbstractGenericWebContextLoader extends AbstractContextLoader implements AotContextLoader {
 
 	protected static final Log logger = LogFactory.getLog(AbstractGenericWebContextLoader.class);
 
-
-	// SmartContextLoader
 
 	/**
 	 * Load a {@link GenericWebApplicationContext} for the supplied
@@ -98,16 +98,15 @@ public abstract class AbstractGenericWebContextLoader extends AbstractContextLoa
 	 * application context
 	 * @return a new web application context
 	 * @see org.springframework.test.context.SmartContextLoader#loadContext(MergedContextConfiguration)
-	 * @see GenericWebApplicationContext
 	 */
 	@Override
 	public final ApplicationContext loadContext(MergedContextConfiguration mergedConfig) throws Exception {
-		return loadContext(mergedConfig, true);
+		return loadContext(mergedConfig, false);
 	}
 
 	/**
-	 * Load a {@link GenericWebApplicationContext} for the supplied
-	 * {@link MergedContextConfiguration}.
+	 * Load a {@link GenericWebApplicationContext} for AOT build-time processing based
+	 * on the supplied {@link MergedContextConfiguration}.
 	 * <p>In contrast to {@link #loadContext(MergedContextConfiguration)}, this
 	 * method does not
 	 * {@linkplain org.springframework.context.ConfigurableApplicationContext#refresh()
@@ -118,15 +117,51 @@ public abstract class AbstractGenericWebContextLoader extends AbstractContextLoa
 	 * @param mergedConfig the merged context configuration to use to load the
 	 * application context
 	 * @return a new web application context
+	 * @throws Exception if context loading failed
 	 * @since 6.0
-	 * @see org.springframework.test.context.SmartContextLoader#loadContextForAotProcessing(MergedContextConfiguration)
-	 * @see GenericWebApplicationContext
+	 * @see AotContextLoader#loadContextForAotProcessing(MergedContextConfiguration)
 	 */
 	@Override
-	public final ApplicationContext loadContextForAotProcessing(
-			MergedContextConfiguration mergedConfig) throws Exception {
+	public final GenericWebApplicationContext loadContextForAotProcessing(MergedContextConfiguration mergedConfig)
+			throws Exception {
+		return loadContext(mergedConfig, true);
+	}
 
-		return loadContext(mergedConfig, false);
+	/**
+	 * Load a {@link GenericWebApplicationContext} for AOT run-time execution based on
+	 * the supplied {@link MergedContextConfiguration} and
+	 * {@link ApplicationContextInitializer}.
+	 * @param mergedConfig the merged context configuration to use to load the
+	 * application context
+	 * @param initializer the {@code ApplicationContextInitializer} that should
+	 * be applied to the context in order to recreate bean definitions
+	 * @return a new web application context
+	 * @throws Exception if context loading failed
+	 * @since 6.0
+	 * @see AotContextLoader#loadContextForAotRuntime(MergedContextConfiguration, ApplicationContextInitializer)
+	 */
+	@Override
+	public final GenericWebApplicationContext loadContextForAotRuntime(MergedContextConfiguration mergedConfig,
+			ApplicationContextInitializer<ConfigurableApplicationContext> initializer) throws Exception {
+
+		Assert.notNull(mergedConfig, "MergedContextConfiguration must not be null");
+		Assert.notNull(initializer, "ApplicationContextInitializer must not be null");
+		if (!(mergedConfig instanceof WebMergedContextConfiguration webMergedConfig)) {
+			throw new IllegalArgumentException("""
+					Cannot load WebApplicationContext from non-web merged context configuration %s. \
+					Consider annotating your test class with @WebAppConfiguration."""
+						.formatted(mergedConfig));
+		}
+
+		validateMergedContextConfiguration(webMergedConfig);
+
+		GenericWebApplicationContext context = createContext();
+		configureWebResources(context, webMergedConfig);
+		prepareContext(context, webMergedConfig);
+		initializer.initialize(context);
+		customizeContext(context, webMergedConfig);
+		context.refresh();
+		return context;
 	}
 
 	/**
@@ -134,14 +169,15 @@ public abstract class AbstractGenericWebContextLoader extends AbstractContextLoa
 	 * {@link MergedContextConfiguration}.
 	 * @param mergedConfig the merged context configuration to use to load the
 	 * application context
-	 * @param refresh whether to refresh the {@code ApplicationContext} and register
-	 * a JVM shutdown hook for it
+	 * @param forAotProcessing {@code true} if the context is being loaded for
+	 * AOT processing, meaning not to refresh the {@code ApplicationContext} or
+	 * register a JVM shutdown hook for it
 	 * @return a new web application context
 	 * @see org.springframework.test.context.SmartContextLoader#loadContext(MergedContextConfiguration)
-	 * @see org.springframework.test.context.SmartContextLoader#loadContextForAotProcessing(MergedContextConfiguration)
+	 * @see org.springframework.test.context.aot.AotContextLoader#loadContextForAotProcessing(MergedContextConfiguration)
 	 */
 	private final GenericWebApplicationContext loadContext(
-			MergedContextConfiguration mergedConfig, boolean refresh) throws Exception {
+			MergedContextConfiguration mergedConfig, boolean forAotProcessing) throws Exception {
 
 		if (!(mergedConfig instanceof WebMergedContextConfiguration webMergedConfig)) {
 			throw new IllegalArgumentException("""
@@ -151,13 +187,13 @@ public abstract class AbstractGenericWebContextLoader extends AbstractContextLoa
 		}
 
 		if (logger.isDebugEnabled()) {
-			logger.debug(String.format("Loading WebApplicationContext for merged context configuration %s.",
-				webMergedConfig));
+			logger.debug("Loading WebApplicationContext %sfor merged context configuration %s"
+					.formatted((forAotProcessing ? "for AOT processing " : ""), mergedConfig));
 		}
 
 		validateMergedContextConfiguration(webMergedConfig);
 
-		GenericWebApplicationContext context = new GenericWebApplicationContext();
+		GenericWebApplicationContext context = createContext();
 
 		ApplicationContext parent = mergedConfig.getParentApplicationContext();
 		if (parent != null) {
@@ -170,7 +206,7 @@ public abstract class AbstractGenericWebContextLoader extends AbstractContextLoa
 		AnnotationConfigUtils.registerAnnotationConfigProcessors(context);
 		customizeContext(context, webMergedConfig);
 
-		if (refresh) {
+		if (!forAotProcessing) {
 			context.refresh();
 			context.registerShutdownHook();
 		}
@@ -190,6 +226,21 @@ public abstract class AbstractGenericWebContextLoader extends AbstractContextLoa
 	 */
 	protected void validateMergedContextConfiguration(WebMergedContextConfiguration mergedConfig) {
 		// no-op
+	}
+
+	/**
+	 * Factory method for creating the {@link GenericWebApplicationContext} used
+	 * by this {@code ContextLoader}.
+	 * <p>The default implementation creates a {@code GenericWebApplicationContext}
+	 * using the default constructor. This method may be overridden &mdash; for
+	 * example, to use a custom context subclass or to create a
+	 * {@code GenericWebApplicationContext} with a custom
+	 * {@link DefaultListableBeanFactory} implementation.
+	 * @return a newly instantiated {@code GenericWebApplicationContext}
+	 * @since 5.2.23
+	 */
+	protected GenericWebApplicationContext createContext() {
+		return new GenericWebApplicationContext();
 	}
 
 	/**
@@ -300,8 +351,6 @@ public abstract class AbstractGenericWebContextLoader extends AbstractContextLoa
 		super.customizeContext(context, webMergedConfig);
 	}
 
-
-	// ContextLoader
 
 	/**
 	 * {@code AbstractGenericWebContextLoader} should be used as a
