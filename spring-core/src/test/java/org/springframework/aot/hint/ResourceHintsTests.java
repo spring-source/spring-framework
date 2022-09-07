@@ -24,6 +24,8 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.aot.hint.ResourceHintsTests.Nested.Inner;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.DescriptiveResource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -33,6 +35,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
  * Tests for {@link ResourceHints}.
  *
  * @author Stephane Nicoll
+ * @author Sam Brannen
  */
 class ResourceHintsTests {
 
@@ -108,6 +111,36 @@ class ResourceHintsTests {
 		this.resourceHints.registerPatternIfPresent(null, "location/does-not-exist/", hintBuilder);
 		assertThat(this.resourceHints.resourcePatterns()).isEmpty();
 		verifyNoInteractions(hintBuilder);
+	}
+
+	@Test
+	void registerResourceIfNecessaryWithUnsupportedResourceType() {
+		DescriptiveResource resource = new DescriptiveResource("bogus");
+		this.resourceHints.registerResourceIfNecessary(resource);
+		assertThat(this.resourceHints.resourcePatterns()).isEmpty();
+	}
+
+	@Test
+	void registerResourceIfNecessaryWithNonexistentClassPathResource() {
+		ClassPathResource resource = new ClassPathResource("bogus", getClass());
+		this.resourceHints.registerResourceIfNecessary(resource);
+		assertThat(this.resourceHints.resourcePatterns()).isEmpty();
+	}
+
+	@Test
+	void registerResourceIfNecessaryWithExistingClassPathResource() {
+		String path = "org/springframework/aot/hint/support";
+		ClassPathResource resource = new ClassPathResource(path);
+		this.resourceHints.registerResourceIfNecessary(resource);
+		assertThat(this.resourceHints.resourcePatterns()).singleElement().satisfies(patternOf(path));
+	}
+
+	@Test
+	void registerResourceIfNecessaryWithExistingRelativeClassPathResource() {
+		String path = "org/springframework/aot/hint/support";
+		ClassPathResource resource = new ClassPathResource("support", RuntimeHints.class);
+		this.resourceHints.registerResourceIfNecessary(resource);
+		assertThat(this.resourceHints.resourcePatterns()).singleElement().satisfies(patternOf(path));
 	}
 
 	@Test

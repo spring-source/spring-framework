@@ -87,6 +87,28 @@ public class ReflectionHints {
 	}
 
 	/**
+	 * Register or customize reflection hints for the specified type
+	 * using the specified {@link MemberCategory MemberCategories}.
+	 * @param type the type to customize
+	 * @param memberCategories the member categories to apply
+	 * @return {@code this}, to facilitate method chaining
+	 */
+	public ReflectionHints registerType(Class<?> type, MemberCategory... memberCategories) {
+		return registerType(TypeReference.of(type), memberCategories);
+	}
+
+	/**
+	 * Register or customize reflection hints for the specified type
+	 * using the specified {@link MemberCategory MemberCategories}.
+	 * @param type the type to customize
+	 * @param memberCategories the member categories to apply
+	 * @return {@code this}, to facilitate method chaining
+	 */
+	public ReflectionHints registerType(TypeReference type , MemberCategory... memberCategories) {
+		return registerType(type, TypeHint.builtWith(memberCategories));
+	}
+
+	/**
 	 * Register or customize reflection hints for the specified type.
 	 * @param type the type to customize
 	 * @param typeHint a builder to further customize hints for that type
@@ -126,6 +148,26 @@ public class ReflectionHints {
 	}
 
 	/**
+	 * Register the need for reflection on the specified {@link Field},
+	 * enabling {@link FieldMode#WRITE}.
+	 * @param field the field that requires reflection
+	 * @return {@code this}, to facilitate method chaining
+	 */
+	public ReflectionHints registerField(Field field) {
+		return registerField(field, FieldMode.WRITE);
+	}
+
+	/**
+	 * Register the need for reflection on the specified {@link Field}
+	 * using the specified {@link FieldMode}.
+	 * @param field the field that requires reflection
+	 * @return {@code this}, to facilitate method chaining
+	 */
+	public ReflectionHints registerField(Field field, FieldMode mode) {
+		return registerField(field, FieldHint.builtWith(mode));
+	}
+
+	/**
 	 * Register the need for reflection on the specified {@link Field}.
 	 * @param field the field that requires reflection
 	 * @param fieldHint a builder to further customize the hints of this field
@@ -137,13 +179,24 @@ public class ReflectionHints {
 	}
 
 	/**
-	 * Register the need for reflection on the specified {@link Field},
-	 * enabling write access.
-	 * @param field the field that requires reflection
+	 * Register the need for reflection on the specified {@link Constructor},
+	 * enabling {@link ExecutableMode#INVOKE}.
+	 * @param constructor the constructor that requires reflection
 	 * @return {@code this}, to facilitate method chaining
 	 */
-	public ReflectionHints registerField(Field field) {
-		return registerField(field, fieldHint -> fieldHint.allowWrite(true));
+	public ReflectionHints registerConstructor(Constructor<?> constructor) {
+		return registerConstructor(constructor, ExecutableMode.INVOKE);
+	}
+
+	/**
+	 * Register the need for reflection on the specified {@link Constructor},
+	 * using the specified {@link ExecutableMode}.
+	 * @param constructor the constructor that requires reflection
+	 * @param mode the requested mode
+	 * @return {@code this}, to facilitate method chaining
+	 */
+	public ReflectionHints registerConstructor(Constructor<?> constructor, ExecutableMode mode) {
+		return registerConstructor(constructor, ExecutableHint.builtWith(mode));
 	}
 
 	/**
@@ -159,24 +212,24 @@ public class ReflectionHints {
 	}
 
 	/**
-	 * Register the need for reflection on the specified {@link Constructor},
-	 * using the specified {@link ExecutableMode}.
-	 * @param constructor the constructor that requires reflection
-	 * @param mode the requested mode
+	 * Register the need for reflection on the specified {@link Method},
+	 * enabling {@link ExecutableMode#INVOKE}.
+	 * @param method the method that requires reflection
 	 * @return {@code this}, to facilitate method chaining
 	 */
-	public ReflectionHints registerConstructor(Constructor<?> constructor, ExecutableMode mode) {
-		return registerConstructor(constructor, constructorHint -> constructorHint.withMode(mode));
+	public ReflectionHints registerMethod(Method method) {
+		return registerMethod(method, ExecutableMode.INVOKE);
 	}
 
 	/**
-	 * Register the need for reflection on the specified {@link Constructor},
-	 * enabling {@link ExecutableMode#INVOKE}.
-	 * @param constructor the constructor that requires reflection
+	 * Register the need for reflection on the specified {@link Method},
+	 * using the specified {@link ExecutableMode}.
+	 * @param method the method that requires reflection
+	 * @param mode the requested mode
 	 * @return {@code this}, to facilitate method chaining
 	 */
-	public ReflectionHints registerConstructor(Constructor<?> constructor) {
-		return registerConstructor(constructor, ExecutableMode.INVOKE);
+	public ReflectionHints registerMethod(Method method, ExecutableMode mode) {
+		return registerMethod(method, ExecutableHint.builtWith(mode));
 	}
 
 	/**
@@ -188,27 +241,6 @@ public class ReflectionHints {
 	public ReflectionHints registerMethod(Method method, Consumer<ExecutableHint.Builder> methodHint) {
 		return registerType(TypeReference.of(method.getDeclaringClass()),
 				typeHint -> typeHint.withMethod(method.getName(), mapParameters(method), methodHint));
-	}
-
-	/**
-	 * Register the need for reflection on the specified {@link Method},
-	 * using the specified {@link ExecutableMode}.
-	 * @param method the method that requires reflection
-	 * @param mode the requested mode
-	 * @return {@code this}, to facilitate method chaining
-	 */
-	public ReflectionHints registerMethod(Method method, ExecutableMode mode) {
-		return registerMethod(method, methodHint -> methodHint.withMode(mode));
-	}
-
-	/**
-	 * Register the need for reflection on the specified {@link Method},
-	 * enabling {@link ExecutableMode#INVOKE}.
-	 * @param method the method that requires reflection
-	 * @return {@code this}, to facilitate method chaining
-	 */
-	public ReflectionHints registerMethod(Method method) {
-		return registerMethod(method, ExecutableMode.INVOKE);
 	}
 
 	private List<TypeReference> mapParameters(Executable executable) {

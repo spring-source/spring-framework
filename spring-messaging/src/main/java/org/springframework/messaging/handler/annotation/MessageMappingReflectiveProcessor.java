@@ -22,10 +22,10 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.security.Principal;
 
+import org.springframework.aot.hint.BindingReflectionHintsRegistrar;
 import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.aot.hint.ReflectionHints;
 import org.springframework.aot.hint.annotation.ReflectiveProcessor;
-import org.springframework.context.aot.BindingReflectionHintsRegistrar;
 import org.springframework.core.MethodParameter;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
@@ -60,7 +60,7 @@ class MessageMappingReflectiveProcessor implements ReflectiveProcessor {
 	}
 
 	protected void registerTypeHints(ReflectionHints hints, Class<?> type) {
-		hints.registerType(type, hint -> {});
+		hints.registerType(type);
 	}
 
 	protected void registerMethodHints(ReflectionHints hints, Method method) {

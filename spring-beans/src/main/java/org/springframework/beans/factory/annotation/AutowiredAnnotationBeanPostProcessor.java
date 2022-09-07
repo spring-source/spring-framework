@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -47,7 +46,6 @@ import org.springframework.aot.generate.GeneratedMethod;
 import org.springframework.aot.generate.GenerationContext;
 import org.springframework.aot.generate.MethodReference;
 import org.springframework.aot.hint.ExecutableMode;
-import org.springframework.aot.hint.FieldHint;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeansException;
@@ -913,10 +911,6 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 
 		private static final String INSTANCE_PARAMETER = "instance";
 
-		private static final Consumer<FieldHint.Builder> ALLOW_WRITE = builder -> builder
-				.allowWrite(true);
-
-
 		private final Class<?> target;
 
 		private final Collection<AutowiredElement> autowiredElements;
@@ -986,7 +980,7 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 		private CodeBlock generateMethodStatementForField(Field field, boolean required,
 				RuntimeHints hints) {
 
-			hints.reflection().registerField(field, ALLOW_WRITE);
+			hints.reflection().registerField(field);
 			CodeBlock resolver = CodeBlock.of("$T.$L($S)",
 					AutowiredFieldValueResolver.class,
 					(!required) ? "forField" : "forRequiredField", field.getName());

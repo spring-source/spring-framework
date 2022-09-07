@@ -16,6 +16,7 @@
 
 package org.springframework.test.context.aot;
 
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -27,9 +28,10 @@ import org.springframework.aot.generate.DefaultGenerationContext;
 import org.springframework.aot.generate.GeneratedClasses;
 import org.springframework.aot.generate.GeneratedFiles;
 import org.springframework.aot.generate.GenerationContext;
-import org.springframework.aot.hint.MemberCategory;
+import org.springframework.aot.hint.ReflectionHints;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.TypeReference;
+import org.springframework.beans.factory.aot.AotServices;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.aot.ApplicationContextAotGenerator;
@@ -45,6 +47,9 @@ import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
+import static org.springframework.aot.hint.MemberCategory.INVOKE_DECLARED_CONSTRUCTORS;
+import static org.springframework.aot.hint.MemberCategory.INVOKE_PUBLIC_METHODS;
+
 /**
  * {@code TestContextAotGenerator} generates AOT artifacts for integration tests
  * that depend on support from the <em>Spring TestContext Framework</em>.
@@ -58,6 +63,8 @@ public class TestContextAotGenerator {
 	private static final Log logger = LogFactory.getLog(TestContextAotGenerator.class);
 
 	private final ApplicationContextAotGenerator aotGenerator = new ApplicationContextAotGenerator();
+
+	private final AotServices<TestRuntimeHintsRegistrar> testRuntimeHintsRegistrars;
 
 	private final AtomicInteger sequence = new AtomicInteger();
 
@@ -82,6 +89,7 @@ public class TestContextAotGenerator {
 	 * @param runtimeHints the {@code RuntimeHints} to use
 	 */
 	public TestContextAotGenerator(GeneratedFiles generatedFiles, RuntimeHints runtimeHints) {
+		this.testRuntimeHintsRegistrars = AotServices.factories().load(TestRuntimeHintsRegistrar.class);
 		this.generatedFiles = generatedFiles;
 		this.runtimeHints = runtimeHints;
 	}
@@ -112,6 +120,9 @@ public class TestContextAotGenerator {
 			logger.debug(LogMessage.format("Generating AOT artifacts for test classes %s",
 					testClasses.stream().map(Class::getName).toList()));
 			try {
+				this.testRuntimeHintsRegistrars.forEach(registrar -> registrar.registerHints(mergedConfig,
+						Collections.unmodifiableList(testClasses), this.runtimeHints, getClass().getClassLoader()));
+
 				// Use first test class discovered for a given unique MergedContextConfiguration.
 				Class<?> testClass = testClasses.get(0);
 				DefaultGenerationContext generationContext = createGenerationContext(testClass);
@@ -193,9 +204,18 @@ public class TestContextAotGenerator {
 					contextLoader.getClass().getName()));
 	}
 
-	MergedContextConfiguration buildMergedContextConfiguration(Class<?> testClass) {
+	private MergedContextConfiguration buildMergedContextConfiguration(Class<?> testClass) {
 		TestContextBootstrapper testContextBootstrapper =
 				BootstrapUtils.resolveTestContextBootstrapper(testClass);
+		// @BootstrapWith
+		registerDeclaredConstructors(testContextBootstrapper.getClass());
+		// @TestExecutionListeners
+		testContextBootstrapper.getTestExecutionListeners().forEach(listener -> {
+			registerDeclaredConstructors(listener.getClass());
+			if (listener instanceof AotTestExecutionListener aotListener) {
+				aotListener.processAheadOfTime(testClass, this.runtimeHints, getClass().getClassLoader());
+			}
+		});
 		return testContextBootstrapper.buildMergedContextConfiguration();
 	}
 
@@ -220,8 +240,13 @@ public class TestContextAotGenerator {
 				new AotTestMappingsCodeGenerator(initializerClassMappings, generatedClasses);
 		generationContext.writeGeneratedContent();
 		String className = codeGenerator.getGeneratedClass().getName().reflectionName();
-		this.runtimeHints.reflection().registerType(TypeReference.of(className),
-				builder -> builder.withMembers(MemberCategory.INVOKE_PUBLIC_METHODS));
+		this.runtimeHints.reflection()
+				.registerType(TypeReference.of(className), INVOKE_PUBLIC_METHODS);
+	}
+
+	private void registerDeclaredConstructors(Class<?> type) {
+		ReflectionHints reflectionHints = this.runtimeHints.reflection();
+		reflectionHints.registerType(type, INVOKE_DECLARED_CONSTRUCTORS);
 	}
 
 }

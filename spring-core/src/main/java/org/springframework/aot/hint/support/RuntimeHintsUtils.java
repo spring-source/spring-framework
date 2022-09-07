@@ -24,7 +24,6 @@ import org.springframework.aot.hint.TypeHint;
 import org.springframework.aot.hint.TypeHint.Builder;
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.core.annotation.MergedAnnotation;
-import org.springframework.core.annotation.SynthesizedAnnotation;
 
 /**
  * Utility methods for runtime hints support code.
@@ -49,8 +48,7 @@ public abstract class RuntimeHintsUtils {
 	 * at runtime.
 	 * @param hints the {@link RuntimeHints} instance to use
 	 * @param annotationType the annotation type
-	 * @see SynthesizedAnnotation
-	 * @deprecated as annotation attributes are visible without additional hints
+	 * @deprecated For removal prior to Spring Framework 6.0
 	 */
 	@Deprecated
 	public static void registerAnnotation(RuntimeHints hints, Class<?> annotationType) {
@@ -70,10 +68,13 @@ public abstract class RuntimeHintsUtils {
 	 * that determines if the hints are required.
 	 * @param hints the {@link RuntimeHints} instance to use
 	 * @param annotationType the annotation type
-	 * @see SynthesizedAnnotation
+	 * @deprecated For removal prior to Spring Framework 6.0
 	 */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	public static void registerSynthesizedAnnotation(RuntimeHints hints, Class<?> annotationType) {
-		hints.proxies().registerJdkProxy(annotationType, SynthesizedAnnotation.class);
+		hints.proxies().registerJdkProxy(annotationType,
+				org.springframework.core.annotation.SynthesizedAnnotation.class);
 	}
 
 	/**
@@ -82,7 +83,9 @@ public abstract class RuntimeHintsUtils {
 	 * @param hints the {@link RuntimeHints} instance to use
 	 * @param annotation the annotation
 	 * @see #registerSynthesizedAnnotation(RuntimeHints, Class)
+	 * @deprecated For removal prior to Spring Framework 6.0
 	 */
+	@Deprecated
 	public static void registerAnnotationIfNecessary(RuntimeHints hints, MergedAnnotation<?> annotation) {
 		if (annotation.isSynthesizable()) {
 			registerSynthesizedAnnotation(hints, annotation.getType());

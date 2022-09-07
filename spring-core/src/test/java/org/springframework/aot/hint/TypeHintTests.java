@@ -59,7 +59,7 @@ class TypeHintTests {
 		assertFieldHint(TypeHint.of(TypeReference.of(String.class))
 				.withField("value"), fieldHint -> {
 			assertThat(fieldHint.getName()).isEqualTo("value");
-			assertThat(fieldHint.isAllowWrite()).isTrue();
+			assertThat(fieldHint.getMode()).isEqualTo(FieldMode.WRITE);
 			assertThat(fieldHint.isAllowUnsafeAccess()).isFalse();
 		});
 	}
@@ -69,7 +69,7 @@ class TypeHintTests {
 		assertFieldHint(TypeHint.of(TypeReference.of(String.class))
 				.withField("value", fieldHint -> {}), fieldHint -> {
 			assertThat(fieldHint.getName()).isEqualTo("value");
-			assertThat(fieldHint.isAllowWrite()).isTrue();
+			assertThat(fieldHint.getMode()).isEqualTo(FieldMode.WRITE);
 			assertThat(fieldHint.isAllowUnsafeAccess()).isFalse();
 		});
 	}
@@ -78,11 +78,11 @@ class TypeHintTests {
 	void createWithFieldAndCustomizerAppliesCustomization() {
 		assertFieldHint(TypeHint.of(TypeReference.of(String.class))
 				.withField("value", fieldHint -> {
-					fieldHint.allowWrite(false);
+					fieldHint.withMode(FieldMode.READ);
 					fieldHint.allowUnsafeAccess(true);
 				}), fieldHint -> {
 			assertThat(fieldHint.getName()).isEqualTo("value");
-			assertThat(fieldHint.isAllowWrite()).isFalse();
+			assertThat(fieldHint.getMode()).isEqualTo(FieldMode.READ);
 			assertThat(fieldHint.isAllowUnsafeAccess()).isTrue();
 		});
 	}
@@ -92,12 +92,23 @@ class TypeHintTests {
 		Builder builder = TypeHint.of(TypeReference.of(String.class));
 		builder.withField("value", fieldHint -> fieldHint.allowUnsafeAccess(true));
 		builder.withField("value", fieldHint -> {
-			fieldHint.allowWrite(true);
+			fieldHint.withMode(FieldMode.WRITE);
 			fieldHint.allowUnsafeAccess(false);
 		});
 		assertFieldHint(builder, fieldHint -> {
 			assertThat(fieldHint.getName()).isEqualTo("value");
-			assertThat(fieldHint.isAllowWrite()).isTrue();
+			assertThat(fieldHint.getMode()).isEqualTo(FieldMode.WRITE);
+			assertThat(fieldHint.isAllowUnsafeAccess()).isFalse();
+		});
+	}
+
+	@Test
+	void createFieldWithFieldMode() {
+		Builder builder = TypeHint.of(TypeReference.of(String.class));
+		builder.withField("value", FieldMode.READ);
+		assertFieldHint(builder, fieldHint -> {
+			assertThat(fieldHint.getName()).isEqualTo("value");
+			assertThat(fieldHint.getMode()).isEqualTo(FieldMode.READ);
 			assertThat(fieldHint.isAllowUnsafeAccess()).isFalse();
 		});
 	}
@@ -275,6 +286,15 @@ class TypeHintTests {
 	void typeHintHasAppropriateToString() {
 		TypeHint hint = TypeHint.of(TypeReference.of(String.class)).build();
 		assertThat(hint).hasToString("TypeHint[type=java.lang.String]");
+	}
+
+	@Test
+	void builtWithAppliesMemberCategories() {
+		TypeHint.Builder builder = new TypeHint.Builder(TypeReference.of(String.class));
+		assertThat(builder.build().getMemberCategories()).isEmpty();
+		TypeHint.builtWith(MemberCategory.DECLARED_CLASSES, MemberCategory.DECLARED_FIELDS).accept(builder);
+		assertThat(builder.build().getMemberCategories()).containsExactlyInAnyOrder(MemberCategory.DECLARED_CLASSES,
+				MemberCategory.DECLARED_FIELDS);
 	}
 
 }

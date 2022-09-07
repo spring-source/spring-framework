@@ -25,9 +25,10 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.aot.generate.MethodReference;
 import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
-import org.springframework.aot.test.generator.compile.CompileWithTargetClassAccess;
-import org.springframework.aot.test.generator.compile.Compiled;
-import org.springframework.aot.test.generator.compile.TestCompiler;
+import org.springframework.aot.test.generate.TestGenerationContext;
+import org.springframework.aot.test.generate.compile.CompileWithTargetClassAccess;
+import org.springframework.aot.test.generate.compile.Compiled;
+import org.springframework.aot.test.generate.compile.TestCompiler;
 import org.springframework.beans.factory.aot.BeanRegistrationAotContribution;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.RegisteredBean;
@@ -35,7 +36,6 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.testfixture.beans.factory.aot.MockBeanRegistrationCode;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.StandardEnvironment;
-import org.springframework.core.testfixture.aot.generate.TestGenerationContext;
 import org.springframework.javapoet.CodeBlock;
 import org.springframework.javapoet.MethodSpec;
 import org.springframework.javapoet.ParameterizedTypeName;
@@ -72,7 +72,7 @@ class AutowiredAnnotationBeanRegistrationAotContributionTests {
 		RegisteredBean registeredBean = getAndApplyContribution(
 				PrivateFieldInjectionSample.class);
 		assertThat(RuntimeHintsPredicates.reflection()
-				.onField(PrivateFieldInjectionSample.class, "environment").allowWrite())
+				.onField(PrivateFieldInjectionSample.class, "environment").withWriteMode())
 				.accepts(this.generationContext.getRuntimeHints());
 		compile(registeredBean, (postProcessor, compiled) -> {
 			PrivateFieldInjectionSample instance = new PrivateFieldInjectionSample();
@@ -91,7 +91,7 @@ class AutowiredAnnotationBeanRegistrationAotContributionTests {
 		RegisteredBean registeredBean = getAndApplyContribution(
 				PackagePrivateFieldInjectionSample.class);
 		assertThat(RuntimeHintsPredicates.reflection()
-				.onField(PackagePrivateFieldInjectionSample.class, "environment").allowWrite())
+				.onField(PackagePrivateFieldInjectionSample.class, "environment").withWriteMode())
 				.accepts(this.generationContext.getRuntimeHints());
 		compile(registeredBean, (postProcessor, compiled) -> {
 			PackagePrivateFieldInjectionSample instance = new PackagePrivateFieldInjectionSample();

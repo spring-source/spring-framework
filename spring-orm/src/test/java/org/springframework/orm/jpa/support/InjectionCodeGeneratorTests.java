@@ -27,8 +27,8 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
-import org.springframework.aot.test.generator.compile.Compiled;
-import org.springframework.aot.test.generator.compile.TestCompiler;
+import org.springframework.aot.test.generate.compile.Compiled;
+import org.springframework.aot.test.generate.compile.TestCompiler;
 import org.springframework.beans.testfixture.beans.TestBean;
 import org.springframework.beans.testfixture.beans.TestBeanWithPrivateMethod;
 import org.springframework.beans.testfixture.beans.TestBeanWithPublicField;
@@ -87,7 +87,7 @@ class InjectionCodeGeneratorTests {
 		TestBean bean = new TestBean();
 		Field field = ReflectionUtils.findField(bean.getClass(), "age");
 		this.generator.generateInjectionCode(field, INSTANCE_VARIABLE, CodeBlock.of("$L", 123));
-		assertThat(RuntimeHintsPredicates.reflection().onField(TestBean.class, "age").allowWrite())
+		assertThat(RuntimeHintsPredicates.reflection().onField(TestBean.class, "age").withWriteMode())
 				.accepts(this.hints);
 	}
 

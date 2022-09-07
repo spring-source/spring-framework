@@ -68,7 +68,7 @@ public final class TypeHint implements ConditionalHint {
 	 * @param type the type to use
 	 * @return a builder
 	 */
-	public static Builder of(TypeReference type) {
+	static Builder of(TypeReference type) {
 		Assert.notNull(type, "'type' must not be null");
 		return new Builder(type);
 	}
@@ -127,6 +127,17 @@ public final class TypeHint implements ConditionalHint {
 	}
 
 	/**
+	 * Return a {@link Consumer} that applies the given {@link MemberCategory
+	 * MemberCategories} to the accepted {@link Builder}.
+	 * @param memberCategories the memberCategories to apply
+	 * @return a consumer to apply the member categories
+	 */
+	public static Consumer<Builder> builtWith(MemberCategory... memberCategories) {
+		return builder -> builder.withMembers(memberCategories);
+	}
+
+
+	/**
 	 * Builder for {@link TypeHint}.
 	 */
 	public static class Builder {
@@ -145,7 +156,7 @@ public final class TypeHint implements ConditionalHint {
 		private final Set<MemberCategory> memberCategories = new HashSet<>();
 
 
-		public Builder(TypeReference type) {
+		Builder(TypeReference type) {
 			this.type = type;
 		}
 
@@ -174,6 +185,27 @@ public final class TypeHint implements ConditionalHint {
 		}
 
 		/**
+		 * Register the need for reflection on the field with the specified name,
+		 * enabling write access.
+		 * @param name the name of the field
+		 * @return {@code this}, to facilitate method chaining
+		 */
+		public Builder withField(String name) {
+			return withField(name, FieldMode.WRITE);
+		}
+
+		/**
+		 * Register the need for reflection on the field with the specified name
+		 * using the specified {@link FieldMode}.
+		 * @param name the name of the field
+		 * @param mode the requested mode
+		 * @return {@code this}, to facilitate method chaining
+		 */
+		public Builder withField(String name, FieldMode mode) {
+			return withField(name, FieldHint.builtWith(mode));
+		}
+
+		/**
 		 * Register the need for reflection on the field with the specified name.
 		 * @param name the name of the field
 		 * @param fieldHint a builder to further customize the hints of this field
@@ -186,13 +218,24 @@ public final class TypeHint implements ConditionalHint {
 		}
 
 		/**
-		 * Register the need for reflection on the field with the specified name,
-		 * enabling write access.
-		 * @param name the name of the field
+		 * Register the need for reflection on the constructor with the specified
+		 * parameter types, enabling {@link ExecutableMode#INVOKE}.
+		 * @param parameterTypes the parameter types of the constructor
 		 * @return {@code this}, to facilitate method chaining
 		 */
-		public Builder withField(String name) {
-			return withField(name, fieldHint -> {});
+		public Builder withConstructor(List<TypeReference> parameterTypes) {
+			return withConstructor(parameterTypes, ExecutableMode.INVOKE);
+		}
+
+		/**
+		 * Register the need for reflection on the constructor with the specified
+		 * parameter types, using the specified {@link ExecutableMode}.
+		 * @param parameterTypes the parameter types of the constructor
+		 * @param mode the requested mode
+		 * @return {@code this}, to facilitate method chaining
+		 */
+		public Builder withConstructor(List<TypeReference> parameterTypes, ExecutableMode mode) {
+			return withConstructor(parameterTypes, ExecutableHint.builtWith(mode));
 		}
 
 		/**
@@ -212,24 +255,26 @@ public final class TypeHint implements ConditionalHint {
 		}
 
 		/**
-		 * Register the need for reflection on the constructor with the specified
-		 * parameter types, using the specified {@link ExecutableMode}.
+		 * Register the need for reflection on the method with the specified name
+		 * and parameter types, enabling {@link ExecutableMode#INVOKE}.
+		 * @param name the name of the method
+		 * @param parameterTypes the parameter types of the constructor
+		 * @return {@code this}, to facilitate method chaining
+		 */
+		public Builder withMethod(String name, List<TypeReference> parameterTypes) {
+			return withMethod(name, parameterTypes, ExecutableMode.INVOKE);
+		}
+
+		/**
+		 * Register the need for reflection on the method with the specified name
+		 * and parameter types, using the specified {@link ExecutableMode}.
+		 * @param name the name of the method
 		 * @param parameterTypes the parameter types of the constructor
 		 * @param mode the requested mode
 		 * @return {@code this}, to facilitate method chaining
 		 */
-		public Builder withConstructor(List<TypeReference> parameterTypes, ExecutableMode mode) {
-			return withConstructor(parameterTypes, constructorHint -> constructorHint.withMode(mode));
-		}
-
-		/**
-		 * Register the need for reflection on the constructor with the specified
-		 * parameter types, enabling {@link ExecutableMode#INVOKE}.
-		 * @param parameterTypes the parameter types of the constructor
-		 * @return {@code this}, to facilitate method chaining
-		 */
-		public Builder withConstructor(List<TypeReference> parameterTypes) {
-			return withConstructor(parameterTypes, ExecutableMode.INVOKE);
+		public Builder withMethod(String name, List<TypeReference> parameterTypes, ExecutableMode mode) {
+			return withMethod(name, parameterTypes, ExecutableHint.builtWith(mode));
 		}
 
 		/**
@@ -246,29 +291,6 @@ public final class TypeHint implements ConditionalHint {
 					k -> ExecutableHint.ofMethod(name, parameterTypes));
 			methodHint.accept(builder);
 			return this;
-		}
-
-		/**
-		 * Register the need for reflection on the method with the specified name
-		 * and parameter types, using the specified {@link ExecutableMode}.
-		 * @param name the name of the method
-		 * @param parameterTypes the parameter types of the constructor
-		 * @param mode the requested mode
-		 * @return {@code this}, to facilitate method chaining
-		 */
-		public Builder withMethod(String name, List<TypeReference> parameterTypes, ExecutableMode mode) {
-			return withMethod(name, parameterTypes, methodHint -> methodHint.withMode(mode));
-		}
-
-		/**
-		 * Register the need for reflection on the method with the specified name
-		 * and parameter types, enabling {@link ExecutableMode#INVOKE}.
-		 * @param name the name of the method
-		 * @param parameterTypes the parameter types of the constructor
-		 * @return {@code this}, to facilitate method chaining
-		 */
-		public Builder withMethod(String name, List<TypeReference> parameterTypes) {
-			return withMethod(name, parameterTypes, ExecutableMode.INVOKE);
 		}
 
 		/**
