@@ -268,7 +268,7 @@ public class AnnotatedBeanDefinitionReader {
 		// 这里主要是解析类上是否有@Scope注解，如果有，则解析:scopeName和proxyNode
 		// scopeName（作用域范围：单例or原型？）
 		// proxyNode（代理模式：JDK or Cglib?）
-		// @Scope也是非常重要的一个点!! 但在这里不展开讲解，将单独章节进行讲解
+		// @Scope也是非常重要的一个点!! 但在这里不展开讲解
 		// 在当前场景中，Config没有@Scope注解，因此这里的config将默认为单例，且不采取代理技术。
 		ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(abd);
 		// 设置beanDefinition的作用域
