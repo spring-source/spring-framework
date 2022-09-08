@@ -252,18 +252,40 @@ public class AnnotatedBeanDefinitionReader {
 	private <T> void doRegisterBean(Class<T> beanClass, @Nullable String name,
 			@Nullable Class<? extends Annotation>[] qualifiers, @Nullable Supplier<T> supplier,
 			@Nullable BeanDefinitionCustomizer[] customizers) {
-
+		// 根据类生成一个beanDefinition, 具体类型是AnnotatedGenericBeanDefinition
+		// 在当前场景中，beanClass就是传入的Config.class
 		AnnotatedGenericBeanDefinition abd = new AnnotatedGenericBeanDefinition(beanClass);
+		// 根据之前reader当中的条件解析器来判断当前的配置类当中是否有条件相关的注解，如果有，则进一步判断是否需要暂时跳过注册。
+		// 还记得上文当中Scanner初始化过程中的条件解析器不? 它就是在这里起作用的!
+		// 在当前场景中，由于Config类并没有配置任何conditional，因此这里不需要跳过注册
 		if (this.conditionEvaluator.shouldSkip(abd.getMetadata())) {
 			return;
 		}
-
+		// 设置Supplier函数
+		// 在当前场景中，supplier为null
 		abd.setInstanceSupplier(supplier);
+		// 解析bd的ScopeMetadata。在reader初始化时，scopeMetadataResolver就默认初始化为AnnotationScopeMetadataResolver类型了
+		// 这里主要是解析类上是否有@Scope注解，如果有，则解析:scopeName和proxyNode
+		// scopeName（作用域范围：单例or原型？）
+		// proxyNode（代理模式：JDK or Cglib?）
+		// @Scope也是非常重要的一个点!! 但在这里不展开讲解，将单独章节进行讲解
+		// 在当前场景中，Config没有@Scope注解，因此这里的config将默认为单例，且不采取代理技术。
 		ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(abd);
+		// 设置beanDefinition的作用域
+		// 当前场景中为singleton
 		abd.setScope(scopeMetadata.getScopeName());
+		// 生成bean的名字
+		// 在reader初始化时，默认的beanName生成器为AnnotationBeanNameGenerator。
+		// 如果有需要的话，我们自己也可以继承BeanNameGenerator来自定义beanName生成器。一般情况下，用默认的就可以了。
+		// 默认的beanName生成策略就是类名首字母小写。
+		// 在当前场景中，Config类的beanName就为：config
 		String beanName = (name != null ? name : this.beanNameGenerator.generateBeanName(abd, this.registry));
-
+		// 重要！！ 处理公共的注解，比如@Lazy、@Order、@Priority、@DependsOn。
+		// 这些注解的作用很简单，这里不展开细说。
+		// 在当前场景下，Config类没有这些注解。
 		AnnotationConfigUtils.processCommonDefinitionAnnotations(abd);
+		// 如果有其他限定注解，则进行设置
+		// 当前场景中, Config类显然是没有的
 		if (qualifiers != null) {
 			for (Class<? extends Annotation> qualifier : qualifiers) {
 				if (Primary.class == qualifier) {
@@ -277,14 +299,20 @@ public class AnnotatedBeanDefinitionReader {
 				}
 			}
 		}
+		// BeanDefinitionCustomizer的作用就是回调处理beanDefinition
+		// 当前场景中,不需要回调处理
 		if (customizers != null) {
 			for (BeanDefinitionCustomizer customizer : customizers) {
 				customizer.customize(abd);
 			}
 		}
-
+		// 将beanDefinition和beanName封装成bdh
 		BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(abd, beanName);
+		// 重要！！！ 这里将根据scopeMetadata来判断beanDefinition是否需要进行代理。如果需要，则生成代理类的beanDefinition并赋值给bdh！
+		// 本场景中，不需要进行代理，因此bdh没有改变。
 		definitionHolder = AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
+		// 注册bdh所代表的的beanDefinition
+		// 本场景中,就是注册Config类所代表的的bd. 注册成功后,工厂中就包含了7个bd了(别忘了前面注册的6个后置处理器的bd)
 		BeanDefinitionReaderUtils.registerBeanDefinition(definitionHolder, this.registry);
 	}
 
