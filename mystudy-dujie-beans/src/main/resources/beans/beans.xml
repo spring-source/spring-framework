@@ -6,12 +6,12 @@
 
 
 	<bean id="instanceA"  class="com.dujie.circulardependencies.InstanceA"  >
-		<property name="instanceB"  ref="instanceB"></property>
+		<property name="instanceB" ref="instanceB"/>
 	</bean>
 
 
 	<bean id="instanceB" class="com.dujie.circulardependencies.InstanceB">
-		<property name="instanceA"  ref="instanceA"></property>
+		<property name="instanceA" ref="instanceA"/>
 	</bean>
 
 
