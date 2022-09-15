@@ -118,7 +118,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	private final Map<String, Object> disposableBeans = new LinkedHashMap<>();
 
 	/** Map between containing bean names: bean name to Set of bean names that the bean contains. */
-	/** 缓存bean的属性关系的映射<tulingServce,<tulingDao,tulingDao2> --> Set of bean names that the bean contains */
+	/** 缓存bean的属性关系的映射<dujieServce,<dujieDao,dujieDao2> --> Set of bean names that the bean contains */
 	private final Map<String, Set<String>> containedBeanMap = new ConcurrentHashMap<>(16);
 
 	/** Map between dependent bean names: bean name to Set of dependent bean names.

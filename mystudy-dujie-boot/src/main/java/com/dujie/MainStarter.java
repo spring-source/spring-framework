@@ -1,6 +1,6 @@
 package com.dujie;
 
-import com.dujie.web.TulingSpringBootApplication;
+import com.dujie.web.DujieSpringBootApplication;
 import org.apache.catalina.LifecycleException;
 
 import javax.servlet.ServletException;
@@ -13,6 +13,6 @@ import javax.servlet.ServletException;
 public class MainStarter {
 
     public static void main(String[] args) throws ServletException, LifecycleException {
-        TulingSpringBootApplication.run();
+        DujieSpringBootApplication.run();
     }
 }

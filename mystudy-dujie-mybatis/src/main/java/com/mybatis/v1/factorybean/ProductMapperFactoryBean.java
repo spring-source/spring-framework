@@ -42,8 +42,8 @@ class ProductMapperProxy implements InvocationHandler {
 			return method.invoke(this, args);
 		}
 
-		MySelect tulingSelect = method.getAnnotation(MySelect.class);
-		String parseSql = tulingSelect.value();
+		MySelect mySelect = method.getAnnotation(MySelect.class);
+		String parseSql = mySelect.value();
 		System.out.println("解析业务sql:" + parseSql + "入参:" + Arrays.asList(args));
 
 		//模拟查询数据库返回

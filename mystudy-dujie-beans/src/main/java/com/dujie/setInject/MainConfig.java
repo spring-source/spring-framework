@@ -9,10 +9,10 @@ import org.springframework.context.annotation.Import;
  * Created by dujie on 2019/8/22.
  */
 @ComponentScan(basePackages = {"com.dujie.setInject"})
-//@Import(value = {InstC.class,TulingImportBeanDefinitionRegister.class,TulingImportSelector.class})
+//@Import(value = {InstC.class,DujieImportBeanDefinitionRegister.class,DujieImportSelector.class})
 //@Import(value = {InstC.class})
-//@Import(value = {TulingImportBeanDefinitionRegister.class})
-@Import(value = {TulingImportSelector.class})
+//@Import(value = {DujieImportBeanDefinitionRegister.class})
+@Import(value = {DujieImportSelector.class})
 @Configuration
 public class MainConfig {
 
