@@ -13,7 +13,7 @@ public class NativeJdbc {
 
 	public static void main(String[] args) throws ClassNotFoundException, SQLException {
 
-		//sqlInject();
+		sqlInject();
 		defenseSqlInject();
 
 	}
@@ -31,7 +31,7 @@ public class NativeJdbc {
 		//4:执行sql,返回结果集
 		//ResultSet resultSet = statement.executeQuery("select * from account_info;");
 		//模拟sql注入
-		String sql = "select * from user_info where user_name="+"'zhangsan'"+" and password="+" 2423413" + "or 1=1";
+		String sql = "select * from user_info where user_name="+"'zhangsan'"+" and password="+"2423413 " + "or 1=1";
 		System.out.println("sql=="+sql);
 		ResultSet resultSet = statement.executeQuery(sql);
 
@@ -53,7 +53,7 @@ public class NativeJdbc {
 		Class.forName("com.mysql.cj.jdbc.Driver");
 
 		//2:创建连接
-		Connection connection = DriverManager.getConnection(url,"root","root");
+		Connection connection = DriverManager.getConnection(url,"root","123456");
 
 		String sql = "select * from user_info where user_name = ? and password= ? ";
 
