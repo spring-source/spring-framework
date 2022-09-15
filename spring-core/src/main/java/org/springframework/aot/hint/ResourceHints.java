@@ -113,16 +113,19 @@ public class ResourceHints {
 	}
 
 	/**
-	 * Determine if the supplied resource is a {@link ClassPathResource} that
-	 * {@linkplain Resource#exists() exists} and register the resource for run-time
-	 * availability accordingly.
+	 * Register that the supplied resource should be made available at runtime.
 	 * @param resource the resource to register
+	 * @throws IllegalArgumentException if the supplied resource is not a
+	 * {@link ClassPathResource} or does not {@linkplain Resource#exists() exist}
 	 * @see #registerPattern(String)
-	 * @see ClassPathResource#getAbsolutePath()
+	 * @see ClassPathResource#getPath()
 	 */
-	public void registerResourceIfNecessary(Resource resource) {
+	public void registerResource(Resource resource) {
 		if (resource instanceof ClassPathResource classPathResource && classPathResource.exists()) {
-			registerPattern(classPathResource.getAbsolutePath());
+			registerPattern(classPathResource.getPath());
+		}
+		else {
+			throw new IllegalArgumentException("Resource must be a ClassPathResource that exists: " + resource);
 		}
 	}
 

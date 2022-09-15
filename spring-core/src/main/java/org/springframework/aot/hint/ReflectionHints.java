@@ -20,12 +20,10 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.aot.hint.TypeHint.Builder;
@@ -36,6 +34,8 @@ import org.springframework.util.ClassUtils;
  * Gather the need for reflection at runtime.
  *
  * @author Stephane Nicoll
+ * @author Phillip Webb
+ * @author Andy Wilkinson
  * @since 6.0
  */
 public class ReflectionHints {
@@ -79,6 +79,7 @@ public class ReflectionHints {
 	 * @param type the type to customize
 	 * @param typeHint a builder to further customize hints for that type
 	 * @return {@code this}, to facilitate method chaining
+	 * @see #registerType(TypeReference, MemberCategory...)
 	 */
 	public ReflectionHints registerType(TypeReference type, Consumer<TypeHint.Builder> typeHint) {
 		Builder builder = this.types.computeIfAbsent(type, TypeHint.Builder::new);
@@ -93,8 +94,19 @@ public class ReflectionHints {
 	 * @param memberCategories the member categories to apply
 	 * @return {@code this}, to facilitate method chaining
 	 */
-	public ReflectionHints registerType(Class<?> type, MemberCategory... memberCategories) {
-		return registerType(TypeReference.of(type), memberCategories);
+	public ReflectionHints registerType(TypeReference type, MemberCategory... memberCategories) {
+		return registerType(type, TypeHint.builtWith(memberCategories));
+	}
+
+	/**
+	 * Register or customize reflection hints for the specified type.
+	 * @param type the type to customize
+	 * @param typeHint a builder to further customize hints for that type
+	 * @return {@code this}, to facilitate method chaining
+	 * @see #registerType(Class, MemberCategory...)
+	 */
+	public ReflectionHints registerType(Class<?> type, Consumer<TypeHint.Builder> typeHint) {
+		return registerType(TypeReference.of(type), typeHint);
 	}
 
 	/**
@@ -104,18 +116,8 @@ public class ReflectionHints {
 	 * @param memberCategories the member categories to apply
 	 * @return {@code this}, to facilitate method chaining
 	 */
-	public ReflectionHints registerType(TypeReference type , MemberCategory... memberCategories) {
-		return registerType(type, TypeHint.builtWith(memberCategories));
-	}
-
-	/**
-	 * Register or customize reflection hints for the specified type.
-	 * @param type the type to customize
-	 * @param typeHint a builder to further customize hints for that type
-	 * @return {@code this}, to facilitate method chaining
-	 */
-	public ReflectionHints registerType(Class<?> type, Consumer<TypeHint.Builder> typeHint) {
-		return registerType(TypeReference.of(type), typeHint);
+	public ReflectionHints registerType(Class<?> type, MemberCategory... memberCategories) {
+		return registerType(TypeReference.of(type), memberCategories);
 	}
 
 	/**
@@ -125,13 +127,29 @@ public class ReflectionHints {
 	 * @param typeName the type to customize
 	 * @param typeHint a builder to further customize hints for that type
 	 * @return {@code this}, to facilitate method chaining
+	 * @see #registerTypeIfPresent(ClassLoader, String, MemberCategory...)
 	 */
 	public ReflectionHints registerTypeIfPresent(@Nullable ClassLoader classLoader,
 			String typeName, Consumer<TypeHint.Builder> typeHint) {
+
 		if (ClassUtils.isPresent(typeName, classLoader)) {
 			registerType(TypeReference.of(typeName), typeHint);
 		}
 		return this;
+	}
+
+	/**
+	 * Register or customize reflection hints for the specified type if it
+	 * is available using the specified {@link ClassLoader}.
+	 * @param classLoader the classloader to use to check if the type is present
+	 * @param typeName the type to customize
+	 * @param memberCategories the member categories to apply
+	 * @return {@code this}, to facilitate method chaining
+	 */
+	public ReflectionHints registerTypeIfPresent(@Nullable ClassLoader classLoader,
+			String typeName, MemberCategory... memberCategories) {
+
+		return registerTypeIfPresent(classLoader, typeName, TypeHint.builtWith(memberCategories));
 	}
 
 	/**
@@ -148,34 +166,13 @@ public class ReflectionHints {
 	}
 
 	/**
-	 * Register the need for reflection on the specified {@link Field},
-	 * enabling {@link FieldMode#WRITE}.
+	 * Register the need for reflection on the specified {@link Field}.
 	 * @param field the field that requires reflection
 	 * @return {@code this}, to facilitate method chaining
 	 */
 	public ReflectionHints registerField(Field field) {
-		return registerField(field, FieldMode.WRITE);
-	}
-
-	/**
-	 * Register the need for reflection on the specified {@link Field}
-	 * using the specified {@link FieldMode}.
-	 * @param field the field that requires reflection
-	 * @return {@code this}, to facilitate method chaining
-	 */
-	public ReflectionHints registerField(Field field, FieldMode mode) {
-		return registerField(field, FieldHint.builtWith(mode));
-	}
-
-	/**
-	 * Register the need for reflection on the specified {@link Field}.
-	 * @param field the field that requires reflection
-	 * @param fieldHint a builder to further customize the hints of this field
-	 * @return {@code this}, to facilitate method chaining
-	 */
-	public ReflectionHints registerField(Field field, Consumer<FieldHint.Builder> fieldHint) {
 		return registerType(TypeReference.of(field.getDeclaringClass()),
-				typeHint -> typeHint.withField(field.getName(), fieldHint));
+				typeHint -> typeHint.withField(field.getName()));
 	}
 
 	/**
@@ -183,7 +180,9 @@ public class ReflectionHints {
 	 * enabling {@link ExecutableMode#INVOKE}.
 	 * @param constructor the constructor that requires reflection
 	 * @return {@code this}, to facilitate method chaining
+	 * @deprecated in favor of {@link #registerConstructor(Constructor, ExecutableMode)}
 	 */
+	@Deprecated
 	public ReflectionHints registerConstructor(Constructor<?> constructor) {
 		return registerConstructor(constructor, ExecutableMode.INVOKE);
 	}
@@ -196,7 +195,8 @@ public class ReflectionHints {
 	 * @return {@code this}, to facilitate method chaining
 	 */
 	public ReflectionHints registerConstructor(Constructor<?> constructor, ExecutableMode mode) {
-		return registerConstructor(constructor, ExecutableHint.builtWith(mode));
+		return registerType(TypeReference.of(constructor.getDeclaringClass()),
+				typeHint -> typeHint.withConstructor(mapParameters(constructor), mode));
 	}
 
 	/**
@@ -204,8 +204,11 @@ public class ReflectionHints {
 	 * @param constructor the constructor that requires reflection
 	 * @param constructorHint a builder to further customize the hints of this
 	 * constructor
-	 * @return {@code this}, to facilitate method chaining
+	 * @return {@code this}, to facilitate method chaining`
+	 * @deprecated in favor of {@link #registerConstructor(Constructor, ExecutableMode)}
 	 */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	public ReflectionHints registerConstructor(Constructor<?> constructor, Consumer<ExecutableHint.Builder> constructorHint) {
 		return registerType(TypeReference.of(constructor.getDeclaringClass()),
 				typeHint -> typeHint.withConstructor(mapParameters(constructor), constructorHint));
@@ -216,7 +219,9 @@ public class ReflectionHints {
 	 * enabling {@link ExecutableMode#INVOKE}.
 	 * @param method the method that requires reflection
 	 * @return {@code this}, to facilitate method chaining
+	 * @deprecated in favor of {@link #registerMethod(Method, ExecutableMode)}
 	 */
+	@Deprecated
 	public ReflectionHints registerMethod(Method method) {
 		return registerMethod(method, ExecutableMode.INVOKE);
 	}
@@ -229,7 +234,8 @@ public class ReflectionHints {
 	 * @return {@code this}, to facilitate method chaining
 	 */
 	public ReflectionHints registerMethod(Method method, ExecutableMode mode) {
-		return registerMethod(method, ExecutableHint.builtWith(mode));
+		return registerType(TypeReference.of(method.getDeclaringClass()),
+				typeHint -> typeHint.withMethod(method.getName(), mapParameters(method), mode));
 	}
 
 	/**
@@ -237,15 +243,17 @@ public class ReflectionHints {
 	 * @param method the method that requires reflection
 	 * @param methodHint a builder to further customize the hints of this method
 	 * @return {@code this}, to facilitate method chaining
+	 * @deprecated in favor of {@link #registerMethod(Method, ExecutableMode)}
 	 */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	public ReflectionHints registerMethod(Method method, Consumer<ExecutableHint.Builder> methodHint) {
 		return registerType(TypeReference.of(method.getDeclaringClass()),
 				typeHint -> typeHint.withMethod(method.getName(), mapParameters(method), methodHint));
 	}
 
 	private List<TypeReference> mapParameters(Executable executable) {
-		return Arrays.stream(executable.getParameterTypes()).map(TypeReference::of)
-				.collect(Collectors.toList());
+		return TypeReference.listOf(executable.getParameterTypes());
 	}
 
 }

@@ -17,18 +17,19 @@
 package org.springframework.test.context.aot;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import org.springframework.aot.AotDetector;
 import org.springframework.aot.generate.ClassNameGenerator;
 import org.springframework.aot.generate.DefaultGenerationContext;
 import org.springframework.aot.generate.GeneratedClasses;
 import org.springframework.aot.generate.GeneratedFiles;
 import org.springframework.aot.generate.GenerationContext;
-import org.springframework.aot.hint.ReflectionHints;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.TypeReference;
 import org.springframework.beans.factory.aot.AotServices;
@@ -109,12 +110,28 @@ public class TestContextAotGenerator {
 	 * @throws TestContextAotException if an error occurs during AOT processing
 	 */
 	public void processAheadOfTime(Stream<Class<?>> testClasses) throws TestContextAotException {
-		MultiValueMap<MergedContextConfiguration, Class<?>> mergedConfigMappings = new LinkedMultiValueMap<>();
-		testClasses.forEach(testClass -> mergedConfigMappings.add(buildMergedContextConfiguration(testClass), testClass));
-		processAheadOfTime(mergedConfigMappings);
+		Assert.state(!AotDetector.useGeneratedArtifacts(), "Cannot perform AOT processing during AOT run-time execution");
+		try {
+			resetAotFactories();
+
+			MultiValueMap<MergedContextConfiguration, Class<?>> mergedConfigMappings = new LinkedMultiValueMap<>();
+			testClasses.forEach(testClass -> mergedConfigMappings.add(buildMergedContextConfiguration(testClass), testClass));
+			MultiValueMap<ClassName, Class<?>> initializerClassMappings = processAheadOfTime(mergedConfigMappings);
+
+			generateTestAotMappings(initializerClassMappings);
+			generateAotTestAttributes();
+		}
+		finally {
+			resetAotFactories();
+		}
 	}
 
-	private void processAheadOfTime(MultiValueMap<MergedContextConfiguration, Class<?>> mergedConfigMappings) {
+	private void resetAotFactories() {
+		AotTestAttributesFactory.reset();
+		AotTestContextInitializersFactory.reset();
+	}
+
+	private MultiValueMap<ClassName, Class<?>> processAheadOfTime(MultiValueMap<MergedContextConfiguration, Class<?>> mergedConfigMappings) {
 		MultiValueMap<ClassName, Class<?>> initializerClassMappings = new LinkedMultiValueMap<>();
 		mergedConfigMappings.forEach((mergedConfig, testClasses) -> {
 			logger.debug(LogMessage.format("Generating AOT artifacts for test classes %s",
@@ -137,8 +154,7 @@ public class TestContextAotGenerator {
 						testClasses.stream().map(Class::getName).toList()), ex);
 			}
 		});
-
-		generateAotTestMappings(initializerClassMappings);
+		return initializerClassMappings;
 	}
 
 	/**
@@ -207,11 +223,9 @@ public class TestContextAotGenerator {
 	private MergedContextConfiguration buildMergedContextConfiguration(Class<?> testClass) {
 		TestContextBootstrapper testContextBootstrapper =
 				BootstrapUtils.resolveTestContextBootstrapper(testClass);
-		// @BootstrapWith
-		registerDeclaredConstructors(testContextBootstrapper.getClass());
-		// @TestExecutionListeners
+		registerDeclaredConstructors(testContextBootstrapper.getClass()); // @BootstrapWith
 		testContextBootstrapper.getTestExecutionListeners().forEach(listener -> {
-			registerDeclaredConstructors(listener.getClass());
+			registerDeclaredConstructors(listener.getClass()); // @TestExecutionListeners
 			if (listener instanceof AotTestExecutionListener aotListener) {
 				aotListener.processAheadOfTime(testClass, this.runtimeHints, getClass().getClassLoader());
 			}
@@ -230,23 +244,39 @@ public class TestContextAotGenerator {
 		return "TestContext%03d_".formatted(this.sequence.incrementAndGet());
 	}
 
-	private void generateAotTestMappings(MultiValueMap<ClassName, Class<?>> initializerClassMappings) {
-		ClassNameGenerator classNameGenerator = new ClassNameGenerator(AotTestMappings.class);
+	private void generateTestAotMappings(MultiValueMap<ClassName, Class<?>> initializerClassMappings) {
+		ClassNameGenerator classNameGenerator = new ClassNameGenerator(AotTestContextInitializers.class);
 		DefaultGenerationContext generationContext =
 				new DefaultGenerationContext(classNameGenerator, this.generatedFiles, this.runtimeHints);
 		GeneratedClasses generatedClasses = generationContext.getGeneratedClasses();
 
-		AotTestMappingsCodeGenerator codeGenerator =
-				new AotTestMappingsCodeGenerator(initializerClassMappings, generatedClasses);
+		AotTestContextInitializersCodeGenerator codeGenerator =
+				new AotTestContextInitializersCodeGenerator(initializerClassMappings, generatedClasses);
 		generationContext.writeGeneratedContent();
 		String className = codeGenerator.getGeneratedClass().getName().reflectionName();
-		this.runtimeHints.reflection()
-				.registerType(TypeReference.of(className), INVOKE_PUBLIC_METHODS);
+		registerPublicMethods(className);
+	}
+
+	private void generateAotTestAttributes() {
+		ClassNameGenerator classNameGenerator = new ClassNameGenerator(AotTestAttributes.class);
+		DefaultGenerationContext generationContext =
+				new DefaultGenerationContext(classNameGenerator, this.generatedFiles, this.runtimeHints);
+		GeneratedClasses generatedClasses = generationContext.getGeneratedClasses();
+
+		Map<String, String> attributes = AotTestAttributesFactory.getAttributes();
+		AotTestAttributesCodeGenerator codeGenerator =
+				new AotTestAttributesCodeGenerator(attributes, generatedClasses);
+		generationContext.writeGeneratedContent();
+		String className = codeGenerator.getGeneratedClass().getName().reflectionName();
+		registerPublicMethods(className);
+	}
+
+	private void registerPublicMethods(String className) {
+		this.runtimeHints.reflection().registerType(TypeReference.of(className), INVOKE_PUBLIC_METHODS);
 	}
 
 	private void registerDeclaredConstructors(Class<?> type) {
-		ReflectionHints reflectionHints = this.runtimeHints.reflection();
-		reflectionHints.registerType(type, INVOKE_DECLARED_CONSTRUCTORS);
+		this.runtimeHints.reflection().registerType(type, INVOKE_DECLARED_CONSTRUCTORS);
 	}
 
 }

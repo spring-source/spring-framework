@@ -18,6 +18,7 @@ package org.springframework.web.client;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,7 +53,6 @@ import org.springframework.http.converter.GenericHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.KotlinSerializationJsonHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.util.StreamUtils;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -106,6 +106,7 @@ class RestTemplateTests {
 
 	@Test // gh-29008
 	void defaultMessageConvertersWithKotlinSerialization() {
+		@SuppressWarnings("resource")
 		RestTemplate restTemplate = new RestTemplate();
 		List<HttpMessageConverter<?>> httpMessageConverters = restTemplate.getMessageConverters();
 		assertThat(httpMessageConverters).extracting("class").containsOnlyOnce(
@@ -284,7 +285,7 @@ class RestTemplateTests {
 		mockSentRequest(GET, "https://example.com/hotels/1/pic/pics%2Flogo.png/size/150x150");
 		mockResponseStatus(HttpStatus.OK);
 		given(response.getHeaders()).willReturn(new HttpHeaders());
-		given(response.getBody()).willReturn(StreamUtils.emptyInput());
+		given(response.getBody()).willReturn(InputStream.nullInputStream());
 
 		Map<String, String> uriVariables = new HashMap<>(2);
 		uriVariables.put("hotel", "1");
@@ -440,7 +441,7 @@ class RestTemplateTests {
 		responseHeaders.setContentType(MediaType.TEXT_PLAIN);
 		responseHeaders.setContentLength(10);
 		given(response.getHeaders()).willReturn(responseHeaders);
-		given(response.getBody()).willReturn(StreamUtils.emptyInput());
+		given(response.getBody()).willReturn(InputStream.nullInputStream());
 		given(converter.read(String.class, response)).willReturn(null);
 
 		String result = template.postForObject("https://example.com", null, String.class);
@@ -460,7 +461,7 @@ class RestTemplateTests {
 		responseHeaders.setContentType(MediaType.TEXT_PLAIN);
 		responseHeaders.setContentLength(10);
 		given(response.getHeaders()).willReturn(responseHeaders);
-		given(response.getBody()).willReturn(StreamUtils.emptyInput());
+		given(response.getBody()).willReturn(InputStream.nullInputStream());
 		given(converter.read(String.class, response)).willReturn(null);
 
 		ResponseEntity<String> result = template.postForEntity("https://example.com", null, String.class);
@@ -556,7 +557,7 @@ class RestTemplateTests {
 		responseHeaders.setContentType(MediaType.TEXT_PLAIN);
 		responseHeaders.setContentLength(10);
 		given(response.getHeaders()).willReturn(responseHeaders);
-		given(response.getBody()).willReturn(StreamUtils.emptyInput());
+		given(response.getBody()).willReturn(InputStream.nullInputStream());
 
 		String result = template.patchForObject("https://example.com", null, String.class);
 		assertThat(result).as("Invalid POST result").isNull();

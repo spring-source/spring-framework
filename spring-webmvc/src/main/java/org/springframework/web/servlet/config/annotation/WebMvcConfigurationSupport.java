@@ -32,7 +32,6 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.SpringProperties;
 import org.springframework.core.convert.converter.Converter;
@@ -71,7 +70,6 @@ import org.springframework.validation.beanvalidation.OptionalValidatorFactoryBea
 import org.springframework.web.HttpRequestHandler;
 import org.springframework.web.accept.ContentNegotiationManager;
 import org.springframework.web.bind.WebDataBinder;
-import org.springframework.web.bind.annotation.WebAnnotationsRuntimeHintsRegistrar;
 import org.springframework.web.bind.support.ConfigurableWebBindingInitializer;
 import org.springframework.web.context.ServletContextAware;
 import org.springframework.web.cors.CorsConfiguration;
@@ -84,7 +82,6 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.RequestToViewNameTranslator;
-import org.springframework.web.servlet.ThemeResolver;
 import org.springframework.web.servlet.ViewResolver;
 import org.springframework.web.servlet.function.support.HandlerFunctionAdapter;
 import org.springframework.web.servlet.function.support.RouterFunctionMapping;
@@ -107,7 +104,6 @@ import org.springframework.web.servlet.mvc.support.DefaultHandlerExceptionResolv
 import org.springframework.web.servlet.resource.ResourceUrlProvider;
 import org.springframework.web.servlet.resource.ResourceUrlProviderExposingInterceptor;
 import org.springframework.web.servlet.support.SessionFlashMapManager;
-import org.springframework.web.servlet.theme.FixedThemeResolver;
 import org.springframework.web.servlet.view.DefaultRequestToViewNameTranslator;
 import org.springframework.web.servlet.view.InternalResourceViewResolver;
 import org.springframework.web.servlet.view.ViewResolverComposite;
@@ -190,7 +186,6 @@ import org.springframework.web.util.pattern.PathPatternParser;
  * @see EnableWebMvc
  * @see WebMvcConfigurer
  */
-@ImportRuntimeHints(WebAnnotationsRuntimeHintsRegistrar.class)
 public class WebMvcConfigurationSupport implements ApplicationContextAware, ServletContextAware {
 
 	/**
@@ -1168,8 +1163,9 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	}
 
 	@Bean
-	public ThemeResolver themeResolver() {
-		return new FixedThemeResolver();
+	@Deprecated
+	public org.springframework.web.servlet.ThemeResolver themeResolver() {
+		return new org.springframework.web.servlet.theme.FixedThemeResolver();
 	}
 
 	@Bean

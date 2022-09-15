@@ -19,16 +19,14 @@ package org.springframework.test.context.support;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import org.springframework.aot.AotDetector;
 import org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.Conventions;
-import org.springframework.lang.Nullable;
 import org.springframework.test.context.TestContext;
-import org.springframework.test.context.aot.AotTestMappings;
+import org.springframework.test.context.aot.AotTestContextInitializers;
 
 /**
  * {@code TestExecutionListener} which provides support for dependency
@@ -60,8 +58,7 @@ public class DependencyInjectionTestExecutionListener extends AbstractTestExecut
 
 	private static final Log logger = LogFactory.getLog(DependencyInjectionTestExecutionListener.class);
 
-	@Nullable
-	private final AotTestMappings aotTestMappings = getAotTestMappings();
+	private final AotTestContextInitializers aotTestContextInitializers = new AotTestContextInitializers();
 
 
 	/**
@@ -162,20 +159,7 @@ public class DependencyInjectionTestExecutionListener extends AbstractTestExecut
 	 * Determine if we are running in AOT mode for the supplied test class.
 	 */
 	private boolean runningInAotMode(Class<?> testClass) {
-		return (this.aotTestMappings != null && this.aotTestMappings.isSupportedTestClass(testClass));
-	}
-
-	@Nullable
-	private static AotTestMappings getAotTestMappings() {
-		if (AotDetector.useGeneratedArtifacts()) {
-			try {
-				return new AotTestMappings();
-			}
-			catch (Exception ex) {
-				throw new IllegalStateException("Failed to instantiate AotTestMappings", ex);
-			}
-		}
-		return null;
+		return this.aotTestContextInitializers.isSupportedTestClass(testClass);
 	}
 
 }

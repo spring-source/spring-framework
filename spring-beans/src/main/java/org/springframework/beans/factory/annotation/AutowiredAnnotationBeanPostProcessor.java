@@ -44,7 +44,6 @@ import org.springframework.aot.generate.AccessVisibility;
 import org.springframework.aot.generate.GeneratedClass;
 import org.springframework.aot.generate.GeneratedMethod;
 import org.springframework.aot.generate.GenerationContext;
-import org.springframework.aot.generate.MethodReference;
 import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.beans.BeanUtils;
@@ -944,8 +943,7 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 				method.returns(this.target);
 				method.addCode(generateMethodCode(generationContext.getRuntimeHints()));
 			});
-			beanRegistrationCode.addInstancePostProcessor(
-					MethodReference.ofStatic(generatedClass.getName(), generateMethod.getName()));
+			beanRegistrationCode.addInstancePostProcessor(generateMethod.toMethodReference());
 
 			if (this.candidateResolver != null) {
 				registerHints(generationContext.getRuntimeHints());
@@ -1009,7 +1007,7 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 			AccessVisibility visibility = AccessVisibility.forMember(method);
 			if (visibility == AccessVisibility.PRIVATE
 					|| visibility == AccessVisibility.PROTECTED) {
-				hints.reflection().registerMethod(method);
+				hints.reflection().registerMethod(method, ExecutableMode.INVOKE);
 				code.add(".resolveAndInvoke($L, $L)", REGISTERED_BEAN_PARAMETER,
 						INSTANCE_PARAMETER);
 			}

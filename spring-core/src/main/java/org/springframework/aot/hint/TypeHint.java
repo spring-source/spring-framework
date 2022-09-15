@@ -35,6 +35,8 @@ import org.springframework.util.Assert;
  * A hint that describes the need for reflection on a type.
  *
  * @author Stephane Nicoll
+ * @author Phillip Webb
+ * @author Andy Wilkinson
  * @since 6.0
  */
 public final class TypeHint implements ConditionalHint {
@@ -57,7 +59,7 @@ public final class TypeHint implements ConditionalHint {
 		this.type = builder.type;
 		this.reachableType = builder.reachableType;
 		this.memberCategories = Set.copyOf(builder.memberCategories);
-		this.fields = builder.fields.values().stream().map(FieldHint.Builder::build).collect(Collectors.toSet());
+		this.fields = builder.fields.stream().map(FieldHint::new).collect(Collectors.toSet());
 		this.constructors = builder.constructors.values().stream().map(ExecutableHint.Builder::build).collect(Collectors.toSet());
 		this.methods = builder.methods.values().stream().map(ExecutableHint.Builder::build).collect(Collectors.toSet());
 	}
@@ -147,7 +149,7 @@ public final class TypeHint implements ConditionalHint {
 		@Nullable
 		private TypeReference reachableType;
 
-		private final Map<String, FieldHint.Builder> fields = new HashMap<>();
+		private final Set<String> fields = new HashSet<>();
 
 		private final Map<ExecutableKey, ExecutableHint.Builder> constructors = new HashMap<>();
 
@@ -185,35 +187,12 @@ public final class TypeHint implements ConditionalHint {
 		}
 
 		/**
-		 * Register the need for reflection on the field with the specified name,
-		 * enabling write access.
+		 * Register the need for reflection on the field with the specified name.
 		 * @param name the name of the field
 		 * @return {@code this}, to facilitate method chaining
 		 */
 		public Builder withField(String name) {
-			return withField(name, FieldMode.WRITE);
-		}
-
-		/**
-		 * Register the need for reflection on the field with the specified name
-		 * using the specified {@link FieldMode}.
-		 * @param name the name of the field
-		 * @param mode the requested mode
-		 * @return {@code this}, to facilitate method chaining
-		 */
-		public Builder withField(String name, FieldMode mode) {
-			return withField(name, FieldHint.builtWith(mode));
-		}
-
-		/**
-		 * Register the need for reflection on the field with the specified name.
-		 * @param name the name of the field
-		 * @param fieldHint a builder to further customize the hints of this field
-		 * @return {@code this}, to facilitate method chaining
-		 */
-		public Builder withField(String name, Consumer<FieldHint.Builder> fieldHint) {
-			FieldHint.Builder builder = this.fields.computeIfAbsent(name, FieldHint.Builder::new);
-			fieldHint.accept(builder);
+			this.fields.add(name);
 			return this;
 		}
 
@@ -222,7 +201,9 @@ public final class TypeHint implements ConditionalHint {
 		 * parameter types, enabling {@link ExecutableMode#INVOKE}.
 		 * @param parameterTypes the parameter types of the constructor
 		 * @return {@code this}, to facilitate method chaining
+		 * @deprecated in favor of {@link #withConstructor(List, ExecutableMode)}
 		 */
+		@Deprecated
 		public Builder withConstructor(List<TypeReference> parameterTypes) {
 			return withConstructor(parameterTypes, ExecutableMode.INVOKE);
 		}
@@ -245,8 +226,11 @@ public final class TypeHint implements ConditionalHint {
 		 * @param constructorHint a builder to further customize the hints of this
 		 * constructor
 		 * @return {@code this}, to facilitate method chaining
+		 * @deprecated in favor of {@link #withConstructor(List, ExecutableMode)}
 		 */
-		public Builder withConstructor(List<TypeReference> parameterTypes, Consumer<ExecutableHint.Builder> constructorHint) {
+		@Deprecated
+		public Builder withConstructor(List<TypeReference> parameterTypes,
+				Consumer<ExecutableHint.Builder> constructorHint) {
 			ExecutableKey key = new ExecutableKey("<init>", parameterTypes);
 			ExecutableHint.Builder builder = this.constructors.computeIfAbsent(key,
 					k -> ExecutableHint.ofConstructor(parameterTypes));
@@ -260,7 +244,9 @@ public final class TypeHint implements ConditionalHint {
 		 * @param name the name of the method
 		 * @param parameterTypes the parameter types of the constructor
 		 * @return {@code this}, to facilitate method chaining
+		 * @deprecated in favor of {@link #withMethod(String, List, ExecutableMode)}
 		 */
+		@Deprecated
 		public Builder withMethod(String name, List<TypeReference> parameterTypes) {
 			return withMethod(name, parameterTypes, ExecutableMode.INVOKE);
 		}
@@ -284,8 +270,11 @@ public final class TypeHint implements ConditionalHint {
 		 * @param parameterTypes the parameter types of the constructor
 		 * @param methodHint a builder to further customize the hints of this method
 		 * @return {@code this}, to facilitate method chaining
+		 * @deprecated in favor of {@link #withMethod(String, List, ExecutableMode)}
 		 */
-		public Builder withMethod(String name, List<TypeReference> parameterTypes, Consumer<ExecutableHint.Builder> methodHint) {
+		@Deprecated
+		public Builder withMethod(String name, List<TypeReference> parameterTypes,
+				Consumer<ExecutableHint.Builder> methodHint) {
 			ExecutableKey key = new ExecutableKey(name, parameterTypes);
 			ExecutableHint.Builder builder = this.methods.computeIfAbsent(key,
 					k -> ExecutableHint.ofMethod(name, parameterTypes));
@@ -297,6 +286,7 @@ public final class TypeHint implements ConditionalHint {
 		 * Adds the specified {@linkplain MemberCategory member categories}.
 		 * @param memberCategories the categories to apply
 		 * @return {@code this}, to facilitate method chaining
+		 * @see TypeHint#builtWith(MemberCategory...)
 		 */
 		public Builder withMembers(MemberCategory... memberCategories) {
 			this.memberCategories.addAll(Arrays.asList(memberCategories));
@@ -322,8 +312,7 @@ public final class TypeHint implements ConditionalHint {
 
 		private ExecutableKey(String name, List<TypeReference> parameterTypes) {
 			this.name = name;
-			this.parameterTypes = parameterTypes.stream().map(TypeReference::getCanonicalName)
-					.collect(Collectors.toList());
+			this.parameterTypes = parameterTypes.stream().map(TypeReference::getCanonicalName).toList();
 		}
 
 		@Override

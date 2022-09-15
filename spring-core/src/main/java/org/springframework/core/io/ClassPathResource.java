@@ -45,6 +45,10 @@ import org.springframework.util.StringUtils;
  */
 public class ClassPathResource extends AbstractFileResolvingResource {
 
+	/**
+	 * Internal representation of the original path supplied by the user,
+	 * used for creating relative paths and resolving URLs and InputStreams.
+	 */
 	private final String path;
 
 	private final String absolutePath;
@@ -119,35 +123,13 @@ public class ClassPathResource extends AbstractFileResolvingResource {
 
 
 	/**
-	 * Return the path for this resource.
-	 * <p>If this resource was created using
-	 * {@link ClassPathResource#ClassPathResource(String) ClassPathResource(String)},
-	 * {@link ClassPathResource#ClassPathResource(String, ClassLoader)
-	 * ClassPathResource(String, ClassLoader)}, or
-	 * {@link ClassPathResource#ClassPathResource(String, Class)
-	 * ClassPathResource(String, Class)} with an absolute path, the returned path
-	 * is a {@linkplain StringUtils#cleanPath(String) cleaned} version of the
-	 * <em>absolute path</em> supplied to the constructor.
-	 * <p>If this resource was created using
-	 * {@link ClassPathResource#ClassPathResource(String, Class)
-	 * ClassPathResource(String, Class)} with a relative path, the returned path
-	 * is a {@linkplain StringUtils#cleanPath(String) cleaned} version of the
-	 * <em>relative path</em> supplied to the constructor.
-	 * <p>If you consistently need the <em>absolute path</em>, use
-	 * {@link #getAbsolutePath()} instead.
-	 * @see #getAbsolutePath()
+	 * Return the <em>absolute path</em> for this resource, as a
+	 * {@linkplain StringUtils#cleanPath(String) cleaned} resource path within
+	 * the class path.
+	 * <p>The path returned by this method does not have a leading slash and is
+	 * suitable for use with {@link ClassLoader#getResource(String)}.
 	 */
 	public final String getPath() {
-		return this.path;
-	}
-
-	/**
-	 * Return the <em>absolute path</em> for this resource, as a resource path
-	 * within the class path.
-	 * @since 6.0
-	 * @see #getPath()
-	 */
-	public final String getAbsolutePath() {
 		return this.absolutePath;
 	}
 

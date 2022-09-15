@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +36,6 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.databind.exc.InvalidDefinitionException;
 import com.fasterxml.jackson.databind.ser.FilterProvider;
-import org.apache.commons.logging.Log;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -47,6 +47,7 @@ import org.springframework.core.codec.EncodingException;
 import org.springframework.core.codec.Hints;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.HttpMessageEncoder;
@@ -72,6 +73,8 @@ public abstract class AbstractJackson2Encoder extends Jackson2CodecSupport imple
 	private static final byte[] NEWLINE_SEPARATOR = {'\n'};
 
 	private static final byte[] EMPTY_BYTES = new byte[0];
+
+	private static DataBuffer EMPTY_BUFFER = DefaultDataBufferFactory.sharedInstance.wrap(EMPTY_BYTES);
 
 	private static final Map<String, JsonEncoding> ENCODINGS;
 
@@ -174,14 +177,27 @@ public abstract class AbstractJackson2Encoder extends Jackson2CodecSupport imple
 			}
 			else {
 				JsonArrayJoinHelper helper = new JsonArrayJoinHelper();
-				return Flux.concat(
-						helper.getPrefix(bufferFactory, hints, logger),
-						Flux.from(inputStream).map(value -> encodeStreamingValue(
-								value, bufferFactory, hints, sequenceWriter, byteBuilder, helper.getDelimiter(), EMPTY_BYTES)),
-						helper.getSuffix(bufferFactory, hints, logger));
+
+				// Do not prepend JSON array prefix until first signal is known, onNext vs onError
+				// Keeps response not committed for error handling
+
+				dataBufferFlux = Flux.from(inputStream)
+						.map(value -> {
+							byte[] prefix = helper.getPrefix();
+							byte[] delimiter = helper.getDelimiter();
+
+							DataBuffer dataBuffer = encodeStreamingValue(
+									value, bufferFactory, hints, sequenceWriter, byteBuilder, delimiter, EMPTY_BYTES);
+
+							return (prefix.length > 0 ?
+									bufferFactory.join(Arrays.asList(bufferFactory.wrap(prefix), dataBuffer)) :
+									dataBuffer);
+						})
+						.concatWith(Mono.fromCallable(() -> bufferFactory.wrap(helper.getSuffix())));
 			}
 
 			return dataBufferFlux
+					.doOnNext(dataBuffer ->	Hints.touchDataBuffer(dataBuffer, hints, logger))
 					.doAfterTerminate(() -> {
 						try {
 							byteBuilder.release();
@@ -406,33 +422,22 @@ public abstract class AbstractJackson2Encoder extends Jackson2CodecSupport imple
 
 		private static final byte[] CLOSE_BRACKET = {']'};
 
-
-		private boolean afterFirstItem = false;
+		private boolean firstItemEmitted;
 
 		public byte[] getDelimiter() {
-			if (this.afterFirstItem) {
+			if (this.firstItemEmitted) {
 				return COMMA_SEPARATOR;
 			}
-			this.afterFirstItem = true;
+			this.firstItemEmitted = true;
 			return EMPTY_BYTES;
 		}
 
-		public Mono<DataBuffer> getPrefix(DataBufferFactory factory, @Nullable Map<String, Object> hints, Log logger) {
-			return wrapBytes(OPEN_BRACKET, factory, hints, logger);
+		public byte[] getPrefix() {
+			return (this.firstItemEmitted ? EMPTY_BYTES : OPEN_BRACKET);
 		}
 
-		public Mono<DataBuffer> getSuffix(DataBufferFactory factory, @Nullable Map<String, Object> hints, Log logger) {
-			return wrapBytes(CLOSE_BRACKET, factory, hints, logger);
-		}
-
-		private Mono<DataBuffer> wrapBytes(
-				byte[] bytes, DataBufferFactory bufferFactory, @Nullable Map<String, Object> hints, Log logger) {
-
-			return Mono.fromCallable(() -> {
-				DataBuffer buffer = bufferFactory.wrap(bytes);
-				Hints.touchDataBuffer(buffer, hints, logger);
-				return buffer;
-			});
+		public byte[] getSuffix() {
+			return CLOSE_BRACKET;
 		}
 	}
 
