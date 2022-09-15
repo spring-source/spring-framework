@@ -1273,10 +1273,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			return obtainFromSupplier(instanceSupplier, beanName);
 		}
 		/**
-		 * 工厂方法,我们通过配置类来进行配置的话 采用的就是工厂方法,方法名称就是tulingDao就是我们工厂方法的名称
+		 * 工厂方法,我们通过配置类来进行配置的话 采用的就是工厂方法,方法名称就是DujieDao就是我们工厂方法的名称
 		 *  Bean
-		 	public TulingDao tulingDao() {
-		 		return new TulingDao(tulingDataSource());
+		 	public DujieDao DujieDao() {
+		 		return new DujieDao(dujieDataSource());
 		 	}
 		 */
 		if (mbd.getFactoryMethodName() != null) {

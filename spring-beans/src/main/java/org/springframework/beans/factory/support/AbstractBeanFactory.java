@@ -338,10 +338,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 			/**
 			 * 从容器中获取 beanName 相应的 GenericBeanDefinition 对象，并将其转换为 RootBeanDefinition 对象
-			 *   <bean id="tulingParentCompent" class="com.tuling.testparentsonbean.TulingParentCompent" abstract="true">
-			 		<property name="tulingCompent" ref="tulingCompent"></property>
+			 *   <bean id="dujieParentCompent" class="com.dujie.testparentsonbean.dujieParentCompent" abstract="true">
+			 		<property name="dujieCompent" ref="dujieCompent"></property>
 			     </bean>
-			     <bean id="tulingSonCompent" class="com.tuling.testparentsonbean.TulingSonCompent" parent="tulingParentCompent"></bean>
+			     <bean id="dujieSonCompent" class="com.dujie.testparentsonbean.dujieSonCompent" parent="dujieParentCompent"></bean>
 			 */
 			StartupStep beanCreation = this.applicationStartup.start("spring.beans.instantiate")
 					.tag("beanName", name);

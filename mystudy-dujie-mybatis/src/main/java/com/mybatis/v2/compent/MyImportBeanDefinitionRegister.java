@@ -59,7 +59,7 @@ public class MyImportBeanDefinitionRegister implements ImportBeanDefinitionRegis
 
 			//获取bean定义
 			GenericBeanDefinition beanDefinition = (GenericBeanDefinition) bdh.getBeanDefinition();
-			//拿到bean定义中的接口的calss 字符串  com.tuling.dao.AccountMapper
+			//拿到bean定义中的接口的calss 字符串  com.dujie.dao.AccountMapper
 
 			String sourceClass = beanDefinition.getBeanClassName();
 

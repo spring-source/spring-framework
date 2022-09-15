@@ -21,7 +21,7 @@ public class MainConfig {
 	}
 
 	@Bean
-	public MyLogAspect tulingLogAspect() {
+	public MyLogAspect myLogAspect() {
 		return new MyLogAspect();
 	}
 

@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Import;
  * Created by dujie on 2019/7/15.
  */
 @Configuration
-@Import(value = {CompentC.class,TulingImportSelect.class,TulingImportBeanfinitionRegister.class})
+@Import(value = {CompentC.class, DujieImportSelect.class, DujieImportBeanfinitionRegister.class})
 @ComponentScan(basePackages = {"com.dujie.parsebeandefinition"})
 public class MainConfig {
 

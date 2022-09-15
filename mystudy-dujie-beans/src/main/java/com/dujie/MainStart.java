@@ -12,7 +12,7 @@ public class MainStart {
 	 */
 	public static void main(String[] args) {
 		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MainConfig.class);
-		ctx.getBean("tulingDao");
-		/*System.out.println(ctx.getBean(TulingDao.class).getTulingDataSource().getFlag());*/
+		ctx.getBean("dujieDao");
+		/*System.out.println(ctx.getBean(dujieDao.class).getdujieDataSource().getFlag());*/
 	}
 }
