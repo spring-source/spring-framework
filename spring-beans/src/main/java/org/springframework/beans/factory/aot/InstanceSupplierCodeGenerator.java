@@ -24,7 +24,8 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.function.Consumer;
 
-import org.springframework.aot.generate.AccessVisibility;
+import org.springframework.aot.generate.AccessControl;
+import org.springframework.aot.generate.AccessControl.Visibility;
 import org.springframework.aot.generate.GeneratedMethod;
 import org.springframework.aot.generate.GeneratedMethods;
 import org.springframework.aot.generate.GenerationContext;
@@ -80,8 +81,7 @@ class InstanceSupplierCodeGenerator {
 
 
 	InstanceSupplierCodeGenerator(GenerationContext generationContext,
-			ClassName className, GeneratedMethods generatedMethods,
-			boolean allowDirectSupplierShortcut) {
+			ClassName className, GeneratedMethods generatedMethods, boolean allowDirectSupplierShortcut) {
 
 		this.generationContext = generationContext;
 		this.className = className;
@@ -103,18 +103,13 @@ class InstanceSupplierCodeGenerator {
 				"No suitable executor found for " + registeredBean.getBeanName());
 	}
 
-	private CodeBlock generateCodeForConstructor(RegisteredBean registeredBean,
-			Constructor<?> constructor) {
-
+	private CodeBlock generateCodeForConstructor(RegisteredBean registeredBean, Constructor<?> constructor) {
 		String beanName = registeredBean.getBeanName();
 		Class<?> beanClass = registeredBean.getBeanClass();
-		Class<?> declaringClass = ClassUtils
-				.getUserClass(constructor.getDeclaringClass());
+		Class<?> declaringClass = constructor.getDeclaringClass();
 		boolean dependsOnBean = ClassUtils.isInnerClass(declaringClass);
-		AccessVisibility accessVisibility = getAccessVisibility(registeredBean,
-				constructor);
-		if (accessVisibility == AccessVisibility.PUBLIC
-				|| accessVisibility == AccessVisibility.PACKAGE_PRIVATE) {
+		Visibility accessVisibility = getAccessVisibility(registeredBean, constructor);
+		if (accessVisibility != Visibility.PRIVATE) {
 			return generateCodeForAccessibleConstructor(beanName, beanClass, constructor,
 					dependsOnBean, declaringClass);
 		}
@@ -124,18 +119,16 @@ class InstanceSupplierCodeGenerator {
 	private CodeBlock generateCodeForAccessibleConstructor(String beanName, Class<?> beanClass,
 			Constructor<?> constructor, boolean dependsOnBean, Class<?> declaringClass) {
 
-		this.generationContext.getRuntimeHints().reflection()
-				.registerConstructor(constructor, ExecutableMode.INTROSPECT);
+		this.generationContext.getRuntimeHints().reflection().registerConstructor(
+				constructor, ExecutableMode.INTROSPECT);
 		if (!dependsOnBean && constructor.getParameterCount() == 0) {
 			if (!this.allowDirectSupplierShortcut) {
-				return CodeBlock.of("$T.using($T::new)", InstanceSupplier.class,
-						declaringClass);
+				return CodeBlock.of("$T.using($T::new)", InstanceSupplier.class, declaringClass);
 			}
 			if (!isThrowingCheckedException(constructor)) {
 				return CodeBlock.of("$T::new", declaringClass);
 			}
-			return CodeBlock.of("$T.of($T::new)", ThrowingSupplier.class,
-					declaringClass);
+			return CodeBlock.of("$T.of($T::new)", ThrowingSupplier.class, declaringClass);
 		}
 		GeneratedMethod generatedMethod = generateGetInstanceSupplierMethod(method ->
 				buildGetInstanceMethodForConstructor(method, beanName, beanClass, constructor,
@@ -169,12 +162,11 @@ class InstanceSupplierCodeGenerator {
 		CodeBlock.Builder code = CodeBlock.builder();
 		code.add(generateResolverForConstructor(beanClass, constructor, parameterOffset));
 		boolean hasArguments = constructor.getParameterCount() > 0;
-		CodeBlock arguments = hasArguments
-				? new AutowiredArgumentsCodeGenerator(declaringClass, constructor)
-				.generateCode(constructor.getParameterTypes(), parameterOffset)
+		CodeBlock arguments = hasArguments ?
+				new AutowiredArgumentsCodeGenerator(declaringClass, constructor)
+						.generateCode(constructor.getParameterTypes(), parameterOffset)
 				: NO_ARGS;
-		CodeBlock newInstance = generateNewInstanceCodeForConstructor(dependsOnBean,
-				declaringClass, arguments);
+		CodeBlock newInstance = generateNewInstanceCodeForConstructor(dependsOnBean, declaringClass, arguments);
 		code.add(generateWithGeneratorCode(hasArguments, newInstance));
 		method.addStatement(code.build());
 	}
@@ -182,10 +174,8 @@ class InstanceSupplierCodeGenerator {
 	private CodeBlock generateResolverForConstructor(Class<?> beanClass,
 			Constructor<?> constructor, int parameterOffset) {
 
-		CodeBlock parameterTypes = generateParameterTypesCode(
-				constructor.getParameterTypes(), parameterOffset);
-		return CodeBlock.of("return $T.<$T>forConstructor($L)",
-				BeanInstanceSupplier.class, beanClass, parameterTypes);
+		CodeBlock parameterTypes = generateParameterTypesCode(constructor.getParameterTypes(), parameterOffset);
+		return CodeBlock.of("return $T.<$T>forConstructor($L)", BeanInstanceSupplier.class, beanClass, parameterTypes);
 	}
 
 	private CodeBlock generateNewInstanceCodeForConstructor(boolean dependsOnBean,
@@ -207,22 +197,19 @@ class InstanceSupplierCodeGenerator {
 		Class<?> declaringClass = ClassUtils
 				.getUserClass(factoryMethod.getDeclaringClass());
 		boolean dependsOnBean = !Modifier.isStatic(factoryMethod.getModifiers());
-		AccessVisibility accessVisibility = getAccessVisibility(registeredBean,
-				factoryMethod);
-		if (accessVisibility == AccessVisibility.PUBLIC
-				|| accessVisibility == AccessVisibility.PACKAGE_PRIVATE) {
-			return generateCodeForAccessibleFactoryMethod(beanName, beanClass, factoryMethod,
-					declaringClass, dependsOnBean);
+		Visibility accessVisibility = getAccessVisibility(registeredBean, factoryMethod);
+		if (accessVisibility != Visibility.PRIVATE) {
+			return generateCodeForAccessibleFactoryMethod(
+					beanName, beanClass, factoryMethod, declaringClass, dependsOnBean);
 		}
-		return generateCodeForInaccessibleFactoryMethod(beanName, beanClass, factoryMethod,
-				declaringClass);
+		return generateCodeForInaccessibleFactoryMethod(beanName, beanClass, factoryMethod, declaringClass);
 	}
 
 	private CodeBlock generateCodeForAccessibleFactoryMethod(String beanName,
 			Class<?> beanClass, Method factoryMethod, Class<?> declaringClass, boolean dependsOnBean) {
 
-		this.generationContext.getRuntimeHints().reflection()
-				.registerMethod(factoryMethod, ExecutableMode.INTROSPECT);
+		this.generationContext.getRuntimeHints().reflection().registerMethod(
+				factoryMethod, ExecutableMode.INTROSPECT);
 		if (!dependsOnBean && factoryMethod.getParameterCount() == 0) {
 			CodeBlock.Builder code = CodeBlock.builder();
 			code.add("$T.<$T>forFactoryMethod($T.class, $S)", BeanInstanceSupplier.class,
@@ -239,14 +226,13 @@ class InstanceSupplierCodeGenerator {
 	private CodeBlock generateCodeForInaccessibleFactoryMethod(String beanName, Class<?> beanClass,
 			Method factoryMethod, Class<?> declaringClass) {
 
-		this.generationContext.getRuntimeHints().reflection()
-				.registerMethod(factoryMethod, ExecutableMode.INVOKE);
+		this.generationContext.getRuntimeHints().reflection().registerMethod(factoryMethod, ExecutableMode.INVOKE);
 		GeneratedMethod getInstanceMethod = generateGetInstanceSupplierMethod(method -> {
 			method.addJavadoc("Get the bean instance supplier for '$L'.", beanName);
 			method.addModifiers(PRIVATE_STATIC);
 			method.returns(ParameterizedTypeName.get(BeanInstanceSupplier.class, beanClass));
-			method.addStatement(generateInstanceSupplierForFactoryMethod(beanClass, factoryMethod,
-					declaringClass, factoryMethod.getName()));
+			method.addStatement(generateInstanceSupplierForFactoryMethod(
+					beanClass, factoryMethod, declaringClass, factoryMethod.getName()));
 		});
 		return generateReturnStatement(getInstanceMethod);
 	}
@@ -260,14 +246,15 @@ class InstanceSupplierCodeGenerator {
 		method.addModifiers(modifiers);
 		method.returns(ParameterizedTypeName.get(BeanInstanceSupplier.class, beanClass));
 		CodeBlock.Builder code = CodeBlock.builder();
-		code.add(generateInstanceSupplierForFactoryMethod(beanClass, factoryMethod, declaringClass, factoryMethodName));
+		code.add(generateInstanceSupplierForFactoryMethod(
+				beanClass, factoryMethod, declaringClass, factoryMethodName));
 		boolean hasArguments = factoryMethod.getParameterCount() > 0;
-		CodeBlock arguments = hasArguments
-				? new AutowiredArgumentsCodeGenerator(declaringClass, factoryMethod)
-				.generateCode(factoryMethod.getParameterTypes())
+		CodeBlock arguments = hasArguments ?
+				new AutowiredArgumentsCodeGenerator(declaringClass, factoryMethod)
+						.generateCode(factoryMethod.getParameterTypes())
 				: NO_ARGS;
-		CodeBlock newInstance = generateNewInstanceCodeForMethod(dependsOnBean,
-				declaringClass, factoryMethodName, arguments);
+		CodeBlock newInstance = generateNewInstanceCodeForMethod(
+				dependsOnBean, declaringClass, factoryMethodName, arguments);
 		code.add(generateWithGeneratorCode(hasArguments, newInstance));
 		method.addStatement(code.build());
 	}
@@ -280,11 +267,9 @@ class InstanceSupplierCodeGenerator {
 					BeanInstanceSupplier.class, beanClass, declaringClass,
 					factoryMethodName);
 		}
-		CodeBlock parameterTypes = generateParameterTypesCode(
-				factoryMethod.getParameterTypes(), 0);
+		CodeBlock parameterTypes = generateParameterTypesCode(factoryMethod.getParameterTypes(), 0);
 		return CodeBlock.of("return $T.<$T>forFactoryMethod($T.class, $S, $L)",
-				BeanInstanceSupplier.class, beanClass, declaringClass,
-				factoryMethodName, parameterTypes);
+				BeanInstanceSupplier.class, beanClass, declaringClass, factoryMethodName, parameterTypes);
 	}
 
 	private CodeBlock generateNewInstanceCodeForMethod(boolean dependsOnBean,
@@ -314,13 +299,10 @@ class InstanceSupplierCodeGenerator {
 		return code.build();
 	}
 
-	protected AccessVisibility getAccessVisibility(RegisteredBean registeredBean,
-			Member member) {
-
-		AccessVisibility beanTypeAccessVisibility = AccessVisibility
-				.forResolvableType(registeredBean.getBeanType());
-		AccessVisibility memberAccessVisibility = AccessVisibility.forMember(member);
-		return AccessVisibility.lowest(beanTypeAccessVisibility, memberAccessVisibility);
+	private Visibility getAccessVisibility(RegisteredBean registeredBean, Member member) {
+		AccessControl beanTypeAccessControl = AccessControl.forResolvableType(registeredBean.getBeanType());
+		AccessControl memberAccessControl = AccessControl.forMember(member);
+		return AccessControl.lowest(beanTypeAccessControl, memberAccessControl).getVisibility();
 	}
 
 	private CodeBlock generateParameterTypesCode(Class<?>[] parameterTypes, int offset) {

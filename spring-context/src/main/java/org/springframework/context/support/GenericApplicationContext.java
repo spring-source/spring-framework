@@ -18,12 +18,12 @@ package org.springframework.context.support;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.support.ClassHintUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
@@ -68,7 +68,7 @@ import org.springframework.util.Assert;
  * definitions on it. {@link #refresh()} may only be called once.
  *
  * <p>This ApplicationContext implementation is suitable for Ahead of Time
- * processing, using {@link #refreshForAotProcessing()} as an alternative to the
+ * processing, using {@link #refreshForAotProcessing} as an alternative to the
  * regular {@link #refresh()}.
  *
  * <p>Usage example:
@@ -84,16 +84,13 @@ import org.springframework.util.Assert;
  * MyBean myBean = (MyBean) ctx.getBean("myBean");
  * ...</pre>
  *
- * For the typical case of XML bean definitions, simply use
+ * For the typical case of XML bean definitions, you may also use
  * {@link ClassPathXmlApplicationContext} or {@link FileSystemXmlApplicationContext},
  * which are easier to set up - but less flexible, since you can just use standard
  * resource locations for XML bean definitions, rather than mixing arbitrary bean
- * definition formats. The equivalent in a web environment is
- * {@link org.springframework.web.context.support.XmlWebApplicationContext}.
- *
- * <p>For custom application context implementations that are supposed to read
- * special bean definition formats in a refreshable manner, consider deriving
- * from the {@link AbstractRefreshableApplicationContext} base class.
+ * definition formats. For a custom application context implementation supposed to
+ * read a specific bean definition format in a refreshable manner, consider
+ * deriving from the {@link AbstractRefreshableApplicationContext} base class.
  *
  * @author Juergen Hoeller
  * @author Chris Beams
@@ -259,8 +256,8 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 	 */
 	@Override
 	public Resource[] getResources(String locationPattern) throws IOException {
-		if (this.resourceLoader instanceof ResourcePatternResolver) {
-			return ((ResourcePatternResolver) this.resourceLoader).getResources(locationPattern);
+		if (this.resourceLoader instanceof ResourcePatternResolver resourcePatternResolver) {
+			return resourcePatternResolver.getResources(locationPattern);
 		}
 		return super.getResources(locationPattern);
 	}
@@ -427,13 +424,16 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 		List<SmartInstantiationAwareBeanPostProcessor> bpps =
 				PostProcessorRegistrationDelegate.loadBeanPostProcessors(
 						this.beanFactory, SmartInstantiationAwareBeanPostProcessor.class);
+
 		for (String beanName : this.beanFactory.getBeanDefinitionNames()) {
 			Class<?> beanType = this.beanFactory.getType(beanName);
 			if (beanType != null) {
+				ClassHintUtils.registerProxyIfNecessary(beanType, runtimeHints);
 				for (SmartInstantiationAwareBeanPostProcessor bpp : bpps) {
-					beanType = bpp.determineBeanType(beanType, beanName);
-					if (Proxy.isProxyClass(beanType)) {
-						runtimeHints.proxies().registerJdkProxy(beanType.getInterfaces());
+					Class<?> newBeanType = bpp.determineBeanType(beanType, beanName);
+					if (newBeanType != beanType) {
+						ClassHintUtils.registerProxyIfNecessary(newBeanType, runtimeHints);
+						beanType = newBeanType;
 					}
 				}
 			}

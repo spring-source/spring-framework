@@ -19,7 +19,7 @@ package org.springframework.http.server.reactive;
 import java.nio.file.Path;
 import java.util.List;
 
-import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.Buffer;
 import io.netty5.channel.ChannelId;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -128,28 +128,16 @@ class ReactorNetty2ServerHttpResponse extends AbstractServerHttpResponse impleme
 	@Override
 	protected void touchDataBuffer(DataBuffer buffer) {
 		if (logger.isDebugEnabled()) {
-			if (ChannelOperationsIdHelper.touch(buffer, this.response)) {
-				return;
+			if (this.response instanceof ChannelOperationsId operationsId) {
+				DataBufferUtils.touch(buffer, "Channel id: " + operationsId.asLongText());
 			}
-			this.response.withConnection(connection -> {
-				ChannelId id = connection.channel().id();
-				DataBufferUtils.touch(buffer, "Channel id: " + id.asShortText());
-			});
+			else {
+				this.response.withConnection(connection -> {
+					ChannelId id = connection.channel().id();
+					DataBufferUtils.touch(buffer, "Channel id: " + id.asShortText());
+				});
+			}
 		}
 	}
-
-
-	private static class ChannelOperationsIdHelper {
-
-		public static boolean touch(DataBuffer dataBuffer, HttpServerResponse response) {
-			if (response instanceof ChannelOperationsId) {
-				String id = ((ChannelOperationsId) response).asLongText();
-				DataBufferUtils.touch(dataBuffer, "Channel id: " + id);
-				return true;
-			}
-			return false;
-		}
-	}
-
 
 }

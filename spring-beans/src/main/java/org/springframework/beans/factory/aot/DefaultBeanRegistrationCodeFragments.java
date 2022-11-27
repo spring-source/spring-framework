@@ -21,7 +21,7 @@ import java.lang.reflect.Executable;
 import java.util.List;
 import java.util.function.Predicate;
 
-import org.springframework.aot.generate.AccessVisibility;
+import org.springframework.aot.generate.AccessControl;
 import org.springframework.aot.generate.GenerationContext;
 import org.springframework.aot.generate.MethodReference;
 import org.springframework.aot.generate.MethodReference.ArgumentCodeGenerator;
@@ -32,6 +32,7 @@ import org.springframework.beans.factory.support.InstanceSupplier;
 import org.springframework.beans.factory.support.RegisteredBean;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.core.ResolvableType;
+import org.springframework.javapoet.ClassName;
 import org.springframework.javapoet.CodeBlock;
 import org.springframework.javapoet.ParameterizedTypeName;
 import org.springframework.lang.Nullable;
@@ -44,7 +45,7 @@ import org.springframework.util.ClassUtils;
  *
  * @author Phillip Webb
  */
-class DefaultBeanRegistrationCodeFragments extends BeanRegistrationCodeFragments {
+class DefaultBeanRegistrationCodeFragments implements BeanRegistrationCodeFragments {
 
 	/**
 	 * The variable name used to hold the bean type.
@@ -70,7 +71,7 @@ class DefaultBeanRegistrationCodeFragments extends BeanRegistrationCodeFragments
 
 
 	@Override
-	public Class<?> getTarget(RegisteredBean registeredBean,
+	public ClassName getTarget(RegisteredBean registeredBean,
 			Executable constructorOrFactoryMethod) {
 
 		Class<?> target = extractDeclaringClass(registeredBean.getBeanType(), constructorOrFactoryMethod);
@@ -79,14 +80,14 @@ class DefaultBeanRegistrationCodeFragments extends BeanRegistrationCodeFragments
 			Assert.state(parent != null, "No parent available for inner bean");
 			target = parent.getBeanClass();
 		}
-		return target;
+		return ClassName.get(target);
 	}
 
 	private Class<?> extractDeclaringClass(ResolvableType beanType, Executable executable) {
 		Class<?> declaringClass = ClassUtils.getUserClass(executable.getDeclaringClass());
-		if (executable instanceof Constructor<?> &&
-				AccessVisibility.forMember(executable) == AccessVisibility.PUBLIC &&
-				FactoryBean.class.isAssignableFrom(declaringClass)) {
+		if (executable instanceof Constructor<?>
+				&& AccessControl.forMember(executable).isPublic()
+				&& FactoryBean.class.isAssignableFrom(declaringClass)) {
 			return extractTargetClassFromFactoryBean(declaringClass, beanType);
 		}
 		return executable.getDeclaringClass();
@@ -201,8 +202,7 @@ class DefaultBeanRegistrationCodeFragments extends BeanRegistrationCodeFragments
 			Executable constructorOrFactoryMethod, boolean allowDirectSupplierShortcut) {
 
 		return new InstanceSupplierCodeGenerator(generationContext,
-				beanRegistrationCode.getClassName(),
-				beanRegistrationCode.getMethods(), allowDirectSupplierShortcut)
+				beanRegistrationCode.getClassName(), beanRegistrationCode.getMethods(), allowDirectSupplierShortcut)
 				.generateCode(this.registeredBean, constructorOrFactoryMethod);
 	}
 

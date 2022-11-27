@@ -157,7 +157,7 @@ public class ResponseEntity<T> extends HttpEntity<T> {
 	 * @since 4.3
 	 * @deprecated as of 6.0, in favor of {@link #getStatusCode()}
 	 */
-	@Deprecated
+	@Deprecated(since = "6.0")
 	public int getStatusCodeValue() {
 		if (this.status instanceof HttpStatusCode statusCode) {
 			return statusCode.value();
@@ -263,13 +263,13 @@ public class ResponseEntity<T> extends HttpEntity<T> {
 	}
 
 	/**
-	 * Create a builder for a {@code ResponseEntity} with the given
-	 * {@link ProblemDetail} as the body, and its
-	 * {@link ProblemDetail#getStatus() status} as the status.
-	 * <p>Note that {@code ProblemDetail} is supported as a return value from
-	 * controller methods and from {@code @ExceptionHandler} methods. The method
-	 * here is convenient to also add response headers.
-	 * @param body the details for an HTTP error response
+	 * Create a new {@link HeadersBuilder} with its status set to
+	 * {@link ProblemDetail#getStatus()} and its body is set to
+	 * {@link ProblemDetail}.
+	 * <p><strong>Note:</strong> If there are no headers to add, there is usually
+	 * no need to create a {@link ResponseEntity} since {@code ProblemDetail}
+	 * is also supported as a return value from controller methods.
+	 * @param body the problem detail to use
 	 * @return the created builder
 	 * @since 6.0
 	 */

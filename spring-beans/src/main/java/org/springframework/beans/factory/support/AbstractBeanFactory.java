@@ -161,7 +161,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	/** Cache of pre-filtered post-processors. */
 	/** 表示容器中有没有InstantiationAwareBeanPostProcessors的后置处理器 */
 	@Nullable
-	private volatile BeanPostProcessorCache beanPostProcessorCache;
+	private BeanPostProcessorCache beanPostProcessorCache;
 
 	/** Map from scope identifier String to corresponding Scope. */
 	private final Map<String, Scope> scopes = new LinkedHashMap<>(8);
@@ -757,33 +757,35 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 
 		RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
-
-		// Check decorated bean definition, if any: We assume it'll be easier
-		// to determine the decorated bean's type than the proxy's type.
-		BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
-		if (dbd != null && !BeanFactoryUtils.isFactoryDereference(name)) {
-			RootBeanDefinition tbd = getMergedBeanDefinition(dbd.getBeanName(), dbd.getBeanDefinition(), mbd);
-			Class<?> targetClass = predictBeanType(dbd.getBeanName(), tbd);
-			if (targetClass != null && !FactoryBean.class.isAssignableFrom(targetClass)) {
-				return targetClass;
-			}
-		}
-
 		Class<?> beanClass = predictBeanType(beanName, mbd);
 
-		// Check bean class whether we're dealing with a FactoryBean.
-		if (beanClass != null && FactoryBean.class.isAssignableFrom(beanClass)) {
-			if (!BeanFactoryUtils.isFactoryDereference(name)) {
-				// If it's a FactoryBean, we want to look at what it creates, not at the factory class.
-				return getTypeForFactoryBean(beanName, mbd, allowFactoryBeanInit).resolve();
+		if (beanClass != null) {
+			// Check bean class whether we're dealing with a FactoryBean.
+			if (FactoryBean.class.isAssignableFrom(beanClass)) {
+				if (!BeanFactoryUtils.isFactoryDereference(name)) {
+					// If it's a FactoryBean, we want to look at what it creates, not at the factory class.
+					beanClass = getTypeForFactoryBean(beanName, mbd, allowFactoryBeanInit).resolve();
+				}
 			}
-			else {
-				return beanClass;
+			else if (BeanFactoryUtils.isFactoryDereference(name)) {
+				return null;
 			}
 		}
-		else {
-			return (!BeanFactoryUtils.isFactoryDereference(name) ? beanClass : null);
+
+		if (beanClass == null) {
+			// Check decorated bean definition, if any: We assume it'll be easier
+			// to determine the decorated bean's type than the proxy's type.
+			BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
+			if (dbd != null && !BeanFactoryUtils.isFactoryDereference(name)) {
+				RootBeanDefinition tbd = getMergedBeanDefinition(dbd.getBeanName(), dbd.getBeanDefinition(), mbd);
+				Class<?> targetClass = predictBeanType(dbd.getBeanName(), tbd);
+				if (targetClass != null && !FactoryBean.class.isAssignableFrom(targetClass)) {
+					return targetClass;
+				}
+			}
 		}
+
+		return beanClass;
 	}
 
 	@Override
@@ -994,10 +996,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	@Override
 	public void addBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
 		Assert.notNull(beanPostProcessor, "BeanPostProcessor must not be null");
-		// Remove from old position, if any
-		this.beanPostProcessors.remove(beanPostProcessor);
-		// Add to end of list
-		this.beanPostProcessors.add(beanPostProcessor);
+		synchronized (this.beanPostProcessors) {
+			// Remove from old position, if any
+			this.beanPostProcessors.remove(beanPostProcessor);
+			// Add to end of list
+			this.beanPostProcessors.add(beanPostProcessor);
+		}
 	}
 
 	/**
@@ -1007,8 +1011,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @see #addBeanPostProcessor
 	 */
 	public void addBeanPostProcessors(Collection<? extends BeanPostProcessor> beanPostProcessors) {
-		this.beanPostProcessors.removeAll(beanPostProcessors);
-		this.beanPostProcessors.addAll(beanPostProcessors);
+		synchronized (this.beanPostProcessors) {
+			// Remove from old position, if any
+			this.beanPostProcessors.removeAll(beanPostProcessors);
+			// Add to end of list
+			this.beanPostProcessors.addAll(beanPostProcessors);
+		}
 	}
 
 	@Override
@@ -1030,26 +1038,34 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @since 5.3
 	 */
 	BeanPostProcessorCache getBeanPostProcessorCache() {
-		BeanPostProcessorCache bppCache = this.beanPostProcessorCache;
-		if (bppCache == null) {
-			bppCache = new BeanPostProcessorCache();
-			for (BeanPostProcessor bpp : this.beanPostProcessors) {
-				if (bpp instanceof InstantiationAwareBeanPostProcessor instantiationAwareBpp) {
-					bppCache.instantiationAware.add(instantiationAwareBpp);
-					if (bpp instanceof SmartInstantiationAwareBeanPostProcessor smartInstantiationAwareBpp) {
-						bppCache.smartInstantiationAware.add(smartInstantiationAwareBpp);
+		synchronized (this.beanPostProcessors) {
+			BeanPostProcessorCache bppCache = this.beanPostProcessorCache;
+			if (bppCache == null) {
+				bppCache = new BeanPostProcessorCache();
+				for (BeanPostProcessor bpp : this.beanPostProcessors) {
+					if (bpp instanceof InstantiationAwareBeanPostProcessor instantiationAwareBpp) {
+						bppCache.instantiationAware.add(instantiationAwareBpp);
+						if (bpp instanceof SmartInstantiationAwareBeanPostProcessor smartInstantiationAwareBpp) {
+							bppCache.smartInstantiationAware.add(smartInstantiationAwareBpp);
+						}
+					}
+					if (bpp instanceof DestructionAwareBeanPostProcessor destructionAwareBpp) {
+						bppCache.destructionAware.add(destructionAwareBpp);
+					}
+					if (bpp instanceof MergedBeanDefinitionPostProcessor mergedBeanDefBpp) {
+						bppCache.mergedDefinition.add(mergedBeanDefBpp);
 					}
 				}
-				if (bpp instanceof DestructionAwareBeanPostProcessor destructionAwareBpp) {
-					bppCache.destructionAware.add(destructionAwareBpp);
-				}
-				if (bpp instanceof MergedBeanDefinitionPostProcessor mergedBeanDefBpp) {
-					bppCache.mergedDefinition.add(mergedBeanDefBpp);
-				}
+				this.beanPostProcessorCache = bppCache;
 			}
-			this.beanPostProcessorCache = bppCache;
+			return bppCache;
 		}
-		return bppCache;
+	}
+
+	private void resetBeanPostProcessorCache() {
+		synchronized (this.beanPostProcessors) {
+			this.beanPostProcessorCache = null;
+		}
 	}
 
 	/**
@@ -1106,7 +1122,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	public void setApplicationStartup(ApplicationStartup applicationStartup) {
-		Assert.notNull(applicationStartup, "applicationStartup should not be null");
+		Assert.notNull(applicationStartup, "applicationStartup must not be null");
 		this.applicationStartup = applicationStartup;
 	}
 
@@ -2058,27 +2074,27 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		@Override
 		public BeanPostProcessor set(int index, BeanPostProcessor element) {
 			BeanPostProcessor result = super.set(index, element);
-			beanPostProcessorCache = null;
+			resetBeanPostProcessorCache();
 			return result;
 		}
 
 		@Override
 		public boolean add(BeanPostProcessor o) {
 			boolean success = super.add(o);
-			beanPostProcessorCache = null;
+			resetBeanPostProcessorCache();
 			return success;
 		}
 
 		@Override
 		public void add(int index, BeanPostProcessor element) {
 			super.add(index, element);
-			beanPostProcessorCache = null;
+			resetBeanPostProcessorCache();
 		}
 
 		@Override
 		public BeanPostProcessor remove(int index) {
 			BeanPostProcessor result = super.remove(index);
-			beanPostProcessorCache = null;
+			resetBeanPostProcessorCache();
 			return result;
 		}
 
@@ -2086,7 +2102,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		public boolean remove(Object o) {
 			boolean success = super.remove(o);
 			if (success) {
-				beanPostProcessorCache = null;
+				resetBeanPostProcessorCache();
 			}
 			return success;
 		}
@@ -2095,7 +2111,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		public boolean removeAll(Collection<?> c) {
 			boolean success = super.removeAll(c);
 			if (success) {
-				beanPostProcessorCache = null;
+				resetBeanPostProcessorCache();
 			}
 			return success;
 		}
@@ -2104,7 +2120,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		public boolean retainAll(Collection<?> c) {
 			boolean success = super.retainAll(c);
 			if (success) {
-				beanPostProcessorCache = null;
+				resetBeanPostProcessorCache();
 			}
 			return success;
 		}
@@ -2113,7 +2129,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		public boolean addAll(Collection<? extends BeanPostProcessor> c) {
 			boolean success = super.addAll(c);
 			if (success) {
-				beanPostProcessorCache = null;
+				resetBeanPostProcessorCache();
 			}
 			return success;
 		}
@@ -2122,7 +2138,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		public boolean addAll(int index, Collection<? extends BeanPostProcessor> c) {
 			boolean success = super.addAll(index, c);
 			if (success) {
-				beanPostProcessorCache = null;
+				resetBeanPostProcessorCache();
 			}
 			return success;
 		}
@@ -2131,7 +2147,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		public boolean removeIf(Predicate<? super BeanPostProcessor> filter) {
 			boolean success = super.removeIf(filter);
 			if (success) {
-				beanPostProcessorCache = null;
+				resetBeanPostProcessorCache();
 			}
 			return success;
 		}
@@ -2139,7 +2155,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		@Override
 		public void replaceAll(UnaryOperator<BeanPostProcessor> operator) {
 			super.replaceAll(operator);
-			beanPostProcessorCache = null;
+			resetBeanPostProcessorCache();
 		}
 	}
 

@@ -30,8 +30,6 @@ import org.aopalliance.intercept.MethodInvocation;
 
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.aop.framework.ReflectiveMethodInvocation;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.EmbeddedValueResolverAware;
 import org.springframework.core.MethodIntrospector;
 import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.annotation.AnnotatedElementUtils;
@@ -44,112 +42,36 @@ import org.springframework.util.StringValueResolver;
  * Factory for creating a client proxy given an RSocket service interface with
  * {@link RSocketExchange @RSocketExchange} methods.
  *
- * <p>This class is intended to be declared as a bean in Spring configuration.
+ * <p>To create an instance, use static methods to obtain a
+ * {@link Builder Builder}.
  *
  * @author Rossen Stoyanchev
  * @since 6.0
  */
-public final class RSocketServiceProxyFactory implements InitializingBean, EmbeddedValueResolverAware {
+public final class RSocketServiceProxyFactory {
 
 	private final RSocketRequester rsocketRequester;
 
-	@Nullable
-	private List<RSocketServiceArgumentResolver> customArgumentResolvers;
+	private final List<RSocketServiceArgumentResolver> argumentResolvers;
 
 	@Nullable
-	private List<RSocketServiceArgumentResolver> argumentResolvers;
+	private final StringValueResolver embeddedValueResolver;
 
-	@Nullable
-	private StringValueResolver embeddedValueResolver;
+	private final ReactiveAdapterRegistry reactiveAdapterRegistry;
 
-	private ReactiveAdapterRegistry reactiveAdapterRegistry = ReactiveAdapterRegistry.getSharedInstance();
-
-	private Duration blockTimeout = Duration.ofSeconds(5);
+	private final Duration blockTimeout;
 
 
-	/**
-	 * Create an instance with the underlying RSocketRequester to perform requests with.
-	 * @param rsocketRequester the requester to use
-	 */
-	public RSocketServiceProxyFactory(RSocketRequester rsocketRequester) {
-		Assert.notNull(rsocketRequester, "RSocketRequester is required");
+	private RSocketServiceProxyFactory(
+			RSocketRequester rsocketRequester, List<RSocketServiceArgumentResolver> argumentResolvers,
+			@Nullable StringValueResolver embeddedValueResolver,
+			ReactiveAdapterRegistry reactiveAdapterRegistry, Duration blockTimeout) {
+
 		this.rsocketRequester = rsocketRequester;
-	}
-
-
-	/**
-	 * Register a custom argument resolver, invoked ahead of default resolvers.
-	 * @param resolver the resolver to add
-	 */
-	public void addCustomArgumentResolver(RSocketServiceArgumentResolver resolver) {
-		if (this.customArgumentResolvers == null) {
-			this.customArgumentResolvers = new ArrayList<>();
-		}
-		this.customArgumentResolvers.add(resolver);
-	}
-
-	/**
-	 * Set the custom argument resolvers to use, ahead of default resolvers.
-	 * @param resolvers the resolvers to use
-	 */
-	public void setCustomArgumentResolvers(List<RSocketServiceArgumentResolver> resolvers) {
-		this.customArgumentResolvers = new ArrayList<>(resolvers);
-	}
-
-	/**
-	 * Set the StringValueResolver to use for resolving placeholders and
-	 * expressions in {@link RSocketExchange#value()}.
-	 * @param resolver the resolver to use
-	 */
-	@Override
-	public void setEmbeddedValueResolver(StringValueResolver resolver) {
-		this.embeddedValueResolver = resolver;
-	}
-
-	/**
-	 * Set the {@link ReactiveAdapterRegistry} to use to support different
-	 * asynchronous types for RSocket service method return values.
-	 * <p>By default this is {@link ReactiveAdapterRegistry#getSharedInstance()}.
-	 */
-	public void setReactiveAdapterRegistry(ReactiveAdapterRegistry registry) {
-		this.reactiveAdapterRegistry = registry;
-	}
-
-	/**
-	 * Configure how long to wait for a response for an RSocket service method
-	 * with a synchronous (blocking) method signature.
-	 * <p>By default this is 5 seconds.
-	 * @param blockTimeout the timeout value
-	 */
-	public void setBlockTimeout(Duration blockTimeout) {
+		this.argumentResolvers = argumentResolvers;
+		this.embeddedValueResolver = embeddedValueResolver;
+		this.reactiveAdapterRegistry = reactiveAdapterRegistry;
 		this.blockTimeout = blockTimeout;
-	}
-
-
-	@Override
-	public void afterPropertiesSet() throws Exception {
-		this.argumentResolvers = initArgumentResolvers();
-	}
-
-	private List<RSocketServiceArgumentResolver> initArgumentResolvers() {
-		List<RSocketServiceArgumentResolver> resolvers = new ArrayList<>();
-
-		// Custom
-		if (this.customArgumentResolvers != null) {
-			resolvers.addAll(this.customArgumentResolvers);
-		}
-
-		// Annotation-based
-		resolvers.add(new PayloadArgumentResolver(this.reactiveAdapterRegistry, false));
-		resolvers.add(new DestinationVariableArgumentResolver());
-
-		// Type-based
-		resolvers.add(new MetadataArgumentResolver());
-
-		// Fallback
-		resolvers.add(new PayloadArgumentResolver(this.reactiveAdapterRegistry, true));
-
-		return resolvers;
 	}
 
 
@@ -182,6 +104,129 @@ public final class RSocketServiceProxyFactory implements InitializingBean, Embed
 		return new RSocketServiceMethod(
 				method, serviceType, this.argumentResolvers, this.rsocketRequester,
 				this.embeddedValueResolver, this.reactiveAdapterRegistry, this.blockTimeout);
+	}
+
+
+	/**
+	 * Return an {@link RSocketServiceProxyFactory} builder, initialized with the
+	 * given client.
+	 */
+	public static Builder builder(RSocketRequester requester) {
+		return new Builder().rsocketRequester(requester);
+	}
+
+	/**
+	 * Return an {@link RSocketServiceProxyFactory} builder.
+	 */
+	public static Builder builder() {
+		return new Builder();
+	}
+
+
+	/**
+	 * Builder to create an {@link RSocketServiceProxyFactory}.
+	 */
+	public static final class Builder {
+
+		@Nullable
+		private RSocketRequester rsocketRequester;
+
+		private final List<RSocketServiceArgumentResolver> customArgumentResolvers = new ArrayList<>();
+
+		@Nullable
+		private StringValueResolver embeddedValueResolver;
+
+		private ReactiveAdapterRegistry reactiveAdapterRegistry = ReactiveAdapterRegistry.getSharedInstance();
+
+		@Nullable
+		private Duration blockTimeout = Duration.ofSeconds(5);
+
+		private Builder() {
+		}
+
+		/**
+		 * Provide the requester to perform requests through.
+		 * @param requester the requester to use
+		 * @return the same builder instance
+		 */
+		public Builder rsocketRequester(RSocketRequester requester) {
+			this.rsocketRequester = requester;
+			return this;
+		}
+
+		/**
+		 * Register a custom argument resolver, invoked ahead of default resolvers.
+		 * @param resolver the resolver to add
+		 * @return the same builder instance
+		 */
+		public Builder customArgumentResolver(RSocketServiceArgumentResolver resolver) {
+			this.customArgumentResolvers.add(resolver);
+			return this;
+		}
+
+		/**
+		 * Set the {@link StringValueResolver} to use for resolving placeholders
+		 * and expressions embedded in {@link RSocketExchange#value()}.
+		 * @param resolver the resolver to use
+		 * @return this same builder instance
+		 */
+		public Builder embeddedValueResolver(StringValueResolver resolver) {
+			this.embeddedValueResolver = resolver;
+			return this;
+		}
+
+		/**
+		 * Set the {@link ReactiveAdapterRegistry} to use to support different
+		 * asynchronous types for HTTP service method return values.
+		 * <p>By default this is {@link ReactiveAdapterRegistry#getSharedInstance()}.
+		 * @return this same builder instance
+		 */
+		public Builder reactiveAdapterRegistry(ReactiveAdapterRegistry registry) {
+			this.reactiveAdapterRegistry = registry;
+			return this;
+		}
+
+		/**
+		 * Configure how long to wait for a response for an HTTP service method
+		 * with a synchronous (blocking) method signature.
+		 * <p>By default this is 5 seconds.
+		 * @param blockTimeout the timeout value
+		 * @return this same builder instance
+		 */
+		public Builder blockTimeout(Duration blockTimeout) {
+			this.blockTimeout = blockTimeout;
+			return this;
+		}
+
+		/**
+		 * Build the {@link RSocketServiceProxyFactory} instance.
+		 */
+		public RSocketServiceProxyFactory build() {
+			Assert.notNull(this.rsocketRequester, "RSocketRequester is required");
+
+			return new RSocketServiceProxyFactory(
+					this.rsocketRequester, initArgumentResolvers(),
+					this.embeddedValueResolver, this.reactiveAdapterRegistry,
+					(this.blockTimeout != null ? this.blockTimeout : Duration.ofSeconds(5)));
+		}
+
+		private List<RSocketServiceArgumentResolver> initArgumentResolvers() {
+
+			// Custom
+			List<RSocketServiceArgumentResolver> resolvers = new ArrayList<>(this.customArgumentResolvers);
+
+			// Annotation-based
+			resolvers.add(new PayloadArgumentResolver(this.reactiveAdapterRegistry, false));
+			resolvers.add(new DestinationVariableArgumentResolver());
+
+			// Type-based
+			resolvers.add(new MetadataArgumentResolver());
+
+			// Fallback
+			resolvers.add(new PayloadArgumentResolver(this.reactiveAdapterRegistry, true));
+
+			return resolvers;
+		}
 	}
 
 

@@ -76,7 +76,6 @@ public class ReactorNetty2WebSocketClient implements WebSocketClient {
 	/**
 	 * Constructor that accepts an existing {@link HttpClient} builder
 	 * and a pre-configured {@link WebsocketClientSpec.Builder}.
-	 * @since 5.3
 	 */
 	public ReactorNetty2WebSocketClient(
 			HttpClient httpClient, Supplier<WebsocketClientSpec.Builder> builderSupplier) {
@@ -100,7 +99,6 @@ public class ReactorNetty2WebSocketClient implements WebSocketClient {
 	 * configuration. This can be used to check the configured parameters except
 	 * for sub-protocols which depend on the {@link WebSocketHandler} that is used
 	 * for a given upgrade.
-	 * @since 5.3
 	 */
 	public WebsocketClientSpec getWebsocketClientSpec() {
 		return buildSpec(null);
@@ -148,17 +146,14 @@ public class ReactorNetty2WebSocketClient implements WebSocketClient {
 				.next();
 	}
 
-	private void setNettyHeaders(HttpHeaders httpHeaders, io.netty5.handler.codec.http.HttpHeaders nettyHeaders) {
+	private void setNettyHeaders(HttpHeaders httpHeaders, io.netty5.handler.codec.http.headers.HttpHeaders nettyHeaders) {
 		httpHeaders.forEach(nettyHeaders::set);
 	}
 
 	private HttpHeaders toHttpHeaders(WebsocketInbound inbound) {
 		HttpHeaders headers = new HttpHeaders();
-		io.netty5.handler.codec.http.HttpHeaders nettyHeaders = inbound.headers();
-		nettyHeaders.forEach(entry -> {
-			String name = entry.getKey();
-			headers.put(name, nettyHeaders.getAll(name));
-		});
+		inbound.headers().iterator().forEachRemaining(entry ->
+				headers.add(entry.getKey().toString(), entry.getValue().toString()));
 		return headers;
 	}
 

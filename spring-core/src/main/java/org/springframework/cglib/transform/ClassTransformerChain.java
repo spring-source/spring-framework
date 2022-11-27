@@ -15,7 +15,9 @@
  */
 package org.springframework.cglib.transform;
 
-import org.springframework.asm.*;
+import org.springframework.asm.ClassVisitor;
+import org.springframework.asm.MethodVisitor;
+import org.springframework.cglib.core.ClassTransformer;
 
 public class ClassTransformerChain extends AbstractClassTransformer {
     private ClassTransformer[] chain;
@@ -42,7 +44,7 @@ public class ClassTransformerChain extends AbstractClassTransformer {
     }
 
     public String toString() {
-        StringBuffer sb = new StringBuffer();
+		StringBuilder sb = new StringBuilder();
         sb.append("ClassTransformerChain{");
         for (int i = 0; i < chain.length; i++) {
             if (i > 0) {

@@ -33,12 +33,13 @@ import org.springframework.aot.generate.InMemoryGeneratedFiles;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.TypeReference;
-import org.springframework.aot.test.generate.compile.CompileWithTargetClassAccess;
-import org.springframework.aot.test.generate.compile.TestCompiler;
+import org.springframework.aot.test.generate.CompilerFiles;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.Profiles;
+import org.springframework.core.test.tools.CompileWithForkedClassLoader;
+import org.springframework.core.test.tools.TestCompiler;
 import org.springframework.javapoet.ClassName;
 import org.springframework.test.context.BootstrapUtils;
 import org.springframework.test.context.MergedContextConfiguration;
@@ -80,7 +81,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
  * @author Sam Brannen
  * @since 6.0
  */
-@CompileWithTargetClassAccess
+@CompileWithForkedClassLoader
 class TestContextAotGeneratorTests extends AbstractAotTests {
 
 	/**
@@ -110,7 +111,7 @@ class TestContextAotGeneratorTests extends AbstractAotTests {
 		List<String> sourceFiles = generatedFiles.getGeneratedFiles(Kind.SOURCE).keySet().stream().toList();
 		assertThat(sourceFiles).containsExactlyInAnyOrder(expectedSourceFiles);
 
-		TestCompiler.forSystem().withFiles(generatedFiles).compile(ThrowingConsumer.of(compiled -> {
+		TestCompiler.forSystem().with(CompilerFiles.from(generatedFiles)).compile(ThrowingConsumer.of(compiled -> {
 			try {
 				System.setProperty(AotDetector.AOT_ENABLED, "true");
 				AotTestAttributesFactory.reset();
@@ -192,7 +193,8 @@ class TestContextAotGeneratorTests extends AbstractAotTests {
 		// ContextCustomizerFactory
 		Stream.of(
 			"org.springframework.test.context.support.DynamicPropertiesContextCustomizerFactory",
-			"org.springframework.test.context.web.socket.MockServerContainerContextCustomizerFactory"
+			"org.springframework.test.context.web.socket.MockServerContainerContextCustomizerFactory",
+			"org.springframework.test.context.aot.samples.basic.ImportsContextCustomizerFactory"
 		).forEach(type -> assertReflectionRegistered(runtimeHints, type, INVOKE_DECLARED_CONSTRUCTORS));
 
 		Stream.of(
@@ -321,7 +323,7 @@ class TestContextAotGeneratorTests extends AbstractAotTests {
 		InMemoryGeneratedFiles generatedFiles = new InMemoryGeneratedFiles();
 		TestContextAotGenerator generator = new TestContextAotGenerator(generatedFiles);
 		List<Mapping> mappings = processAheadOfTime(generator, testClasses);
-		TestCompiler.forSystem().withFiles(generatedFiles).compile(ThrowingConsumer.of(compiled -> {
+		TestCompiler.forSystem().with(CompilerFiles.from(generatedFiles)).compile(ThrowingConsumer.of(compiled -> {
 			for (Mapping mapping : mappings) {
 				MergedContextConfiguration mergedConfig = mapping.mergedConfig();
 				ApplicationContextInitializer<ConfigurableApplicationContext> contextInitializer =

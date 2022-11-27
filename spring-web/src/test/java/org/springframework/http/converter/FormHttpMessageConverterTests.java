@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,6 @@ import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
 
 import org.apache.tomcat.util.http.fileupload.FileItem;
-import org.apache.tomcat.util.http.fileupload.FileItemFactory;
 import org.apache.tomcat.util.http.fileupload.FileUpload;
 import org.apache.tomcat.util.http.fileupload.RequestContext;
 import org.apache.tomcat.util.http.fileupload.UploadContext;
@@ -45,11 +44,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.MockHttpInputMessage;
 import org.springframework.http.MockHttpOutputMessage;
 import org.springframework.http.converter.support.AllEncompassingFormHttpMessageConverter;
+import org.springframework.http.converter.xml.SourceHttpMessageConverter;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.http.MediaType.MULTIPART_FORM_DATA;
 import static org.springframework.http.MediaType.MULTIPART_MIXED;
 import static org.springframework.http.MediaType.TEXT_XML;
@@ -61,6 +62,7 @@ import static org.springframework.http.MediaType.TEXT_XML;
  * @author Arjen Poutsma
  * @author Rossen Stoyanchev
  * @author Sam Brannen
+ * @author Sebastien Deleuze
  */
 public class FormHttpMessageConverterTests {
 
@@ -156,6 +158,90 @@ public class FormHttpMessageConverterTests {
 
 	@Test
 	public void writeMultipart() throws Exception {
+
+		MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
+		parts.add("name 1", "value 1");
+		parts.add("name 2", "value 2+1");
+		parts.add("name 2", "value 2+2");
+		parts.add("name 3", null);
+
+		Resource logo = new ClassPathResource("/org/springframework/http/converter/logo.jpg");
+		parts.add("logo", logo);
+
+		// SPR-12108
+		Resource utf8 = new ClassPathResource("/org/springframework/http/converter/logo.jpg") {
+			@Override
+			public String getFilename() {
+				return "Hall\u00F6le.jpg";
+			}
+		};
+		parts.add("utf8", utf8);
+
+		MyBean myBean = new MyBean();
+		myBean.setString("foo");
+		HttpHeaders entityHeaders = new HttpHeaders();
+		entityHeaders.setContentType(APPLICATION_JSON);
+		HttpEntity<MyBean> entity = new HttpEntity<>(myBean, entityHeaders);
+		parts.add("json", entity);
+
+		Map<String, String> parameters = new LinkedHashMap<>(2);
+		parameters.put("charset", StandardCharsets.UTF_8.name());
+		parameters.put("foo", "bar");
+
+		MockHttpOutputMessage outputMessage = new MockHttpOutputMessage();
+		this.converter.write(parts, new MediaType("multipart", "form-data", parameters), outputMessage);
+
+		final MediaType contentType = outputMessage.getHeaders().getContentType();
+		assertThat(contentType.getParameters()).containsKeys("charset", "boundary", "foo"); // gh-21568, gh-25839
+
+		// see if Commons FileUpload can read what we wrote
+		FileUpload fileUpload = new FileUpload();
+		fileUpload.setFileItemFactory(new DiskFileItemFactory());
+		RequestContext requestContext = new MockHttpOutputMessageRequestContext(outputMessage);
+		List<FileItem> items = fileUpload.parseRequest(requestContext);
+		assertThat(items).hasSize(6);
+		FileItem item = items.get(0);
+		assertThat(item.isFormField()).isTrue();
+		assertThat(item.getFieldName()).isEqualTo("name 1");
+		assertThat(item.getString()).isEqualTo("value 1");
+
+		item = items.get(1);
+		assertThat(item.isFormField()).isTrue();
+		assertThat(item.getFieldName()).isEqualTo("name 2");
+		assertThat(item.getString()).isEqualTo("value 2+1");
+
+		item = items.get(2);
+		assertThat(item.isFormField()).isTrue();
+		assertThat(item.getFieldName()).isEqualTo("name 2");
+		assertThat(item.getString()).isEqualTo("value 2+2");
+
+		item = items.get(3);
+		assertThat(item.isFormField()).isFalse();
+		assertThat(item.getFieldName()).isEqualTo("logo");
+		assertThat(item.getName()).isEqualTo("logo.jpg");
+		assertThat(item.getContentType()).isEqualTo("image/jpeg");
+		assertThat(item.getSize()).isEqualTo(logo.getFile().length());
+
+		item = items.get(4);
+		assertThat(item.isFormField()).isFalse();
+		assertThat(item.getFieldName()).isEqualTo("utf8");
+		assertThat(item.getName()).isEqualTo("Hall\u00F6le.jpg");
+		assertThat(item.getContentType()).isEqualTo("image/jpeg");
+		assertThat(item.getSize()).isEqualTo(logo.getFile().length());
+
+		item = items.get(5);
+		assertThat(item.getFieldName()).isEqualTo("json");
+		assertThat(item.getContentType()).isEqualTo("application/json");
+	}
+
+	@Test
+	public void writeMultipartWithSourceHttpMessageConverter() throws Exception {
+
+		converter.setPartConverters(List.of(
+				new StringHttpMessageConverter(),
+				new ResourceHttpMessageConverter(),
+				new SourceHttpMessageConverter<>()));
+
 		MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
 		parts.add("name 1", "value 1");
 		parts.add("name 2", "value 2+1");
@@ -191,11 +277,11 @@ public class FormHttpMessageConverterTests {
 		assertThat(contentType.getParameters()).containsKeys("charset", "boundary", "foo"); // gh-21568, gh-25839
 
 		// see if Commons FileUpload can read what we wrote
-		FileItemFactory fileItemFactory = new DiskFileItemFactory();
-		FileUpload fileUpload = new FileUpload(fileItemFactory);
+		FileUpload fileUpload = new FileUpload();
+		fileUpload.setFileItemFactory(new DiskFileItemFactory());
 		RequestContext requestContext = new MockHttpOutputMessageRequestContext(outputMessage);
 		List<FileItem> items = fileUpload.parseRequest(requestContext);
-		assertThat(items.size()).isEqualTo(6);
+		assertThat(items).hasSize(6);
 		FileItem item = items.get(0);
 		assertThat(item.isFormField()).isTrue();
 		assertThat(item.getFieldName()).isEqualTo("name 1");
@@ -251,11 +337,11 @@ public class FormHttpMessageConverterTests {
 		assertThat(contentType.getParameter("boundary")).as("No boundary found").isNotNull();
 
 		// see if Commons FileUpload can read what we wrote
-		FileItemFactory fileItemFactory = new DiskFileItemFactory();
-		FileUpload fileUpload = new FileUpload(fileItemFactory);
+		FileUpload fileUpload = new FileUpload();
+		fileUpload.setFileItemFactory(new DiskFileItemFactory());
 		RequestContext requestContext = new MockHttpOutputMessageRequestContext(outputMessage);
 		List<FileItem> items = fileUpload.parseRequest(requestContext);
-		assertThat(items.size()).isEqualTo(2);
+		assertThat(items).hasSize(2);
 
 		FileItem item = items.get(0);
 		assertThat(item.isFormField()).isTrue();

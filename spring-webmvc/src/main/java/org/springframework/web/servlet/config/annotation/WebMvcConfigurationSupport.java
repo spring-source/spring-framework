@@ -33,7 +33,6 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.core.SpringProperties;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.format.Formatter;
 import org.springframework.format.FormatterRegistry;
@@ -45,6 +44,7 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.ResourceHttpMessageConverter;
 import org.springframework.http.converter.ResourceRegionHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
+import org.springframework.http.converter.cbor.KotlinSerializationCborHttpMessageConverter;
 import org.springframework.http.converter.cbor.MappingJackson2CborHttpMessageConverter;
 import org.springframework.http.converter.feed.AtomFeedHttpMessageConverter;
 import org.springframework.http.converter.feed.RssChannelHttpMessageConverter;
@@ -53,11 +53,11 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.JsonbHttpMessageConverter;
 import org.springframework.http.converter.json.KotlinSerializationJsonHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.protobuf.KotlinSerializationProtobufHttpMessageConverter;
 import org.springframework.http.converter.smile.MappingJackson2SmileHttpMessageConverter;
 import org.springframework.http.converter.support.AllEncompassingFormHttpMessageConverter;
 import org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter;
 import org.springframework.http.converter.xml.MappingJackson2XmlHttpMessageConverter;
-import org.springframework.http.converter.xml.SourceHttpMessageConverter;
 import org.springframework.lang.Nullable;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.Assert;
@@ -188,13 +188,6 @@ import org.springframework.web.util.pattern.PathPatternParser;
  */
 public class WebMvcConfigurationSupport implements ApplicationContextAware, ServletContextAware {
 
-	/**
-	 * Boolean flag controlled by a {@code spring.xml.ignore} system property that instructs Spring to
-	 * ignore XML, i.e. to not initialize the XML-related infrastructure.
-	 * <p>The default is "false".
-	 */
-	private static final boolean shouldIgnoreXml = SpringProperties.getFlag("spring.xml.ignore");
-
 	private static final boolean romePresent;
 
 	private static final boolean jaxb2Present;
@@ -211,7 +204,11 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 
 	private static final boolean jsonbPresent;
 
+	private static final boolean kotlinSerializationCborPresent;
+
 	private static final boolean kotlinSerializationJsonPresent;
+
+	private static final boolean kotlinSerializationProtobufPresent;
 
 	static {
 		ClassLoader classLoader = WebMvcConfigurationSupport.class.getClassLoader();
@@ -224,7 +221,9 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 		jackson2CborPresent = ClassUtils.isPresent("com.fasterxml.jackson.dataformat.cbor.CBORFactory", classLoader);
 		gsonPresent = ClassUtils.isPresent("com.google.gson.Gson", classLoader);
 		jsonbPresent = ClassUtils.isPresent("jakarta.json.bind.Jsonb", classLoader);
+		kotlinSerializationCborPresent = ClassUtils.isPresent("kotlinx.serialization.cbor.Cbor", classLoader);
 		kotlinSerializationJsonPresent = ClassUtils.isPresent("kotlinx.serialization.json.Json", classLoader);
+		kotlinSerializationProtobufPresent = ClassUtils.isPresent("kotlinx.serialization.protobuf.ProtoBuf", classLoader);
 	}
 
 
@@ -452,16 +451,16 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 			map.put("atom", MediaType.APPLICATION_ATOM_XML);
 			map.put("rss", MediaType.APPLICATION_RSS_XML);
 		}
-		if (!shouldIgnoreXml && (jaxb2Present || jackson2XmlPresent)) {
+		if (jaxb2Present || jackson2XmlPresent) {
 			map.put("xml", MediaType.APPLICATION_XML);
 		}
-		if (jackson2Present || gsonPresent || jsonbPresent) {
+		if (jackson2Present || gsonPresent || jsonbPresent || kotlinSerializationJsonPresent) {
 			map.put("json", MediaType.APPLICATION_JSON);
 		}
 		if (jackson2SmilePresent) {
 			map.put("smile", MediaType.valueOf("application/x-jackson-smile"));
 		}
-		if (jackson2CborPresent) {
+		if (jackson2CborPresent || kotlinSerializationCborPresent) {
 			map.put("cbor", MediaType.APPLICATION_CBOR);
 		}
 		return map;
@@ -880,14 +879,6 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 		messageConverters.add(new StringHttpMessageConverter());
 		messageConverters.add(new ResourceHttpMessageConverter());
 		messageConverters.add(new ResourceRegionHttpMessageConverter());
-		if (!shouldIgnoreXml) {
-			try {
-				messageConverters.add(new SourceHttpMessageConverter<>());
-			}
-			catch (Throwable ex) {
-				// Ignore when no TransformerFactory implementation is available...
-			}
-		}
 		messageConverters.add(new AllEncompassingFormHttpMessageConverter());
 
 		if (romePresent) {
@@ -895,22 +886,27 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 			messageConverters.add(new RssChannelHttpMessageConverter());
 		}
 
-		if (!shouldIgnoreXml) {
-			if (jackson2XmlPresent) {
-				Jackson2ObjectMapperBuilder builder = Jackson2ObjectMapperBuilder.xml();
-				if (this.applicationContext != null) {
-					builder.applicationContext(this.applicationContext);
-				}
-				messageConverters.add(new MappingJackson2XmlHttpMessageConverter(builder.build()));
+		if (jackson2XmlPresent) {
+			Jackson2ObjectMapperBuilder builder = Jackson2ObjectMapperBuilder.xml();
+			if (this.applicationContext != null) {
+				builder.applicationContext(this.applicationContext);
 			}
-			else if (jaxb2Present) {
-				messageConverters.add(new Jaxb2RootElementHttpMessageConverter());
-			}
+			messageConverters.add(new MappingJackson2XmlHttpMessageConverter(builder.build()));
+		}
+		else if (jaxb2Present) {
+			messageConverters.add(new Jaxb2RootElementHttpMessageConverter());
 		}
 
+		if (kotlinSerializationCborPresent) {
+			messageConverters.add(new KotlinSerializationCborHttpMessageConverter());
+		}
 		if (kotlinSerializationJsonPresent) {
 			messageConverters.add(new KotlinSerializationJsonHttpMessageConverter());
 		}
+		if (kotlinSerializationProtobufPresent) {
+			messageConverters.add(new KotlinSerializationProtobufHttpMessageConverter());
+		}
+
 		if (jackson2Present) {
 			Jackson2ObjectMapperBuilder builder = Jackson2ObjectMapperBuilder.json();
 			if (this.applicationContext != null) {

@@ -19,9 +19,9 @@ package org.springframework.web.server.adapter;
 import java.security.Principal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -62,7 +62,7 @@ import org.springframework.web.server.session.WebSessionManager;
  */
 public class DefaultServerWebExchange implements ServerWebExchange {
 
-	private static final List<HttpMethod> SAFE_METHODS = Arrays.asList(HttpMethod.GET, HttpMethod.HEAD);
+	private static final Set<HttpMethod> SAFE_METHODS = Set.of(HttpMethod.GET, HttpMethod.HEAD);
 
 	private static final ResolvableType FORM_DATA_TYPE =
 			ResolvableType.forClassWithGenerics(MultiValueMap.class, String.class, String.class);
@@ -259,12 +259,12 @@ public class DefaultServerWebExchange implements ServerWebExchange {
 		// See https://datatracker.ietf.org/doc/html/rfc9110#section-13.2.2
 		// 1) If-Match
 		if (validateIfMatch(eTag)) {
-			updateResponseStateChanging();
+			updateResponseStateChanging(eTag, lastModified);
 			return this.notModified;
 		}
 		// 2) If-Unmodified-Since
 		else if (validateIfUnmodifiedSince(lastModified)) {
-			updateResponseStateChanging();
+			updateResponseStateChanging(eTag, lastModified);
 			return this.notModified;
 		}
 		// 3) If-None-Match
@@ -281,7 +281,7 @@ public class DefaultServerWebExchange implements ServerWebExchange {
 			if (SAFE_METHODS.contains(getRequest().getMethod())) {
 				return false;
 			}
-			if (CollectionUtils.isEmpty(getRequest().getHeaders().get(HttpHeaders.IF_MATCH))) {
+			if (CollectionUtils.isEmpty(getRequestHeaders().get(HttpHeaders.IF_MATCH))) {
 				return false;
 			}
 			this.notModified = matchRequestedETags(getRequestHeaders().getIfMatch(), eTag, false);
@@ -346,15 +346,18 @@ public class DefaultServerWebExchange implements ServerWebExchange {
 		return first.equals(second);
 	}
 
-	private void updateResponseStateChanging() {
+	private void updateResponseStateChanging(@Nullable String eTag, Instant lastModified) {
 		if (this.notModified) {
 			getResponse().setStatusCode(HttpStatus.PRECONDITION_FAILED);
+		}
+		else {
+			addCachingResponseHeaders(eTag, lastModified);
 		}
 	}
 
 	private boolean validateIfNoneMatch(@Nullable String eTag) {
 		try {
-			if (CollectionUtils.isEmpty(getRequest().getHeaders().get(HttpHeaders.IF_NONE_MATCH))) {
+			if (CollectionUtils.isEmpty(getRequestHeaders().get(HttpHeaders.IF_NONE_MATCH))) {
 				return false;
 			}
 			this.notModified = !matchRequestedETags(getRequestHeaders().getIfNoneMatch(), eTag, true);
@@ -371,7 +374,11 @@ public class DefaultServerWebExchange implements ServerWebExchange {
 			getResponse().setStatusCode(isSafeMethod ?
 					HttpStatus.NOT_MODIFIED : HttpStatus.PRECONDITION_FAILED);
 		}
-		if (isSafeMethod) {
+		addCachingResponseHeaders(eTag, lastModified);
+	}
+
+	private void addCachingResponseHeaders(@Nullable String eTag, Instant lastModified) {
+		if (SAFE_METHODS.contains(getRequest().getMethod())) {
 			if (lastModified.isAfter(Instant.EPOCH) && getResponseHeaders().getLastModified() == -1) {
 				getResponseHeaders().setLastModified(lastModified.toEpochMilli());
 			}
@@ -394,17 +401,15 @@ public class DefaultServerWebExchange implements ServerWebExchange {
 		return true;
 	}
 
-	private boolean validateIfModifiedSince(Instant lastModified) {
+	private void validateIfModifiedSince(Instant lastModified) {
 		if (lastModified.isBefore(Instant.EPOCH)) {
-			return false;
+			return;
 		}
 		long ifModifiedSince = getRequestHeaders().getIfModifiedSince();
-		if (ifModifiedSince == -1) {
-			return false;
+		if (ifModifiedSince != -1) {
+			// We will perform this validation...
+			this.notModified = ChronoUnit.SECONDS.between(lastModified, Instant.ofEpochMilli(ifModifiedSince)) >= 0;
 		}
-		// We will perform this validation...
-		this.notModified = ChronoUnit.SECONDS.between(lastModified, Instant.ofEpochMilli(ifModifiedSince)) >= 0;
-		return true;
 	}
 
 	@Override

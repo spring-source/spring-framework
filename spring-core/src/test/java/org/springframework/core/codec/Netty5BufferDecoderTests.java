@@ -19,8 +19,8 @@ package org.springframework.core.codec;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 
-import io.netty5.buffer.api.Buffer;
-import io.netty5.buffer.api.DefaultBufferAllocators;
+import io.netty5.buffer.Buffer;
+import io.netty5.buffer.DefaultBufferAllocators;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 
@@ -87,7 +87,11 @@ class Netty5BufferDecoderTests extends AbstractDecoderTests<Netty5BufferDecoder>
 	}
 
 	private Consumer<Buffer> expectByteBuffer(Buffer expected) {
-		return actual -> assertThat(actual).isEqualTo(expected);
+		return actual -> {
+			try (actual; expected) {
+				assertThat(actual).isEqualTo(expected);
+			}
+		};
 	}
 
 }

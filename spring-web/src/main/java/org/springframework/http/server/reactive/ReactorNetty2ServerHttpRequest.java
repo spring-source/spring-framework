@@ -25,10 +25,11 @@ import javax.net.ssl.SSLSession;
 
 import io.netty5.channel.Channel;
 import io.netty5.handler.codec.http.HttpHeaderNames;
-import io.netty5.handler.codec.http.cookie.Cookie;
+import io.netty5.handler.codec.http.headers.HttpCookiePair;
 import io.netty5.handler.ssl.SslHandler;
 import org.apache.commons.logging.Log;
 import reactor.core.publisher.Flux;
+import reactor.netty5.ChannelOperationsId;
 import reactor.netty5.Connection;
 import reactor.netty5.http.server.HttpServerRequest;
 
@@ -79,8 +80,9 @@ class ReactorNetty2ServerHttpRequest extends AbstractServerHttpRequest {
 
 	private static URI resolveBaseUrl(HttpServerRequest request) throws URISyntaxException {
 		String scheme = getScheme(request);
-		String header = request.requestHeaders().get(HttpHeaderNames.HOST);
-		if (header != null) {
+		CharSequence charSequence = request.requestHeaders().get(HttpHeaderNames.HOST);
+		if (charSequence != null) {
+			String header = charSequence.toString();
 			final int portIndex;
 			if (header.startsWith("[")) {
 				portIndex = header.indexOf(':', header.indexOf(']'));
@@ -141,17 +143,12 @@ class ReactorNetty2ServerHttpRequest extends AbstractServerHttpRequest {
 	}
 
 	@Override
-	@Deprecated
-	public String getMethodValue() {
-		return this.request.method().name();
-	}
-
-	@Override
 	protected MultiValueMap<String, HttpCookie> initCookies() {
 		MultiValueMap<String, HttpCookie> cookies = new LinkedMultiValueMap<>();
 		for (CharSequence name : this.request.cookies().keySet()) {
-			for (Cookie cookie : this.request.cookies().get(name)) {
-				HttpCookie httpCookie = new HttpCookie(name.toString(), cookie.value());
+			for (HttpCookiePair cookie : this.request.cookies().get(name)) {
+				CharSequence cookieValue = cookie.value();
+				HttpCookie httpCookie = new HttpCookie(name.toString(), cookieValue != null ? cookieValue.toString() : null);
 				cookies.add(name.toString(), httpCookie);
 			}
 		}
@@ -199,8 +196,8 @@ class ReactorNetty2ServerHttpRequest extends AbstractServerHttpRequest {
 	@Override
 	@Nullable
 	protected String initId() {
-		if (this.request instanceof Connection) {
-			return ((Connection) this.request).channel().id().asShortText() +
+		if (this.request instanceof Connection connection) {
+			return connection.channel().id().asShortText() +
 					"-" + logPrefixIndex.incrementAndGet();
 		}
 		return null;
@@ -208,29 +205,18 @@ class ReactorNetty2ServerHttpRequest extends AbstractServerHttpRequest {
 
 	@Override
 	protected String initLogPrefix() {
-		String id = (ChannelOperationsIdHelper.getId(this.request));
+		String id = null;
+		if (this.request instanceof ChannelOperationsId operationsId) {
+			id = (logger.isDebugEnabled() ? operationsId.asLongText() : operationsId.asShortText());
+		}
 		if (id != null) {
 			return id;
 		}
-		if (this.request instanceof Connection) {
-			return ((Connection) this.request).channel().id().asShortText() +
+		if (this.request instanceof Connection connection) {
+			return connection.channel().id().asShortText() +
 					"-" + logPrefixIndex.incrementAndGet();
 		}
 		return getId();
-	}
-
-
-	private static class ChannelOperationsIdHelper {
-
-		@Nullable
-		public static String getId(HttpServerRequest request) {
-			if (request instanceof reactor.netty.ChannelOperationsId) {
-				return (logger.isDebugEnabled() ?
-						((reactor.netty.ChannelOperationsId) request).asLongText() :
-						((reactor.netty.ChannelOperationsId) request).asShortText());
-			}
-			return null;
-		}
 	}
 
 }

@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +38,7 @@ import com.fasterxml.jackson.databind.ser.FilterProvider;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.context.ContextView;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ResolvableType;
@@ -47,7 +47,6 @@ import org.springframework.core.codec.EncodingException;
 import org.springframework.core.codec.Hints;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
-import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.HttpMessageEncoder;
@@ -60,9 +59,9 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.MimeType;
 
 /**
- * Base class providing support methods for Jackson 2.9 encoding. For non-streaming use
+ * Base class providing support methods for Jackson 2.x encoding. For non-streaming use
  * cases, {@link Flux} elements are collected into a {@link List} before serialization for
- * performance reason.
+ * performance reasons.
  *
  * @author Sebastien Deleuze
  * @author Arjen Poutsma
@@ -73,8 +72,6 @@ public abstract class AbstractJackson2Encoder extends Jackson2CodecSupport imple
 	private static final byte[] NEWLINE_SEPARATOR = {'\n'};
 
 	private static final byte[] EMPTY_BYTES = new byte[0];
-
-	private static DataBuffer EMPTY_BUFFER = DefaultDataBufferFactory.sharedInstance.wrap(EMPTY_BYTES);
 
 	private static final Map<String, JsonEncoding> ENCODINGS;
 
@@ -151,66 +148,75 @@ public abstract class AbstractJackson2Encoder extends Jackson2CodecSupport imple
 		Assert.notNull(bufferFactory, "'bufferFactory' must not be null");
 		Assert.notNull(elementType, "'elementType' must not be null");
 
-		if (inputStream instanceof Mono) {
-			return Mono.from(inputStream)
-					.map(value -> encodeValue(value, bufferFactory, elementType, mimeType, hints))
-					.flux();
-		}
+		return Flux.deferContextual(contextView -> {
 
-		try {
-			ObjectMapper mapper = selectObjectMapper(elementType, mimeType);
-			if (mapper == null) {
-				throw new IllegalStateException("No ObjectMapper for " + elementType);
-			}
-			ObjectWriter writer = createObjectWriter(mapper, elementType, mimeType, null, hints);
-			ByteArrayBuilder byteBuilder = new ByteArrayBuilder(writer.getFactory()._getBufferRecycler());
-			JsonEncoding encoding = getJsonEncoding(mimeType);
-			JsonGenerator generator = mapper.getFactory().createGenerator(byteBuilder, encoding);
-			SequenceWriter sequenceWriter = writer.writeValues(generator);
+			Map<String, Object> hintsToUse = contextView.isEmpty() ? hints :
+					Hints.merge(hints, ContextView.class.getName(), contextView);
 
-			byte[] separator = getStreamingMediaTypeSeparator(mimeType);
-			Flux<DataBuffer> dataBufferFlux;
-
-			if (separator != null) {
-				dataBufferFlux = Flux.from(inputStream).map(value -> encodeStreamingValue(
-						value, bufferFactory, hints, sequenceWriter, byteBuilder, EMPTY_BYTES, separator));
-			}
-			else {
-				JsonArrayJoinHelper helper = new JsonArrayJoinHelper();
-
-				// Do not prepend JSON array prefix until first signal is known, onNext vs onError
-				// Keeps response not committed for error handling
-
-				dataBufferFlux = Flux.from(inputStream)
-						.map(value -> {
-							byte[] prefix = helper.getPrefix();
-							byte[] delimiter = helper.getDelimiter();
-
-							DataBuffer dataBuffer = encodeStreamingValue(
-									value, bufferFactory, hints, sequenceWriter, byteBuilder, delimiter, EMPTY_BYTES);
-
-							return (prefix.length > 0 ?
-									bufferFactory.join(Arrays.asList(bufferFactory.wrap(prefix), dataBuffer)) :
-									dataBuffer);
-						})
-						.concatWith(Mono.fromCallable(() -> bufferFactory.wrap(helper.getSuffix())));
+			if (inputStream instanceof Mono) {
+				return Mono.from(inputStream)
+						.map(value -> encodeValue(value, bufferFactory, elementType, mimeType, hintsToUse))
+						.flux();
 			}
 
-			return dataBufferFlux
-					.doOnNext(dataBuffer ->	Hints.touchDataBuffer(dataBuffer, hints, logger))
-					.doAfterTerminate(() -> {
-						try {
-							byteBuilder.release();
-							generator.close();
-						}
-						catch (IOException ex) {
-							logger.error("Could not close Encoder resources", ex);
-						}
-					});
-		}
-		catch (IOException ex) {
-			return Flux.error(ex);
-		}
+			try {
+				ObjectMapper mapper = selectObjectMapper(elementType, mimeType);
+				if (mapper == null) {
+					throw new IllegalStateException("No ObjectMapper for " + elementType);
+				}
+
+				ObjectWriter writer = createObjectWriter(mapper, elementType, mimeType, null, hintsToUse);
+				ByteArrayBuilder byteBuilder = new ByteArrayBuilder(writer.getFactory()._getBufferRecycler());
+				JsonEncoding encoding = getJsonEncoding(mimeType);
+				JsonGenerator generator = mapper.getFactory().createGenerator(byteBuilder, encoding);
+				SequenceWriter sequenceWriter = writer.writeValues(generator);
+
+				byte[] separator = getStreamingMediaTypeSeparator(mimeType);
+				Flux<DataBuffer> dataBufferFlux;
+
+				if (separator != null) {
+					dataBufferFlux = Flux.from(inputStream).map(value -> encodeStreamingValue(
+							value, bufferFactory, hintsToUse, sequenceWriter, byteBuilder, EMPTY_BYTES, separator));
+				}
+				else {
+					JsonArrayJoinHelper helper = new JsonArrayJoinHelper();
+
+					// Do not prepend JSON array prefix until first signal is known, onNext vs onError
+					// Keeps response not committed for error handling
+
+					dataBufferFlux = Flux.from(inputStream)
+							.map(value -> {
+								byte[] prefix = helper.getPrefix();
+								byte[] delimiter = helper.getDelimiter();
+
+								DataBuffer dataBuffer = encodeStreamingValue(
+										value, bufferFactory, hintsToUse, sequenceWriter, byteBuilder,
+										delimiter, EMPTY_BYTES);
+
+								return (prefix.length > 0 ?
+										bufferFactory.join(List.of(bufferFactory.wrap(prefix), dataBuffer)) :
+										dataBuffer);
+							})
+							.switchIfEmpty(Mono.fromCallable(() -> bufferFactory.wrap(helper.getPrefix())))
+							.concatWith(Mono.fromCallable(() -> bufferFactory.wrap(helper.getSuffix())));
+				}
+
+				return dataBufferFlux
+						.doOnNext(dataBuffer ->	Hints.touchDataBuffer(dataBuffer, hintsToUse, logger))
+						.doAfterTerminate(() -> {
+							try {
+								byteBuilder.release();
+								generator.close();
+							}
+							catch (IOException ex) {
+								logger.error("Could not close Encoder resources", ex);
+							}
+						});
+			}
+			catch (IOException ex) {
+				return Flux.error(ex);
+			}
+		});
 	}
 
 	@Override
@@ -340,6 +346,17 @@ public abstract class AbstractJackson2Encoder extends Jackson2CodecSupport imple
 		return customizeWriter(writer, mimeType, valueType, hints);
 	}
 
+	/**
+	 * Subclasses can use this method to customize the {@link ObjectWriter} used
+	 * for writing values.
+	 * @param writer the writer instance to customize
+	 * @param mimeType the selected MIME type
+	 * @param elementType the type of element values to write
+	 * @param hints a map with serialization hints; the Reactor Context, when
+	 * available, may be accessed under the key
+	 * {@code ContextView.class.getName()}
+	 * @return the customized {@code ObjectWriter} to use
+	 */
 	protected ObjectWriter customizeWriter(ObjectWriter writer, @Nullable MimeType mimeType,
 			ResolvableType elementType, @Nullable Map<String, Object> hints) {
 

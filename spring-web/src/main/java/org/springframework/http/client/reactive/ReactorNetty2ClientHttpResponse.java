@@ -20,11 +20,12 @@ import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 
-import io.netty5.handler.codec.http.cookie.Cookie;
-import io.netty5.handler.codec.http.cookie.DefaultCookie;
+import io.netty5.handler.codec.http.headers.DefaultHttpSetCookie;
+import io.netty5.handler.codec.http.headers.HttpSetCookie;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import reactor.core.publisher.Flux;
+import reactor.netty5.ChannelOperationsId;
 import reactor.netty5.Connection;
 import reactor.netty5.NettyInbound;
 import reactor.netty5.http.client.HttpClientResponse;
@@ -82,7 +83,10 @@ class ReactorNetty2ClientHttpResponse implements ClientHttpResponse {
 
 	@Override
 	public String getId() {
-		String id = ChannelOperationsIdHelper.getId(this.response);
+		String id = null;
+		if (this.response instanceof ChannelOperationsId operationsId) {
+			id = (logger.isDebugEnabled() ? operationsId.asLongText() : operationsId.asShortText());
+		}
 		if (id == null && this.response instanceof Connection connection) {
 			id = connection.channel().id().asShortText();
 		}
@@ -115,21 +119,15 @@ class ReactorNetty2ClientHttpResponse implements ClientHttpResponse {
 	}
 
 	@Override
-	@Deprecated
-	public int getRawStatusCode() {
-		return this.response.status().code();
-	}
-
-	@Override
 	public MultiValueMap<String, ResponseCookie> getCookies() {
 		MultiValueMap<String, ResponseCookie> result = new LinkedMultiValueMap<>();
 		this.response.cookies().values().stream()
 				.flatMap(Collection::stream)
-				.forEach(cookie -> result.add(cookie.name(),
-						ResponseCookie.fromClientResponse(cookie.name(), cookie.value())
-								.domain(cookie.domain())
-								.path(cookie.path())
-								.maxAge(cookie.maxAge())
+				.forEach(cookie -> result.add(cookie.name().toString(),
+						ResponseCookie.fromClientResponse(cookie.name().toString(), cookie.value().toString())
+								.domain(cookie.domain() != null ? cookie.domain().toString() : null)
+								.path(cookie.path() != null ? cookie.path().toString() : null)
+								.maxAge(cookie.maxAge() != null ? cookie.maxAge() : -1L)
 								.secure(cookie.isSecure())
 								.httpOnly(cookie.isHttpOnly())
 								.sameSite(getSameSite(cookie))
@@ -138,8 +136,8 @@ class ReactorNetty2ClientHttpResponse implements ClientHttpResponse {
 	}
 
 	@Nullable
-	private static String getSameSite(Cookie cookie) {
-		if (cookie instanceof DefaultCookie defaultCookie) {
+	private static String getSameSite(HttpSetCookie cookie) {
+		if (cookie instanceof DefaultHttpSetCookie defaultCookie) {
 			if (defaultCookie.sameSite() != null) {
 				return defaultCookie.sameSite().name();
 			}
@@ -164,7 +162,7 @@ class ReactorNetty2ClientHttpResponse implements ClientHttpResponse {
 	}
 
 	private boolean mayHaveBody(HttpMethod method) {
-		int code = this.getRawStatusCode();
+		int code = this.getStatusCode().value();
 		return !((code >= 100 && code < 200) || code == 204 || code == 205 ||
 				method.equals(HttpMethod.HEAD) || getHeaders().getContentLength() == 0);
 	}
@@ -173,19 +171,7 @@ class ReactorNetty2ClientHttpResponse implements ClientHttpResponse {
 	public String toString() {
 		return "ReactorNetty2ClientHttpResponse{" +
 				"request=[" + this.response.method().name() + " " + this.response.uri() + "]," +
-				"status=" + getRawStatusCode() + '}';
-	}
-
-
-	private static class ChannelOperationsIdHelper {
-
-		@Nullable
-		public static String getId(HttpClientResponse response) {
-			if (response instanceof reactor.netty5.ChannelOperationsId id) {
-				return (logger.isDebugEnabled() ? id.asLongText() : id.asShortText());
-			}
-			return null;
-		}
+				"status=" + getStatusCode() + '}';
 	}
 
 }

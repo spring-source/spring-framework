@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,55 +45,81 @@ class ResourceHintsTests {
 	@Test
 	void registerType() {
 		this.resourceHints.registerType(String.class);
-		assertThat(this.resourceHints.resourcePatterns()).singleElement().satisfies(
-				patternOf("java/lang/String.class"));
+		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(
+				patternOf("/", "java", "java/lang", "java/lang/String.class"));
 	}
 
 	@Test
 	void registerTypeWithNestedType() {
 		this.resourceHints.registerType(TypeReference.of(Nested.class));
-		assertThat(this.resourceHints.resourcePatterns()).singleElement().satisfies(
-				patternOf("org/springframework/aot/hint/ResourceHintsTests$Nested.class"));
+		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(
+				patternOf("/", "org", "org/springframework", "org/springframework/aot", "org/springframework/aot/hint",
+						"org/springframework/aot/hint/ResourceHintsTests$Nested.class"));
 	}
 
 	@Test
 	void registerTypeWithInnerNestedType() {
 		this.resourceHints.registerType(TypeReference.of(Inner.class));
-		assertThat(this.resourceHints.resourcePatterns()).singleElement().satisfies(
-				patternOf("org/springframework/aot/hint/ResourceHintsTests$Nested$Inner.class"));
+		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(
+				patternOf("/", "org", "org/springframework", "org/springframework/aot", "org/springframework/aot/hint",
+						"org/springframework/aot/hint/ResourceHintsTests$Nested$Inner.class"));
 	}
 
 	@Test
 	void registerTypeSeveralTimesAddsOnlyOneEntry() {
 		this.resourceHints.registerType(String.class);
 		this.resourceHints.registerType(TypeReference.of(String.class));
-		assertThat(this.resourceHints.resourcePatterns()).singleElement().satisfies(
-				patternOf("java/lang/String.class"));
+		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(
+				patternOf("/", "java", "java/lang", "java/lang/String.class"));
 	}
 
 	@Test
-	void registerExactMatch() {
+	void registerExactMatches() {
 		this.resourceHints.registerPattern("com/example/test.properties");
 		this.resourceHints.registerPattern("com/example/another.properties");
-		assertThat(this.resourceHints.resourcePatterns())
-				.anySatisfy(patternOf("com/example/test.properties"))
-				.anySatisfy(patternOf("com/example/another.properties"))
+		assertThat(this.resourceHints.resourcePatternHints())
+				.anySatisfy(patternOf("/", "com", "com/example", "com/example/test.properties"))
+				.anySatisfy(patternOf("/", "com", "com/example", "com/example/another.properties"))
 				.hasSize(2);
+	}
+
+	@Test
+	void registerExactMatchesInRootDirectory() {
+		this.resourceHints.registerPattern("test.properties");
+		this.resourceHints.registerPattern("another.properties");
+		assertThat(this.resourceHints.resourcePatternHints())
+				.anySatisfy(patternOf("/", "test.properties"))
+				.anySatisfy(patternOf("/", "another.properties"))
+				.hasSize(2);
+	}
+
+	@Test
+	void registerRootDirectory() {
+		this.resourceHints.registerPattern("/");
+		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(
+				patternOf("/"));
+	}
+
+	@Test
+	void registerRootPattern() {
+		this.resourceHints.registerPattern("*.properties");
+		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(
+				patternOf("/", "*.properties"));
 	}
 
 	@Test
 	void registerPattern() {
 		this.resourceHints.registerPattern("com/example/*.properties");
-		assertThat(this.resourceHints.resourcePatterns()).singleElement().satisfies(
-				patternOf("com/example/*.properties"));
+		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(
+				patternOf("/", "com", "com/example", "com/example/*.properties"));
 	}
 
 	@Test
 	void registerPatternWithIncludesAndExcludes() {
 		this.resourceHints.registerPattern(resourceHint ->
 				resourceHint.includes("com/example/*.properties").excludes("com/example/to-ignore.properties"));
-		assertThat(this.resourceHints.resourcePatterns()).singleElement().satisfies(patternOf(
-				List.of("com/example/*.properties"),
+		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(patternOf(
+				List.of("/", "com", "com/example", "com/example/*.properties"),
 				List.of("com/example/to-ignore.properties")));
 	}
 
@@ -101,8 +127,8 @@ class ResourceHintsTests {
 	void registerIfPresentRegisterExistingLocation() {
 		this.resourceHints.registerPatternIfPresent(null, "META-INF/",
 				resourceHint -> resourceHint.includes("com/example/*.properties"));
-		assertThat(this.resourceHints.resourcePatterns()).singleElement().satisfies(
-				patternOf("com/example/*.properties"));
+		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(
+				patternOf("/", "com", "com/example", "com/example/*.properties"));
 	}
 
 	@Test
@@ -110,7 +136,7 @@ class ResourceHintsTests {
 	void registerIfPresentIgnoreMissingLocation() {
 		Consumer<ResourcePatternHints.Builder> hintBuilder = mock(Consumer.class);
 		this.resourceHints.registerPatternIfPresent(null, "location/does-not-exist/", hintBuilder);
-		assertThat(this.resourceHints.resourcePatterns()).isEmpty();
+		assertThat(this.resourceHints.resourcePatternHints()).isEmpty();
 		verifyNoInteractions(hintBuilder);
 	}
 
@@ -135,7 +161,8 @@ class ResourceHintsTests {
 		String path = "org/springframework/aot/hint/support";
 		ClassPathResource resource = new ClassPathResource(path);
 		this.resourceHints.registerResource(resource);
-		assertThat(this.resourceHints.resourcePatterns()).singleElement().satisfies(patternOf(path));
+		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(
+				patternOf("/", "org", "org/springframework", "org/springframework/aot", "org/springframework/aot/hint", path));
 	}
 
 	@Test
@@ -143,13 +170,14 @@ class ResourceHintsTests {
 		String path = "org/springframework/aot/hint/support";
 		ClassPathResource resource = new ClassPathResource("support", RuntimeHints.class);
 		this.resourceHints.registerResource(resource);
-		assertThat(this.resourceHints.resourcePatterns()).singleElement().satisfies(patternOf(path));
+		assertThat(this.resourceHints.resourcePatternHints()).singleElement().satisfies(
+				patternOf("/", "org", "org/springframework", "org/springframework/aot", "org/springframework/aot/hint", path));
 	}
 
 	@Test
 	void registerResourceBundle() {
 		this.resourceHints.registerResourceBundle("com.example.message");
-		assertThat(this.resourceHints.resourceBundles()).singleElement()
+		assertThat(this.resourceHints.resourceBundleHints()).singleElement()
 				.satisfies(resourceBundle("com.example.message"));
 	}
 
@@ -157,7 +185,7 @@ class ResourceHintsTests {
 	void registerResourceBundleSeveralTimesAddsOneEntry() {
 		this.resourceHints.registerResourceBundle("com.example.message")
 				.registerResourceBundle("com.example.message");
-		assertThat(this.resourceHints.resourceBundles()).singleElement()
+		assertThat(this.resourceHints.resourceBundleHints()).singleElement()
 				.satisfies(resourceBundle("com.example.message"));
 	}
 
@@ -172,15 +200,14 @@ class ResourceHintsTests {
 
 	private Consumer<ResourcePatternHints> patternOf(List<String> includes, List<String> excludes) {
 		return pattern -> {
-			assertThat(pattern.getIncludes()).map(ResourcePatternHint::getPattern).containsExactlyElementsOf(includes);
+			assertThat(pattern.getIncludes()).map(ResourcePatternHint::getPattern).containsExactlyInAnyOrderElementsOf(includes);
 			assertThat(pattern.getExcludes()).map(ResourcePatternHint::getPattern).containsExactlyElementsOf(excludes);
 		};
 	}
 
 	static class Nested {
 
-		static class Inner {
-
+		class Inner {
 		}
 	}
 

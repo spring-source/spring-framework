@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@ import org.springframework.validation.Errors;
 import org.springframework.validation.SmartValidator;
 import org.springframework.validation.Validator;
 import org.springframework.validation.annotation.ValidationAnnotationUtils;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -145,7 +146,7 @@ public class ModelAttributeMethodProcessor implements HandlerMethodArgumentResol
 			try {
 				attribute = createAttribute(name, parameter, binderFactory, webRequest);
 			}
-			catch (BindException ex) {
+			catch (MethodArgumentNotValidException ex) {
 				if (isBindExceptionRequired(parameter)) {
 					// No BindingResult parameter -> fail with BindException
 					throw ex;
@@ -314,7 +315,7 @@ public class ModelAttributeMethodProcessor implements HandlerMethodArgumentResol
 			if (!parameter.isOptional()) {
 				try {
 					Object target = BeanUtils.instantiateClass(ctor, args);
-					throw new BindException(result) {
+					throw new MethodArgumentNotValidException(parameter, result) {
 						@Override
 						public Object getTarget() {
 							return target;
@@ -325,7 +326,7 @@ public class ModelAttributeMethodProcessor implements HandlerMethodArgumentResol
 					// swallow and proceed without target instance
 				}
 			}
-			throw new BindException(result);
+			throw new MethodArgumentNotValidException(parameter, result);
 		}
 
 		return BeanUtils.instantiateClass(ctor, args);
@@ -405,9 +406,9 @@ public class ModelAttributeMethodProcessor implements HandlerMethodArgumentResol
 			Object[] validationHints = ValidationAnnotationUtils.determineValidationHints(ann);
 			if (validationHints != null) {
 				for (Validator validator : binder.getValidators()) {
-					if (validator instanceof SmartValidator) {
+					if (validator instanceof SmartValidator smartValidator) {
 						try {
-							((SmartValidator) validator).validateValue(targetType, fieldName, value,
+							smartValidator.validateValue(targetType, fieldName, value,
 									binder.getBindingResult(), validationHints);
 						}
 						catch (IllegalArgumentException ex) {

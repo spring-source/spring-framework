@@ -18,6 +18,8 @@ package org.springframework.context.annotation;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,6 +28,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import javax.lang.model.element.Modifier;
@@ -36,7 +39,9 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.aop.framework.autoproxy.AutoProxyUtils;
 import org.springframework.aot.generate.GeneratedMethod;
 import org.springframework.aot.generate.GenerationContext;
+import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.aot.hint.ResourceHints;
+import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.TypeReference;
 import org.springframework.beans.PropertyValues;
 import org.springframework.beans.factory.BeanClassLoaderAware;
@@ -46,6 +51,11 @@ import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.aot.BeanFactoryInitializationAotContribution;
 import org.springframework.beans.factory.aot.BeanFactoryInitializationAotProcessor;
 import org.springframework.beans.factory.aot.BeanFactoryInitializationCode;
+import org.springframework.beans.factory.aot.BeanRegistrationAotContribution;
+import org.springframework.beans.factory.aot.BeanRegistrationAotProcessor;
+import org.springframework.beans.factory.aot.BeanRegistrationCode;
+import org.springframework.beans.factory.aot.BeanRegistrationCodeFragments;
+import org.springframework.beans.factory.aot.BeanRegistrationCodeFragmentsDecorator;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
@@ -61,6 +71,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.beans.factory.support.BeanNameGenerator;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.beans.factory.support.RegisteredBean;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.context.ApplicationStartupAware;
 import org.springframework.context.EnvironmentAware;
@@ -110,8 +121,8 @@ import org.springframework.util.CollectionUtils;
  * @since 3.0
  */
 public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPostProcessor,
-		BeanFactoryInitializationAotProcessor, PriorityOrdered, ResourceLoaderAware, ApplicationStartupAware,
-		BeanClassLoaderAware, EnvironmentAware {
+		BeanRegistrationAotProcessor, BeanFactoryInitializationAotProcessor, PriorityOrdered,
+		ResourceLoaderAware, ApplicationStartupAware, BeanClassLoaderAware, EnvironmentAware {
 
 	/**
 	 * A {@code BeanNameGenerator} using fully qualified class names as default bean names.
@@ -292,6 +303,19 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 
 		enhanceConfigurationClasses(beanFactory);
 		beanFactory.addBeanPostProcessor(new ImportAwareBeanPostProcessor(beanFactory));
+	}
+
+	@Nullable
+	@Override
+	public BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean) {
+		Object configClassAttr = registeredBean.getMergedBeanDefinition()
+				.getAttribute(ConfigurationClassUtils.CONFIGURATION_CLASS_ATTRIBUTE);
+		if (ConfigurationClassUtils.CONFIGURATION_CLASS_FULL.equals(configClassAttr)) {
+			Class<?> proxyClass = registeredBean.getBeanType().toClass();
+			return BeanRegistrationAotContribution.withCustomCodeFragments(codeFragments ->
+					new ConfigurationClassProxyBeanRegistrationCodeFragments(codeFragments, proxyClass));
+		}
+		return null;
 	}
 
 	@Override
@@ -712,6 +736,51 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			else {
 				return nonNull.get();
 			}
+		}
+
+	}
+
+	private static class ConfigurationClassProxyBeanRegistrationCodeFragments extends BeanRegistrationCodeFragmentsDecorator {
+
+		private final Class<?> proxyClass;
+
+		public ConfigurationClassProxyBeanRegistrationCodeFragments(BeanRegistrationCodeFragments codeFragments,
+				Class<?> proxyClass) {
+			super(codeFragments);
+			this.proxyClass = proxyClass;
+		}
+
+		@Override
+		public CodeBlock generateSetBeanDefinitionPropertiesCode(GenerationContext generationContext,
+				BeanRegistrationCode beanRegistrationCode, RootBeanDefinition beanDefinition, Predicate<String> attributeFilter) {
+			CodeBlock.Builder code = CodeBlock.builder();
+			code.add(super.generateSetBeanDefinitionPropertiesCode(generationContext,
+					beanRegistrationCode, beanDefinition, attributeFilter));
+			code.addStatement("$T.initializeConfigurationClass($T.class)",
+					ConfigurationClassUtils.class, ClassUtils.getUserClass(this.proxyClass));
+			return code.build();
+		}
+
+		@Override
+		public CodeBlock generateInstanceSupplierCode(GenerationContext generationContext,
+				BeanRegistrationCode beanRegistrationCode, Executable constructorOrFactoryMethod,
+				boolean allowDirectSupplierShortcut) {
+			Executable executableToUse = proxyExecutable(generationContext.getRuntimeHints(), constructorOrFactoryMethod);
+			return super.generateInstanceSupplierCode(generationContext, beanRegistrationCode,
+					executableToUse, allowDirectSupplierShortcut);
+		}
+
+		private Executable proxyExecutable(RuntimeHints runtimeHints, Executable userExecutable) {
+			if (userExecutable instanceof Constructor<?> userConstructor) {
+				try {
+					runtimeHints.reflection().registerConstructor(userConstructor, ExecutableMode.INTROSPECT);
+					return this.proxyClass.getConstructor(userExecutable.getParameterTypes());
+				}
+				catch (NoSuchMethodException ex) {
+					throw new IllegalStateException("No matching constructor found on proxy " + this.proxyClass, ex);
+				}
+			}
+			return userExecutable;
 		}
 
 	}

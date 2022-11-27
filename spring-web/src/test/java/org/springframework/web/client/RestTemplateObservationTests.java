@@ -19,15 +19,15 @@ package org.springframework.web.client;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationHandler;
 import io.micrometer.observation.tck.TestObservationRegistry;
 import io.micrometer.observation.tck.TestObservationRegistryAssert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.BDDMockito;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpInputMessage;
@@ -37,12 +37,15 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.http.client.observation.ClientRequestObservationContext;
 import org.springframework.http.converter.HttpMessageConverter;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 import static org.springframework.http.HttpMethod.GET;
 
@@ -50,7 +53,7 @@ import static org.springframework.http.HttpMethod.GET;
  * Tests for the client HTTP observations with {@link RestTemplate}.
  * @author Brian Clozel
  */
-public class RestTemplateObservationTests {
+class RestTemplateObservationTests {
 
 
 	private final TestObservationRegistry observationRegistry = TestObservationRegistry.create();
@@ -74,6 +77,7 @@ public class RestTemplateObservationTests {
 		this.template.setRequestFactory(this.requestFactory);
 		this.template.setErrorHandler(this.errorHandler);
 		this.template.setObservationRegistry(this.observationRegistry);
+		this.observationRegistry.observationConfig().observationHandler(new ContextAssertionObservationHandler());
 	}
 
 	@Test
@@ -102,14 +106,14 @@ public class RestTemplateObservationTests {
 
 
 	@Test
-	void executeAddsSucessAsOutcome() throws Exception {
+	void executeAddsSuccessAsOutcome() throws Exception {
 		mockSentRequest(GET, "https://example.org");
 		mockResponseStatus(HttpStatus.OK);
 		mockResponseBody("Hello World", MediaType.TEXT_PLAIN);
 
 		template.execute("https://example.org", GET, null, null);
 
-		assertThatHttpObservation().hasLowCardinalityKeyValue("outcome", "SUCCESSFUL");
+		assertThatHttpObservation().hasLowCardinalityKeyValue("outcome", "SUCCESS");
 	}
 
 	@Test
@@ -117,7 +121,7 @@ public class RestTemplateObservationTests {
 		String url = "https://example.org";
 		mockSentRequest(GET, url);
 		mockResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR);
-		BDDMockito.willThrow(new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR))
+		willThrow(new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR))
 				.given(errorHandler).handleError(new URI(url), GET, response);
 
 		assertThatExceptionOfType(HttpServerErrorException.class).isThrownBy(() ->
@@ -133,7 +137,7 @@ public class RestTemplateObservationTests {
 
 		given(converter.canRead(String.class, null)).willReturn(true);
 		MediaType supportedMediaType = new MediaType("test", "supported");
-		given(converter.getSupportedMediaTypes()).willReturn(Collections.singletonList(supportedMediaType));
+		given(converter.getSupportedMediaTypes()).willReturn(List.of(supportedMediaType));
 		MediaType other = new MediaType("test", "other");
 		mockResponseBody("Test Body", other);
 		given(converter.canRead(String.class, other)).willReturn(false);
@@ -186,6 +190,19 @@ public class RestTemplateObservationTests {
 	private TestObservationRegistryAssert.TestObservationRegistryAssertReturningObservationContextAssert assertThatHttpObservation() {
 		return TestObservationRegistryAssert.assertThat(this.observationRegistry)
 				.hasObservationWithNameEqualTo("http.client.requests").that();
+	}
+
+	static class ContextAssertionObservationHandler implements ObservationHandler<ClientRequestObservationContext> {
+
+		@Override
+		public boolean supportsContext(Observation.Context context) {
+			return context instanceof ClientRequestObservationContext;
+		}
+
+		@Override
+		public void onStart(ClientRequestObservationContext context) {
+			assertThat(context.getCarrier()).isNotNull();
+		}
 	}
 
 }

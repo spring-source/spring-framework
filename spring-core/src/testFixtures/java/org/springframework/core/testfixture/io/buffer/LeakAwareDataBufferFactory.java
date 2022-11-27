@@ -22,7 +22,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 import io.netty.buffer.PooledByteBufAllocator;
 import org.apache.commons.logging.Log;
@@ -81,13 +80,21 @@ public class LeakAwareDataBufferFactory implements DataBufferFactory {
 	 * method.
 	 */
 	public void checkForLeaks() {
+		checkForLeaks(Duration.ofSeconds(0));
+	}
+
+	/**
+	 * Variant of {@link #checkForLeaks()} with the option to wait for buffer release.
+	 * @param timeout how long to wait for buffers to be released; 0 for no waiting
+	 */
+	public void checkForLeaks(Duration timeout) {
 		this.trackCreated.set(false);
 		Instant start = Instant.now();
 		while (true) {
 			if (this.created.stream().noneMatch(LeakAwareDataBuffer::isAllocated)) {
 				return;
 			}
-			if (Instant.now().isBefore(start.plus(Duration.ofSeconds(5)))) {
+			if (Instant.now().isBefore(start.plus(timeout))) {
 				try {
 					Thread.sleep(50);
 				}
@@ -140,7 +147,7 @@ public class LeakAwareDataBufferFactory implements DataBufferFactory {
 		// Remove LeakAwareDataBuffer wrapper so delegate can find native buffers
 		dataBuffers = dataBuffers.stream()
 				.map(o -> o instanceof LeakAwareDataBuffer ? ((LeakAwareDataBuffer) o).dataBuffer() : o)
-				.collect(Collectors.toList());
+				.toList();
 		return new LeakAwareDataBuffer(this.delegate.join(dataBuffers), this);
 	}
 

@@ -25,7 +25,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -40,12 +39,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import org.springframework.aot.generate.AccessVisibility;
+import org.springframework.aot.generate.AccessControl;
 import org.springframework.aot.generate.GeneratedClass;
 import org.springframework.aot.generate.GeneratedMethod;
 import org.springframework.aot.generate.GenerationContext;
 import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.support.ClassHintUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.PropertyValues;
@@ -53,7 +53,6 @@ import org.springframework.beans.TypeConverter;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
-import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.InjectionPoint;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.UnsatisfiedDependencyException;
@@ -77,10 +76,10 @@ import org.springframework.core.BridgeMethodResolver;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.Ordered;
 import org.springframework.core.PriorityOrdered;
-import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.core.annotation.MergedAnnotations;
+import org.springframework.javapoet.ClassName;
 import org.springframework.javapoet.CodeBlock;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
@@ -612,37 +611,8 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 	 * @return whether the annotation indicates that a dependency is required
 	 */
 	protected boolean determineRequiredStatus(MergedAnnotation<?> ann) {
-		return determineRequiredStatus(ann.<AnnotationAttributes> asMap(
-				mergedAnnotation -> new AnnotationAttributes(mergedAnnotation.getType())));
-	}
-
-	/**
-	 * Determine if the annotated field or method requires its dependency.
-	 * <p>A 'required' dependency means that autowiring should fail when no beans
-	 * are found. Otherwise, the autowiring process will simply bypass the field
-	 * or method when no beans are found.
-	 * @param ann the Autowired annotation
-	 * @return whether the annotation indicates that a dependency is required
-	 * @deprecated since 5.2, in favor of {@link #determineRequiredStatus(MergedAnnotation)}
-	 */
-	@Deprecated
-	protected boolean determineRequiredStatus(AnnotationAttributes ann) {
-		return (!ann.containsKey(this.requiredParameterName) ||
+		return (ann.getValue(this.requiredParameterName).isEmpty() ||
 				this.requiredParameterValue == ann.getBoolean(this.requiredParameterName));
-	}
-
-	/**
-	 * Obtain all beans of the given type as autowire candidates.
-	 * @param type the type of the bean
-	 * @return the target beans, or an empty Collection if no bean of this type is found
-	 * @throws BeansException if bean retrieval failed
-	 */
-	protected <T> Map<String, T> findAutowireCandidates(Class<T> type) throws BeansException {
-		if (this.beanFactory == null) {
-			throw new IllegalStateException("No BeanFactory configured - " +
-					"override the getBeanOfType method or specify the 'beanFactory' property");
-		}
-		return BeanFactoryUtils.beansOfTypeIncludingAncestors(this.beanFactory, type);
 	}
 
 	/**
@@ -684,11 +654,10 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 
 		protected final boolean required;
 
-		protected AutowiredElement(Member member, PropertyDescriptor pd, boolean required) {
+		protected AutowiredElement(Member member, @Nullable PropertyDescriptor pd, boolean required) {
 			super(member, pd);
 			this.required = required;
 		}
-
 	}
 
 
@@ -925,10 +894,8 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 			this.candidateResolver = candidateResolver;
 		}
 
-
 		@Override
-		public void applyTo(GenerationContext generationContext,
-				BeanRegistrationCode beanRegistrationCode) {
+		public void applyTo(GenerationContext generationContext, BeanRegistrationCode beanRegistrationCode) {
 			GeneratedClass generatedClass = generationContext.getGeneratedClasses()
 					.addForFeatureComponent("Autowiring", this.target, type -> {
 						type.addJavadoc("Autowiring for {@link $T}.", this.target);
@@ -941,7 +908,8 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 				method.addParameter(RegisteredBean.class, REGISTERED_BEAN_PARAMETER);
 				method.addParameter(this.target, INSTANCE_PARAMETER);
 				method.returns(this.target);
-				method.addCode(generateMethodCode(generationContext.getRuntimeHints()));
+				method.addCode(generateMethodCode(generatedClass.getName(),
+						generationContext.getRuntimeHints()));
 			});
 			beanRegistrationCode.addInstancePostProcessor(generateMethod.toMethodReference());
 
@@ -950,41 +918,42 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 			}
 		}
 
-		private CodeBlock generateMethodCode(RuntimeHints hints) {
+		private CodeBlock generateMethodCode(ClassName targetClassName, RuntimeHints hints) {
 			CodeBlock.Builder code = CodeBlock.builder();
 			for (AutowiredElement autowiredElement : this.autowiredElements) {
-				code.addStatement(
-						generateMethodStatementForElement(autowiredElement, hints));
+				code.addStatement(generateMethodStatementForElement(
+						targetClassName, autowiredElement, hints));
 			}
 			code.addStatement("return $L", INSTANCE_PARAMETER);
 			return code.build();
 		}
 
-		private CodeBlock generateMethodStatementForElement(
+		private CodeBlock generateMethodStatementForElement(ClassName targetClassName,
 				AutowiredElement autowiredElement, RuntimeHints hints) {
 
 			Member member = autowiredElement.getMember();
 			boolean required = autowiredElement.required;
 			if (member instanceof Field field) {
-				return generateMethodStatementForField(field, required, hints);
+				return generateMethodStatementForField(
+						targetClassName, field, required, hints);
 			}
 			if (member instanceof Method method) {
-				return generateMethodStatementForMethod(method, required, hints);
+				return generateMethodStatementForMethod(
+						targetClassName, method, required, hints);
 			}
 			throw new IllegalStateException(
 					"Unsupported member type " + member.getClass().getName());
 		}
 
-		private CodeBlock generateMethodStatementForField(Field field, boolean required,
-				RuntimeHints hints) {
+		private CodeBlock generateMethodStatementForField(ClassName targetClassName,
+				Field field, boolean required, RuntimeHints hints) {
 
 			hints.reflection().registerField(field);
 			CodeBlock resolver = CodeBlock.of("$T.$L($S)",
 					AutowiredFieldValueResolver.class,
 					(!required) ? "forField" : "forRequiredField", field.getName());
-			AccessVisibility visibility = AccessVisibility.forMember(field);
-			if (visibility == AccessVisibility.PRIVATE
-					|| visibility == AccessVisibility.PROTECTED) {
+			AccessControl accessControl = AccessControl.forMember(field);
+			if (!accessControl.isAccessibleFrom(targetClassName)) {
 				return CodeBlock.of("$L.resolveAndSet($L, $L)", resolver,
 						REGISTERED_BEAN_PARAMETER, INSTANCE_PARAMETER);
 			}
@@ -992,24 +961,21 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 					field.getName(), resolver, REGISTERED_BEAN_PARAMETER);
 		}
 
-		private CodeBlock generateMethodStatementForMethod(Method method,
-				boolean required, RuntimeHints hints) {
+		private CodeBlock generateMethodStatementForMethod(ClassName targetClassName,
+				Method method, boolean required, RuntimeHints hints) {
 
 			CodeBlock.Builder code = CodeBlock.builder();
 			code.add("$T.$L", AutowiredMethodArgumentsResolver.class,
 					(!required) ? "forMethod" : "forRequiredMethod");
 			code.add("($S", method.getName());
 			if (method.getParameterCount() > 0) {
-				code.add(", $L",
-						generateParameterTypesCode(method.getParameterTypes()));
+				code.add(", $L", generateParameterTypesCode(method.getParameterTypes()));
 			}
 			code.add(")");
-			AccessVisibility visibility = AccessVisibility.forMember(method);
-			if (visibility == AccessVisibility.PRIVATE
-					|| visibility == AccessVisibility.PROTECTED) {
+			AccessControl accessControl = AccessControl.forMember(method);
+			if (!accessControl.isAccessibleFrom(targetClassName)) {
 				hints.reflection().registerMethod(method, ExecutableMode.INVOKE);
-				code.add(".resolveAndInvoke($L, $L)", REGISTERED_BEAN_PARAMETER,
-						INSTANCE_PARAMETER);
+				code.add(".resolveAndInvoke($L, $L)", REGISTERED_BEAN_PARAMETER, INSTANCE_PARAMETER);
 			}
 			else {
 				hints.reflection().registerMethod(method, ExecutableMode.INTROSPECT);
@@ -1036,16 +1002,14 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 				boolean required = autowiredElement.required;
 				Member member = autowiredElement.getMember();
 				if (member instanceof Field field) {
-					DependencyDescriptor dependencyDescriptor = new DependencyDescriptor(
-							field, required);
+					DependencyDescriptor dependencyDescriptor = new DependencyDescriptor(field, required);
 					registerProxyIfNecessary(runtimeHints, dependencyDescriptor);
 				}
 				if (member instanceof Method method) {
 					Class<?>[] parameterTypes = method.getParameterTypes();
 					for (int i = 0; i < parameterTypes.length; i++) {
 						MethodParameter methodParam = new MethodParameter(method, i);
-						DependencyDescriptor dependencyDescriptor = new DependencyDescriptor(
-								methodParam, required);
+						DependencyDescriptor dependencyDescriptor = new DependencyDescriptor(methodParam, required);
 						registerProxyIfNecessary(runtimeHints, dependencyDescriptor);
 					}
 				}
@@ -1053,10 +1017,12 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 		}
 
 		private void registerProxyIfNecessary(RuntimeHints runtimeHints, DependencyDescriptor dependencyDescriptor) {
-			Class<?> proxyType = this.candidateResolver
-					.getLazyResolutionProxyClass(dependencyDescriptor, null);
-			if (proxyType != null && Proxy.isProxyClass(proxyType)) {
-				runtimeHints.proxies().registerJdkProxy(proxyType.getInterfaces());
+			if (this.candidateResolver != null) {
+				Class<?> proxyClass =
+						this.candidateResolver.getLazyResolutionProxyClass(dependencyDescriptor, null);
+				if (proxyClass != null) {
+					ClassHintUtils.registerProxyIfNecessary(proxyClass, runtimeHints);
+				}
 			}
 		}
 

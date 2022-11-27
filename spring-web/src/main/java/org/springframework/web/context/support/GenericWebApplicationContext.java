@@ -52,7 +52,7 @@ import org.springframework.web.context.ServletContextAware;
  * <p>In addition to the special beans detected by
  * {@link org.springframework.context.support.AbstractApplicationContext AbstractApplicationContext},
  * this class detects a {@link ThemeSource} bean in the context, with the name "themeSource".
- * Theme support is deprecated as of 6.0
+ * Theme support is deprecated as of 6.0 with no direct replacement.
  *
  * <p>If you wish to register annotated <em>component classes</em> with a
  * {@code GenericWebApplicationContext}, you can use an
@@ -208,8 +208,8 @@ public class GenericWebApplicationContext extends GenericApplicationContext
 	@Override
 	protected void initPropertySources() {
 		ConfigurableEnvironment env = getEnvironment();
-		if (env instanceof ConfigurableWebEnvironment) {
-			((ConfigurableWebEnvironment) env).initPropertySources(this.servletContext, null);
+		if (env instanceof ConfigurableWebEnvironment configurableWebEnv) {
+			configurableWebEnv.initPropertySources(this.servletContext, null);
 		}
 	}
 

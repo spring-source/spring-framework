@@ -19,7 +19,7 @@ package org.springframework.web.reactive.socket.adapter;
 import java.util.HashMap;
 import java.util.Map;
 
-import io.netty5.buffer.api.Buffer;
+import io.netty5.buffer.Buffer;
 import io.netty5.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty5.handler.codec.http.websocketx.PingWebSocketFrame;
 import io.netty5.handler.codec.http.websocketx.PongWebSocketFrame;
@@ -75,9 +75,8 @@ public abstract class Netty5WebSocketSessionSupport<T> extends AbstractWebSocket
 
 
 	protected WebSocketMessage toMessage(WebSocketFrame frame) {
-		WebSocketFrame newFrame = frame.send().receive();
-		DataBuffer payload = bufferFactory().wrap(newFrame.binaryData());
-		return new WebSocketMessage(messageTypes.get(newFrame.getClass()), payload, newFrame);
+		DataBuffer payload = bufferFactory().wrap(frame.binaryData());
+		return new WebSocketMessage(messageTypes.get(frame.getClass()), payload, frame);
 	}
 
 	protected WebSocketFrame toFrame(WebSocketMessage message) {

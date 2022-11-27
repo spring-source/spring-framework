@@ -18,7 +18,6 @@ package org.springframework.web.reactive.result.condition;
 
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -169,7 +168,7 @@ public class PatternsRequestConditionTests {
 	@Test
 	public void equallyMatchingPatternsAreBothPresent() {
 		PatternsRequestCondition c = createPatternsCondition("/a", "/b");
-		assertThat(c.getPatterns().size()).isEqualTo(2);
+		assertThat(c.getPatterns()).hasSize(2);
 		Iterator<PathPattern> itr = c.getPatterns().iterator();
 		assertThat(itr.next().getPatternString()).isEqualTo("/a");
 		assertThat(itr.next().getPatternString()).isEqualTo("/b");
@@ -210,7 +209,7 @@ public class PatternsRequestConditionTests {
 		return new PatternsRequestCondition(Arrays
 				.stream(patterns)
 				.map(this.parser::parse)
-				.collect(Collectors.toList()));
+				.toList());
 	}
 
 }

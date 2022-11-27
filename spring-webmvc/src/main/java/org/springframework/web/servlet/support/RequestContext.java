@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ public class RequestContext {
 	 * @see org.springframework.web.servlet.theme.AbstractThemeResolver#ORIGINAL_DEFAULT_THEME_NAME
 	 * @deprecated as of 6.0, with no direct replacement
 	 */
-	@Deprecated
+	@Deprecated(since = "6.0")
 	public static final String DEFAULT_THEME_NAME = "theme";
 
 	/**
@@ -392,7 +392,7 @@ public class RequestContext {
 	 * <p>Resolved lazily for more efficiency when theme support is not being used.
 	 * @deprecated as of 6.0, with no direct replacement
 	 */
-	@Deprecated
+	@Deprecated(since = "6.0")
 	public org.springframework.ui.context.Theme getTheme() {
 		if (this.theme == null) {
 			// Lazily determine theme to use for this RequestContext.
@@ -409,6 +409,7 @@ public class RequestContext {
 	 * Determine the fallback theme for this context.
 	 * <p>The default implementation returns the default theme (with name "theme").
 	 * @return the fallback theme (never {@code null})
+	 * @deprecated as of 6.0, with no direct replacement
 	 */
 	@Deprecated
 	protected org.springframework.ui.context.Theme getFallbackTheme() {
@@ -425,12 +426,13 @@ public class RequestContext {
 
 	/**
 	 * Change the current theme to the specified one,
-	 * storing the new theme name through the configured {@link ThemeResolver}.
+	 * storing the new theme name through the configured
+	 * {@link org.springframework.web.servlet.ThemeResolver ThemeResolver}.
 	 * @param theme the new theme
-	 * @see ThemeResolver#setThemeName
+	 * @see org.springframework.web.servlet.ThemeResolver#setThemeName
 	 * @deprecated as of 6.0, with no direct replacement
 	 */
-	@Deprecated
+	@Deprecated(since = "6.0")
 	public void changeTheme(@Nullable org.springframework.ui.context.Theme theme) {
 		org.springframework.web.servlet.ThemeResolver themeResolver = RequestContextUtils.getThemeResolver(this.request);
 		if (themeResolver == null) {
@@ -442,9 +444,11 @@ public class RequestContext {
 
 	/**
 	 * Change the current theme to the specified theme by name,
-	 * storing the new theme name through the configured {@link ThemeResolver}.
+	 * storing the new theme name through the configured
+	 * {@link org.springframework.web.servlet.ThemeResolver ThemeResolver}.
 	 * @param themeName the name of the new theme
-	 * @see ThemeResolver#setThemeName
+	 * @see org.springframework.web.servlet.ThemeResolver#setThemeName
+	 * @deprecated as of 6.0, with no direct replacement
 	 */
 	@Deprecated
 	public void changeTheme(String themeName) {
@@ -738,6 +742,7 @@ public class RequestContext {
 	 * @param code the code of the message
 	 * @param defaultMessage the String to return if the lookup fails
 	 * @return the message
+	 * @deprecated as of 6.0, with no direct replacement
 	 */
 	@Deprecated
 	public String getThemeMessage(String code, String defaultMessage) {
@@ -753,6 +758,7 @@ public class RequestContext {
 	 * @param args arguments for the message, or {@code null} if none
 	 * @param defaultMessage the String to return if the lookup fails
 	 * @return the message
+	 * @deprecated as of 6.0, with no direct replacement
 	 */
 	@Deprecated
 	public String getThemeMessage(String code, @Nullable Object[] args, String defaultMessage) {
@@ -768,6 +774,7 @@ public class RequestContext {
 	 * @param args arguments for the message as a List, or {@code null} if none
 	 * @param defaultMessage the String to return if the lookup fails
 	 * @return the message
+	 * @deprecated as of 6.0, with no direct replacement
 	 */
 	@Deprecated
 	public String getThemeMessage(String code, @Nullable List<?> args, String defaultMessage) {
@@ -783,6 +790,7 @@ public class RequestContext {
 	 * @param code the code of the message
 	 * @return the message
 	 * @throws org.springframework.context.NoSuchMessageException if not found
+	 * @deprecated as of 6.0, with no direct replacement
 	 */
 	@Deprecated
 	public String getThemeMessage(String code) throws NoSuchMessageException {
@@ -797,6 +805,7 @@ public class RequestContext {
 	 * @param args arguments for the message, or {@code null} if none
 	 * @return the message
 	 * @throws org.springframework.context.NoSuchMessageException if not found
+	 * @deprecated as of 6.0, with no direct replacement
 	 */
 	@Deprecated
 	public String getThemeMessage(String code, @Nullable Object[] args) throws NoSuchMessageException {
@@ -811,6 +820,7 @@ public class RequestContext {
 	 * @param args arguments for the message as a List, or {@code null} if none
 	 * @return the message
 	 * @throws org.springframework.context.NoSuchMessageException if not found
+	 * @deprecated as of 6.0, with no direct replacement
 	 */
 	@Deprecated
 	public String getThemeMessage(String code, @Nullable List<?> args) throws NoSuchMessageException {
@@ -824,6 +834,7 @@ public class RequestContext {
 	 * @param resolvable the MessageSourceResolvable
 	 * @return the message
 	 * @throws org.springframework.context.NoSuchMessageException if not found
+	 * @deprecated as of 6.0, with no direct replacement
 	 */
 	@Deprecated
 	public String getThemeMessage(MessageSourceResolvable resolvable) throws NoSuchMessageException {

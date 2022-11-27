@@ -27,8 +27,6 @@ import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
 import org.springframework.aot.test.generate.TestGenerationContext;
-import org.springframework.aot.test.generate.compile.Compiled;
-import org.springframework.aot.test.generate.compile.TestCompiler;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -36,6 +34,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.aot.ApplicationContextAotGenerator;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.core.test.tools.Compiled;
+import org.springframework.core.test.tools.TestCompiler;
 import org.springframework.orm.jpa.JpaVendorAdapter;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.domain.DriversLicense;
@@ -91,6 +91,8 @@ class PersistenceManagedTypesBeanRegistrationAotProcessorTests {
 					.accepts(hints);
 			assertThat(RuntimeHintsPredicates.reflection().onType(Employee.class)
 					.withMemberCategories(MemberCategory.DECLARED_FIELDS)).accepts(hints);
+			assertThat(RuntimeHintsPredicates.reflection().onMethod(Employee.class, "preRemove"))
+					.accepts(hints);
 			assertThat(RuntimeHintsPredicates.reflection().onType(EmployeeId.class)
 					.withMemberCategories(MemberCategory.DECLARED_FIELDS)).accepts(hints);
 			assertThat(RuntimeHintsPredicates.reflection().onType(EmployeeLocationConverter.class)
@@ -109,7 +111,7 @@ class PersistenceManagedTypesBeanRegistrationAotProcessorTests {
 		TestGenerationContext generationContext = new TestGenerationContext();
 		generator.processAheadOfTime(applicationContext, generationContext);
 		generationContext.writeGeneratedContent();
-		TestCompiler.forSystem().withFiles(generationContext.getGeneratedFiles()).compile(compiled ->
+		TestCompiler.forSystem().with(generationContext).compile(compiled ->
 				result.accept(compiled.getInstance(ApplicationContextInitializer.class), compiled));
 	}
 

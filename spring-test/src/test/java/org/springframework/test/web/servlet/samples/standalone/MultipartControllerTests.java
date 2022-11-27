@@ -18,7 +18,6 @@ package org.springframework.test.web.servlet.samples.standalone;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -71,18 +70,12 @@ class MultipartControllerTests {
 		byte[] json = "{\"name\":\"yeeeah\"}".getBytes(StandardCharsets.UTF_8);
 		MockMultipartFile jsonPart = new MockMultipartFile("json", "json", "application/json", json);
 
-		MockMultipartHttpServletRequestBuilder requestBuilder;
-		switch (url) {
-			case "/multipartfile":
-				requestBuilder = multipart(url).file(new MockMultipartFile("file", "orig", null, fileContent));
-				break;
-			case "/multipartfile-via-put":
-				requestBuilder = multipart(HttpMethod.PUT, url).file(new MockMultipartFile("file", "orig", null, fileContent));
-				break;
-			default:
-				requestBuilder = multipart(url).part(new MockPart("part", "orig", fileContent));
-				break;
-		}
+		MockMultipartHttpServletRequestBuilder requestBuilder = switch (url) {
+			case "/multipartfile" -> multipart(url).file(new MockMultipartFile("file", "orig", null, fileContent));
+			case "/multipartfile-via-put" ->
+					multipart(HttpMethod.PUT, url).file(new MockMultipartFile("file", "orig", null, fileContent));
+			default -> multipart(url).part(new MockPart("part", "orig", fileContent));
+		};
 
 		standaloneSetup(new MultipartController()).build()
 				.perform(requestBuilder.file(jsonPart))
@@ -241,7 +234,6 @@ class MultipartControllerTests {
 		Filter filter = new RequestWrappingFilter();
 		MockMvc mockMvc = standaloneSetup(new MultipartController()).addFilter(filter).build();
 
-		Map<String, String> jsonMap = Collections.singletonMap("name", "yeeeah");
 		mockMvc.perform(multipart("/json").file(jsonPart)).andExpect(status().isFound());
 	}
 

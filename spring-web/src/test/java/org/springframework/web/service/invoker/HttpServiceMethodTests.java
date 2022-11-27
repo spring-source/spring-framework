@@ -64,8 +64,7 @@ public class HttpServiceMethodTests {
 
 	@BeforeEach
 	void setUp() throws Exception {
-		this.proxyFactory = new HttpServiceProxyFactory(this.client);
-		this.proxyFactory.afterPropertiesSet();
+		this.proxyFactory = HttpServiceProxyFactory.builder(this.client).build();
 	}
 
 
@@ -174,10 +173,10 @@ public class HttpServiceMethodTests {
 	}
 
 	@Test
-	void typeAndMethodAnnotatedService() throws Exception {
-		HttpServiceProxyFactory proxyFactory = new HttpServiceProxyFactory(this.client);
-		proxyFactory.setEmbeddedValueResolver(value -> (value.equals("${baseUrl}") ? "/base" : value));
-		proxyFactory.afterPropertiesSet();
+	void typeAndMethodAnnotatedService() {
+		HttpServiceProxyFactory proxyFactory = HttpServiceProxyFactory.builder(this.client)
+				.embeddedValueResolver(value -> (value.equals("${baseUrl}") ? "/base" : value))
+				.build();
 
 		MethodLevelAnnotatedService service = proxyFactory.createClient(TypeAndMethodLevelAnnotatedService.class);
 

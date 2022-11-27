@@ -16,10 +16,14 @@
 
 package org.springframework.web.reactive.result.method.annotation;
 
+import java.util.Locale;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import reactor.core.publisher.Mono;
 
+import org.springframework.context.MessageSource;
+import org.springframework.context.MessageSourceAware;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
@@ -55,12 +59,21 @@ import org.springframework.web.server.UnsupportedMediaTypeStatusException;
  * @author Rossen Stoyanchev
  * @since 6.0
  */
-public abstract class ResponseEntityExceptionHandler {
+public abstract class ResponseEntityExceptionHandler implements MessageSourceAware {
 
 	/**
 	 * Common logger for use in subclasses.
 	 */
 	protected final Log logger = LogFactory.getLog(getClass());
+
+	@Nullable
+	private MessageSource messageSource;
+
+
+	@Override
+	public void setMessageSource(MessageSource messageSource) {
+		this.messageSource = messageSource;
+	}
 
 
 	/**
@@ -280,6 +293,38 @@ public abstract class ResponseEntityExceptionHandler {
 	}
 
 	/**
+	 * Convenience method to create a {@link ProblemDetail} for any exception
+	 * that doesn't implement {@link ErrorResponse}, also performing a
+	 * {@link MessageSource} lookup for the "detail" field.
+	 * @param ex the exception being handled
+	 * @param status the status to associate with the exception
+	 * @param defaultDetail default value for the "detail" field
+	 * @param detailMessageCode the code to use to look up the "detail" field
+	 * through a {@code MessageSource}, falling back on
+	 * {@link ErrorResponse#getDefaultDetailMessageCode(Class, String)}
+	 * @param detailMessageArguments the arguments to go with the detailMessageCode
+	 * @return the created {@code ProblemDetail} instance
+	 */
+	protected ProblemDetail createProblemDetail(
+			Exception ex, HttpStatusCode status, String defaultDetail, @Nullable String detailMessageCode,
+			@Nullable Object[] detailMessageArguments, ServerWebExchange exchange) {
+
+		ErrorResponse.Builder builder = ErrorResponse.builder(ex, status, defaultDetail);
+		if (detailMessageCode != null) {
+			builder.detailMessageCode(detailMessageCode);
+		}
+		if (detailMessageArguments != null) {
+			builder.detailMessageArguments(detailMessageArguments);
+		}
+		return builder.build().updateAndGetBody(this.messageSource, getLocale(exchange));
+	}
+
+	private static Locale getLocale(ServerWebExchange exchange) {
+		Locale locale = exchange.getLocaleContext().getLocale();
+		return (locale != null ? locale : Locale.getDefault());
+	}
+
+	/**
 	 * Internal handler method that all others in this class delegate to, for
 	 * common handling, and for the creation of a {@link ResponseEntity}.
 	 * <p>The default implementation does the following:
@@ -298,7 +343,7 @@ public abstract class ResponseEntityExceptionHandler {
 	 * @return a {@code Mono} with the {@code ResponseEntity} for the response
 	 */
 	protected Mono<ResponseEntity<Object>> handleExceptionInternal(
-			Exception ex, @Nullable Object body, HttpHeaders headers, HttpStatusCode status,
+			Exception ex, @Nullable Object body, @Nullable HttpHeaders headers, HttpStatusCode status,
 			ServerWebExchange exchange) {
 
 		if (exchange.getResponse().isCommitted()) {
@@ -306,7 +351,7 @@ public abstract class ResponseEntityExceptionHandler {
 		}
 
 		if (body == null && ex instanceof ErrorResponse errorResponse) {
-			body = errorResponse.getBody();
+			body = errorResponse.updateAndGetBody(this.messageSource, getLocale(exchange));
 		}
 
 		return createResponseEntity(body, headers, status, exchange);
@@ -325,7 +370,8 @@ public abstract class ResponseEntityExceptionHandler {
 	 * @since 6.0
 	 */
 	protected Mono<ResponseEntity<Object>> createResponseEntity(
-			@Nullable Object body, HttpHeaders headers, HttpStatusCode status, ServerWebExchange exchange) {
+			@Nullable Object body, @Nullable HttpHeaders headers, HttpStatusCode status,
+			ServerWebExchange exchange) {
 
 		return Mono.just(new ResponseEntity<>(body, headers, status));
 	}

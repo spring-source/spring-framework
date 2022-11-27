@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ import org.springframework.web.context.ServletContextAware;
  * {@link org.springframework.context.support.AbstractApplicationContext},
  * this class detects a bean of type {@link org.springframework.ui.context.ThemeSource}
  * in the context, under the special bean name "themeSource".
- * Theme support is deprecated as of 6.0
+ * Theme support is deprecated as of 6.0 with no direct replacement.
  *
  * <p><b>This is the web context to be subclassed for a different bean definition format.</b>
  * Such a context implementation can be specified as "contextClass" context-param
@@ -209,8 +209,8 @@ public abstract class AbstractRefreshableWebApplicationContext extends AbstractR
 	@Override
 	protected void initPropertySources() {
 		ConfigurableEnvironment env = getEnvironment();
-		if (env instanceof ConfigurableWebEnvironment) {
-			((ConfigurableWebEnvironment) env).initPropertySources(this.servletContext, this.servletConfig);
+		if (env instanceof ConfigurableWebEnvironment configurableWebEnv) {
+			configurableWebEnv.initPropertySources(this.servletContext, this.servletConfig);
 		}
 	}
 

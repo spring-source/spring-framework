@@ -69,7 +69,6 @@ import org.springframework.context.weaving.LoadTimeWeaverAware;
 import org.springframework.context.weaving.LoadTimeWeaverAwareProcessor;
 import org.springframework.core.NativeDetector;
 import org.springframework.core.ResolvableType;
-import org.springframework.core.SpringProperties;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -158,13 +157,6 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * @see org.springframework.context.event.SimpleApplicationEventMulticaster
 	 */
 	public static final String APPLICATION_EVENT_MULTICASTER_BEAN_NAME = "applicationEventMulticaster";
-
-	/**
-	 * Boolean flag controlled by a {@code spring.spel.ignore} system property that instructs Spring to
-	 * ignore SpEL, i.e. to not initialize the SpEL infrastructure.
-	 * <p>The default is "false".
-	 */
-	private static final boolean shouldIgnoreSpel = SpringProperties.getFlag("spring.spel.ignore");
 
 
 	static {
@@ -403,8 +395,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// Decorate event as an ApplicationEvent if necessary
 		ApplicationEvent applicationEvent;
-		if (event instanceof ApplicationEvent) {
-			applicationEvent = (ApplicationEvent) event;
+		if (event instanceof ApplicationEvent applEvent) {
+			applicationEvent = applEvent;
 		}
 		else {
 			applicationEvent = new PayloadApplicationEvent<>(this, event, eventType);
@@ -423,8 +415,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// Publish event via parent context as well...
 		if (this.parent != null) {
-			if (this.parent instanceof AbstractApplicationContext) {
-				((AbstractApplicationContext) this.parent).publishEvent(event, eventType);
+			if (this.parent instanceof AbstractApplicationContext abstractApplicationContext) {
+				abstractApplicationContext.publishEvent(event, eventType);
 			}
 			else {
 				this.parent.publishEvent(event);
@@ -447,7 +439,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 	@Override
 	public void setApplicationStartup(ApplicationStartup applicationStartup) {
-		Assert.notNull(applicationStartup, "applicationStartup should not be null");
+		Assert.notNull(applicationStartup, "applicationStartup must not be null");
 		this.applicationStartup = applicationStartup;
 	}
 
@@ -505,8 +497,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		this.parent = parent;
 		if (parent != null) {
 			Environment parentEnvironment = parent.getEnvironment();
-			if (parentEnvironment instanceof ConfigurableEnvironment) {
-				getEnvironment().merge((ConfigurableEnvironment) parentEnvironment);
+			if (parentEnvironment instanceof ConfigurableEnvironment configurableEnvironment) {
+				getEnvironment().merge(configurableEnvironment);
 			}
 		}
 	}
@@ -719,36 +711,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		//设置bean工厂的类加载器为当前application应用的加载器
 		beanFactory.setBeanClassLoader(getClassLoader());
-		// 是否忽略 SPEL表达式 解析
-		if (!shouldIgnoreSpel) {
-			//为bean工厂设置我们标准的SPEL表达式解析器对象StandardBeanExpressionResolver
-			/**
-			 * 添加bean表达式解释器，为了能够让我们的beanFactory去解析bean表达式模板默认以前缀“#{”开头，以后缀“}”结尾,可以修改默认额前缀后缀
-			 * 通过beanFactory.getBeanExpressionResolver()获得BeanExpressionResolver
-			 * 然后resolver.setExpressionPrefix("%{");resolver.setExpressionSuffix("}");
-			 * 那么什么时候用到这个解析器？就是在Bean进行初始化后会有属性填充的一步,方法如下:
-			 * protected void populateBean(String beanName, RootBeanDefinition mbd, BeanWrapper bw) {
-			 * 	//属性填充
-			 * 	applyPropertyValues(beanName, mbd, bw, pvs);
-			 * }
-			 * 最终会通过AbstractBeanFactory中的evaluateBeanDefinitionString方法进行解析
-			 * 然后这时候就进到StandardBeanExpressionResolver中的evaluate方法中进行解析了
-			 */
-			beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
-		}
-		//为我们的bean工厂设置了一个propertityEditor 属性资源编辑器对象(用于后面的给bean对象赋值使用)
-		/**
-		 * spring内部的属性编辑器
-		 * 添加PropertyEditor属性编辑器（可以将我们的property动态设置为bean里面对应的属性类型）
-		 * 比如：property赋值的是路径名(classpath/spring.xml)，而对应bean属性设置的是Resource，则有spring的ResourceEditor完成转换
-		 * springframework-bean下的propertyEditors包下有很多spring自带的属性编辑器
-		 * 其中刚才提到的ResourceEditor在springframework-core下的io包里面
-		 *
-		 * 可以自定义属性编辑器，通过实现PropertyEditorSupport接口，spring中自带的属性编辑器也是这么做的
-		 * 使用ApplicationContext,只需要在配置文件中通过CustomEditorConfigurer注册即可。
-		 * CustomEditorConfigurer实现了BeanFactoryPostProcessor接口，因而是一个Bean工厂后置处理器
-		 * 在Spring容器中加载配置文件并生成BeanDefinition后会被执行。CustomEditorConfigurer在容器启动时有机会注册自定义的属性编辑器
-		 */
+		beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
 		beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
 
 		//注册了一个完整的ApplicationContextAwareProcessor 后置处理器用来处理ApplicationContextAware接口的回调方法
@@ -857,12 +820,11 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		if (beanFactory.containsLocalBean(MESSAGE_SOURCE_BEAN_NAME)) {
 			this.messageSource = beanFactory.getBean(MESSAGE_SOURCE_BEAN_NAME, MessageSource.class);
 			// Make MessageSource aware of parent MessageSource.
-			if (this.parent != null && this.messageSource instanceof HierarchicalMessageSource hms) {
-				if (hms.getParentMessageSource() == null) {
-					// Only set parent context as parent MessageSource if no parent MessageSource
-					// registered already.
-					hms.setParentMessageSource(getInternalParentMessageSource());
-				}
+			if (this.parent != null && this.messageSource instanceof HierarchicalMessageSource hms &&
+					hms.getParentMessageSource() == null) {
+				// Only set parent context as parent MessageSource if no parent MessageSource
+				// registered already.
+				hms.setParentMessageSource(getInternalParentMessageSource());
 			}
 			if (logger.isTraceEnabled()) {
 				logger.trace("Using MessageSource [" + this.messageSource + "]");
@@ -1456,6 +1418,15 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		return getBeanFactory().findAnnotationOnBean(beanName, annotationType, allowFactoryBeanInit);
 	}
 
+	@Override
+	public <A extends Annotation> Set<A> findAllAnnotationsOnBean(
+			String beanName, Class<A> annotationType, boolean allowFactoryBeanInit)
+			throws NoSuchBeanDefinitionException {
+
+		assertBeanFactoryActive();
+		return getBeanFactory().findAllAnnotationsOnBean(beanName, annotationType, allowFactoryBeanInit);
+	}
+
 
 	//---------------------------------------------------------------------
 	// Implementation of HierarchicalBeanFactory interface
@@ -1481,8 +1452,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	@Nullable
 	protected BeanFactory getInternalParentBeanFactory() {
-		return (getParent() instanceof ConfigurableApplicationContext ?
-				((ConfigurableApplicationContext) getParent()).getBeanFactory() : getParent());
+		return (getParent() instanceof ConfigurableApplicationContext cac ?
+				cac.getBeanFactory() : getParent());
 	}
 
 
@@ -1524,8 +1495,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	@Nullable
 	protected MessageSource getInternalParentMessageSource() {
-		return (getParent() instanceof AbstractApplicationContext ?
-				((AbstractApplicationContext) getParent()).messageSource : getParent());
+		return (getParent() instanceof AbstractApplicationContext abstractApplicationContext ?
+				abstractApplicationContext.messageSource : getParent());
 	}
 
 

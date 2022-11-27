@@ -111,7 +111,7 @@ public class DefaultSockJsServiceTests extends AbstractHttpRequestTests {
 		DefaultSockJsService service = new DefaultSockJsService(mock(TaskScheduler.class));
 		Map<TransportType, TransportHandler> handlers = service.getTransportHandlers();
 
-		assertThat(handlers.size()).isEqualTo(6);
+		assertThat(handlers).hasSize(6);
 		assertThat(handlers.get(TransportType.WEBSOCKET)).isNotNull();
 		assertThat(handlers.get(TransportType.XHR)).isNotNull();
 		assertThat(handlers.get(TransportType.XHR_SEND)).isNotNull();
@@ -127,7 +127,7 @@ public class DefaultSockJsServiceTests extends AbstractHttpRequestTests {
 		DefaultSockJsService service = new DefaultSockJsService(mock(TaskScheduler.class), xhrHandler);
 		Map<TransportType, TransportHandler> handlers = service.getTransportHandlers();
 
-		assertThat(handlers.size()).isEqualTo(6);
+		assertThat(handlers).hasSize(6);
 		assertThat(handlers.get(xhrHandler.getTransportType())).isSameAs(xhrHandler);
 	}
 
@@ -143,7 +143,7 @@ public class DefaultSockJsServiceTests extends AbstractHttpRequestTests {
 				mock(TaskScheduler.class), new XhrPollingTransportHandler(), new XhrReceivingTransportHandler());
 		Map<TransportType, TransportHandler> actualHandlers = service.getTransportHandlers();
 
-		assertThat(actualHandlers.size()).isEqualTo(2);
+		assertThat(actualHandlers).hasSize(2);
 	}
 
 	@Test
@@ -187,7 +187,7 @@ public class DefaultSockJsServiceTests extends AbstractHttpRequestTests {
 	public void handleTransportRequestXhrSameOrigin() throws Exception {
 		String sockJsPath = sessionUrlPrefix + "xhr";
 		setRequest("POST", sockJsPrefix + sockJsPath);
-		this.service.setAllowedOrigins(Arrays.asList("https://mydomain1.example"));
+		this.service.setAllowedOrigins(List.of("https://mydomain1.example"));
 		this.servletRequest.addHeader(HttpHeaders.ORIGIN, "https://mydomain1.example");
 		this.servletRequest.setServerName("mydomain2.example");
 		this.service.handleRequest(this.request, this.response, sockJsPath, this.wsHandler);
@@ -199,7 +199,7 @@ public class DefaultSockJsServiceTests extends AbstractHttpRequestTests {
 	public void handleInvalidTransportType() throws Exception {
 		String sockJsPath = sessionUrlPrefix + "invalid";
 		setRequest("POST", sockJsPrefix + sockJsPath);
-		this.service.setAllowedOrigins(Arrays.asList("https://mydomain1.example"));
+		this.service.setAllowedOrigins(List.of("https://mydomain1.example"));
 		this.servletRequest.addHeader(HttpHeaders.ORIGIN, "https://mydomain2.example");
 		this.servletRequest.setServerName("mydomain2.example");
 		this.service.handleRequest(this.request, this.response, sockJsPath, this.wsHandler);

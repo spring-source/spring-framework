@@ -46,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Tests for {@link RuntimeHintsBeanFactoryInitializationAotProcessor}.
  *
  * @author Brian Clozel
+ * @author Sebastien Deleuze
  */
 class RuntimeHintsBeanFactoryInitializationAotProcessorTests {
 
@@ -66,6 +67,15 @@ class RuntimeHintsBeanFactoryInitializationAotProcessorTests {
 		this.generator.processAheadOfTime(applicationContext,
 				this.generationContext);
 		assertThatSampleRegistrarContributed();
+	}
+
+	@Test
+	void shouldProcessRegistrarsOnInheritedConfiguration() {
+		GenericApplicationContext applicationContext = createApplicationContext(
+				ExtendedConfigurationWithHints.class);
+		this.generator.processAheadOfTime(applicationContext,
+				this.generationContext);
+		assertThatInheritedSampleRegistrarContributed();
 	}
 
 	@Test
@@ -100,7 +110,7 @@ class RuntimeHintsBeanFactoryInitializationAotProcessorTests {
 		this.generator.processAheadOfTime(applicationContext,
 				this.generationContext);
 		RuntimeHints runtimeHints = this.generationContext.getRuntimeHints();
-		assertThat(runtimeHints.resources().resourceBundles().map(ResourceBundleHint::getBaseName))
+		assertThat(runtimeHints.resources().resourceBundleHints().map(ResourceBundleHint::getBaseName))
 				.containsOnly("com.example.example0", "sample");
 		assertThat(IncrementalRuntimeHintsRegistrar.counter.get()).isEqualTo(1);
 	}
@@ -116,9 +126,17 @@ class RuntimeHintsBeanFactoryInitializationAotProcessorTests {
 
 	private void assertThatSampleRegistrarContributed() {
 		Stream<ResourceBundleHint> bundleHints = this.generationContext.getRuntimeHints()
-				.resources().resourceBundles();
+				.resources().resourceBundleHints();
 		assertThat(bundleHints)
 				.anyMatch(bundleHint -> "sample".equals(bundleHint.getBaseName()));
+	}
+
+	private void assertThatInheritedSampleRegistrarContributed() {
+		assertThatSampleRegistrarContributed();
+		Stream<ResourceBundleHint> bundleHints = this.generationContext.getRuntimeHints()
+				.resources().resourceBundleHints();
+		assertThat(bundleHints)
+				.anyMatch(bundleHint -> "extendedSample".equals(bundleHint.getBaseName()));
 	}
 
 	private GenericApplicationContext createApplicationContext(
@@ -138,6 +156,10 @@ class RuntimeHintsBeanFactoryInitializationAotProcessorTests {
 	static class ConfigurationWithHints {
 	}
 
+	@Configuration(proxyBeanMethods = false)
+	@ImportRuntimeHints(ExtendedSampleRuntimeHintsRegistrar.class)
+	static class ExtendedConfigurationWithHints extends ConfigurationWithHints {
+	}
 
 	@Configuration(proxyBeanMethods = false)
 	static class ConfigurationWithBeanDeclaringHints {
@@ -155,6 +177,15 @@ class RuntimeHintsBeanFactoryInitializationAotProcessorTests {
 		@Override
 		public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
 			hints.resources().registerResourceBundle("sample");
+		}
+
+	}
+
+	public static class ExtendedSampleRuntimeHintsRegistrar implements RuntimeHintsRegistrar {
+
+		@Override
+		public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
+			hints.resources().registerResourceBundle("extendedSample");
 		}
 
 	}

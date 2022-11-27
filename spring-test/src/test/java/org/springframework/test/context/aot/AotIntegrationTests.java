@@ -16,7 +16,6 @@
 
 package org.springframework.test.context.aot;
 
-
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -37,8 +36,10 @@ import org.opentest4j.MultipleFailuresError;
 import org.springframework.aot.AotDetector;
 import org.springframework.aot.generate.GeneratedFiles.Kind;
 import org.springframework.aot.generate.InMemoryGeneratedFiles;
-import org.springframework.aot.test.generate.compile.CompileWithTargetClassAccess;
-import org.springframework.aot.test.generate.compile.TestCompiler;
+import org.springframework.aot.test.generate.CompilerFiles;
+import org.springframework.core.test.tools.CompileWithForkedClassLoader;
+import org.springframework.core.test.tools.TestCompiler;
+import org.springframework.test.context.aot.samples.basic.BasicSpringJupiterImportedConfigTests;
 import org.springframework.test.context.aot.samples.basic.BasicSpringJupiterSharedConfigTests;
 import org.springframework.test.context.aot.samples.basic.BasicSpringJupiterTests;
 import org.springframework.test.context.aot.samples.basic.BasicSpringTestNGTests;
@@ -54,7 +55,7 @@ import static org.junit.platform.launcher.TagFilter.excludeTags;
  * @author Sam Brannen
  * @since 6.0
  */
-@CompileWithTargetClassAccess
+@CompileWithForkedClassLoader
 class AotIntegrationTests extends AbstractAotTests {
 
 	private static final String CLASSPATH_ROOT = "AotSmokeTests.classpath_root";
@@ -92,13 +93,17 @@ class AotIntegrationTests extends AbstractAotTests {
 		assertThat(sourceFiles).containsExactlyInAnyOrder(expectedSourceFilesForBasicSpringTests);
 
 		// AOT BUILD-TIME: COMPILATION
-		TestCompiler.forSystem().withFiles(generatedFiles)
+		TestCompiler.forSystem().with(CompilerFiles.from(generatedFiles))
 			// .printFiles(System.out)
 			.compile(compiled ->
 				// AOT RUN-TIME: EXECUTION
-				runTestsInAotMode(5, List.of(
+				runTestsInAotMode(6, List.of(
 					BasicSpringJupiterSharedConfigTests.class,
 					BasicSpringJupiterTests.class, // NestedTests get executed automatically
+					// Run @Import tests AFTER the tests with otherwise identical config
+					// in order to ensure that the other test classes are not accidentally
+					// using the config for the @Import tests.
+					BasicSpringJupiterImportedConfigTests.class,
 					BasicSpringTestNGTests.class,
 					BasicSpringVintageTests.class)));
 	}
@@ -123,7 +128,7 @@ class AotIntegrationTests extends AbstractAotTests {
 		generator.processAheadOfTime(testClasses.stream());
 
 		// AOT BUILD-TIME: COMPILATION
-		TestCompiler.forSystem().withFiles(generatedFiles)
+		TestCompiler.forSystem().with(CompilerFiles.from(generatedFiles))
 			// .printFiles(System.out)
 			.compile(compiled ->
 				// AOT RUN-TIME: EXECUTION

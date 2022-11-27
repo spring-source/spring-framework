@@ -79,7 +79,7 @@ import static org.springframework.core.annotation.MergedAnnotations.SearchStrate
  * @author Sam Brannen
  * @since 6.0
  */
-public class TestClassScanner {
+class TestClassScanner {
 
 	// JUnit Jupiter
 	private static final String EXTEND_WITH_ANNOTATION_NAME = "org.junit.jupiter.api.extension.ExtendWith";
@@ -103,7 +103,7 @@ public class TestClassScanner {
 	 * absolute path to the project's {@code build/classes/java/test} folder.
 	 * @param classpathRoots the classpath roots to scan
 	 */
-	public TestClassScanner(Set<Path> classpathRoots) {
+	TestClassScanner(Set<Path> classpathRoots) {
 		this.classpathRoots = assertPreconditions(classpathRoots);
 	}
 
@@ -111,7 +111,7 @@ public class TestClassScanner {
 	/**
 	 * Scan the configured classpath roots for Spring integration test classes.
 	 */
-	public Stream<Class<?>> scan() {
+	Stream<Class<?>> scan() {
 		return scan(new String[0]);
 	}
 
@@ -205,7 +205,6 @@ public class TestClassScanner {
 		return (mergedAnnotations.isPresent(ContextConfiguration.class) ||
 				mergedAnnotations.isPresent(BootstrapWith.class));
 	}
-
 
 	private static Set<Path> assertPreconditions(Set<Path> classpathRoots) {
 		Assert.notEmpty(classpathRoots, "'classpathRoots' must not be null or empty");
