@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,6 +73,21 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 		GetterBean target = new GetterBean();
 		BeanWrapper accessor = createAccessor(target);
 		accessor.setPropertyValue("aliasedName", "tom");
+		assertThat(target.getAliasedName()).isEqualTo("tom");
+		assertThat(accessor.getPropertyValue("aliasedName")).isEqualTo("tom");
+	}
+
+	@Test
+	void replaceWrappedInstance() {
+		GetterBean target = new GetterBean();
+		BeanWrapperImpl accessor = createAccessor(target);
+		accessor.setPropertyValue("name", "tom");
+		assertThat(target.getAliasedName()).isEqualTo("tom");
+		assertThat(accessor.getPropertyValue("aliasedName")).isEqualTo("tom");
+
+		target = new GetterBean();
+		accessor.setWrappedInstance(target);
+		accessor.setPropertyValue("name", "tom");
 		assertThat(target.getAliasedName()).isEqualTo("tom");
 		assertThat(accessor.getPropertyValue("aliasedName")).isEqualTo("tom");
 	}
@@ -380,6 +395,7 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 	}
 
 
+	@SuppressWarnings("try")
 	public static class ActiveResource implements AutoCloseable {
 
 		public ActiveResource getResource() {

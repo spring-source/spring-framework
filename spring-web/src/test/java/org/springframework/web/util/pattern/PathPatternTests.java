@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -684,6 +684,7 @@ public class PathPatternTests {
 		checkExtractPathWithinPattern("/docs/commit.html", "/docs/commit.html", "");
 		checkExtractPathWithinPattern("/docs/*", "/docs/cvs/commit", "cvs/commit");
 		checkExtractPathWithinPattern("/docs/cvs/*.html", "/docs/cvs/commit.html", "commit.html");
+		checkExtractPathWithinPattern("/docs/cvs/file.*.html", "/docs/cvs/file.sha.html", "file.sha.html");
 		checkExtractPathWithinPattern("/docs/**", "/docs/cvs/commit", "cvs/commit");
 		checkExtractPathWithinPattern("/doo/{*foobar}", "/doo/customer.html", "customer.html");
 		checkExtractPathWithinPattern("/doo/{*foobar}", "/doo/daa/customer.html", "daa/customer.html");

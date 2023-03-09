@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ import org.springframework.util.StringUtils;
  * @author Mark Paluch
  * @author Mingyuan Wu
  * @author Bogdan Ilchyshyn
+ * @author Simon Baslé
  * @since 5.3
  */
 class DefaultDatabaseClient implements DatabaseClient {
@@ -158,11 +159,9 @@ class DefaultDatabaseClient implements DatabaseClient {
 	/**
 	 * Release the {@link Connection}.
 	 * @param connection to close.
-	 * @return a {@link Publisher} that completes successfully when the connection is
-	 * closed
+	 * @return a {@link Publisher} that completes successfully when the connection is closed
 	 */
 	private Publisher<Void> closeConnection(Connection connection) {
-
 		return ConnectionFactoryUtils.currentConnectionFactory(
 				obtainConnectionFactory()).then().onErrorResume(Exception.class,
 						e -> Mono.from(connection.close()));
@@ -188,24 +187,22 @@ class DefaultDatabaseClient implements DatabaseClient {
 				new CloseSuppressingInvocationHandler(con));
 	}
 
-	private static Mono<Integer> sumRowsUpdated(
-			Function<Connection, Flux<Result>> resultFunction, Connection it) {
+	private static Mono<Integer> sumRowsUpdated(Function<Connection, Flux<Result>> resultFunction, Connection it) {
 		return resultFunction.apply(it)
 				.flatMap(Result::getRowsUpdated)
 				.collect(Collectors.summingInt(Integer::intValue));
 	}
 
 	/**
-	 * Determine SQL from potential provider object.
-	 * @param sqlProvider object that's potentially a SqlProvider
+	 * Get SQL from a potential provider object.
+	 * @param object an object that is potentially an SqlProvider
 	 * @return the SQL string, or {@code null}
 	 * @see SqlProvider
 	 */
 	@Nullable
-	private static String getSql(Object sqlProvider) {
-
-		if (sqlProvider instanceof SqlProvider) {
-			return ((SqlProvider) sqlProvider).getSql();
+	private static String getSql(Object object) {
+		if (object instanceof SqlProvider) {
+			return ((SqlProvider) object).getSql();
 		}
 		else {
 			return null;
@@ -214,7 +211,7 @@ class DefaultDatabaseClient implements DatabaseClient {
 
 
 	/**
-	 * Base class for {@link DatabaseClient.GenericExecuteSpec} implementations.
+	 * Default {@link DatabaseClient.GenericExecuteSpec} implementation.
 	 */
 	class DefaultGenericExecuteSpec implements GenericExecuteSpec {
 
@@ -322,9 +319,8 @@ class DefaultDatabaseClient implements DatabaseClient {
 			return fetch().rowsUpdated().then();
 		}
 
-		private <T> FetchSpec<T> execute(Supplier<String> sqlSupplier, BiFunction<Row, RowMetadata, T> mappingFunction) {
-			String sql = getRequiredSql(sqlSupplier);
-			Function<Connection, Statement> statementFunction = connection -> {
+		private ResultFunction getResultFunction(Supplier<String> sqlSupplier) {
+			BiFunction<Connection, String, Statement> statementFunction = (connection, sql) -> {
 				if (logger.isDebugEnabled()) {
 					logger.debug("Executing SQL statement [" + sql + "]");
 				}
@@ -370,16 +366,16 @@ class DefaultDatabaseClient implements DatabaseClient {
 				return statement;
 			};
 
-			Function<Connection, Flux<Result>> resultFunction = connection -> {
-				Statement statement = statementFunction.apply(connection);
-				return Flux.from(this.filterFunction.filter(statement, DefaultDatabaseClient.this.executeFunction))
-				.cast(Result.class).checkpoint("SQL \"" + sql + "\" [DatabaseClient]");
-			};
+			return new ResultFunction(sqlSupplier, statementFunction, this.filterFunction, DefaultDatabaseClient.this.executeFunction);
+		}
+
+		private <T> FetchSpec<T> execute(Supplier<String> sqlSupplier, BiFunction<Row, RowMetadata, T> mappingFunction) {
+			ResultFunction resultHandler = getResultFunction(sqlSupplier);
 
 			return new DefaultFetchSpec<>(
-					DefaultDatabaseClient.this, sql,
-					new ConnectionFunction<>(sql, resultFunction),
-					new ConnectionFunction<>(sql, connection -> sumRowsUpdated(resultFunction, connection)),
+					DefaultDatabaseClient.this,
+					resultHandler,
+					connection -> sumRowsUpdated(resultHandler, connection),
 					mappingFunction);
 		}
 
@@ -505,12 +501,11 @@ class DefaultDatabaseClient implements DatabaseClient {
 
 		private static final long serialVersionUID = -8994138383301201380L;
 
-		final Connection connection;
+		final transient Connection connection;
 
-		final Function<Connection, Publisher<Void>> closeFunction;
+		final transient Function<Connection, Publisher<Void>> closeFunction;
 
-		ConnectionCloseHolder(Connection connection,
-				Function<Connection, Publisher<Void>> closeFunction) {
+		ConnectionCloseHolder(Connection connection, Function<Connection, Publisher<Void>> closeFunction) {
 			this.connection = connection;
 			this.closeFunction = closeFunction;
 		}
