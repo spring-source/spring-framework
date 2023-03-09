@@ -78,6 +78,21 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 	}
 
 	@Test
+	void replaceWrappedInstance() {
+		GetterBean target = new GetterBean();
+		BeanWrapperImpl accessor = createAccessor(target);
+		accessor.setPropertyValue("name", "tom");
+		assertThat(target.getAliasedName()).isEqualTo("tom");
+		assertThat(accessor.getPropertyValue("aliasedName")).isEqualTo("tom");
+
+		target = new GetterBean();
+		accessor.setWrappedInstance(target);
+		accessor.setPropertyValue("name", "tom");
+		assertThat(target.getAliasedName()).isEqualTo("tom");
+		assertThat(accessor.getPropertyValue("aliasedName")).isEqualTo("tom");
+	}
+
+	@Test
 	void setValidAndInvalidPropertyValuesShouldContainExceptionDetails() {
 		TestBean target = new TestBean();
 		String newName = "tony";
@@ -380,6 +395,7 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 	}
 
 
+	@SuppressWarnings("try")
 	public static class ActiveResource implements AutoCloseable {
 
 		public ActiveResource getResource() {

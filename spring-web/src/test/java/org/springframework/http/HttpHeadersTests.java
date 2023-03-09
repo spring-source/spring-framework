@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -153,7 +153,7 @@ public class HttpHeadersTests {
 
 	@Test
 	void location() throws URISyntaxException {
-		URI location = new URI("https://www.example.com/hotels");
+		URI location = URI.create("https://www.example.com/hotels");
 		headers.setLocation(location);
 		assertThat(headers.getLocation()).as("Invalid Location header").isEqualTo(location);
 		assertThat(headers.getFirst("Location")).as("Invalid Location header").isEqualTo("https://www.example.com/hotels");
@@ -711,6 +711,21 @@ public class HttpHeadersTests {
 
 		assertThat(headers1).isEqualTo(headers2);
 		assertThat(headers2).isEqualTo(headers1);
+	}
+
+	@Test
+	void getValuesAsList() {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("Foo", "Bar");
+		headers.add("Foo", "Baz, Qux");
+		headers.add("Quux", "\t\"Corge\", \"Grault\"");
+		headers.add("Garply", " Waldo \"Fred\\!\", \"\tPlugh, Xyzzy! \"");
+		headers.add("Example-Dates", "\"Sat, 04 May 1996\", \"Wed, 14 Sep 2005\"");
+
+		assertThat(headers.getValuesAsList("Foo")).containsExactly("Bar", "Baz", "Qux");
+		assertThat(headers.getValuesAsList("Quux")).containsExactly("Corge", "Grault");
+		assertThat(headers.getValuesAsList("Garply")).containsExactly("Waldo \"Fred\\!\"", "\tPlugh, Xyzzy! ");
+		assertThat(headers.getValuesAsList("Example-Dates")).containsExactly("Sat, 04 May 1996", "Wed, 14 Sep 2005");
 	}
 
 }

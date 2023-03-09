@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -200,8 +200,8 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 	 */
 	@Nullable
 	private ClassLoader determinePointcutClassLoader() {
-		if (this.beanFactory instanceof ConfigurableBeanFactory) {
-			return ((ConfigurableBeanFactory) this.beanFactory).getBeanClassLoader();
+		if (this.beanFactory instanceof ConfigurableBeanFactory cbf) {
+			return cbf.getBeanClassLoader();
 		}
 		if (this.pointcutDeclarationScope != null) {
 			return this.pointcutDeclarationScope.getClassLoader();
@@ -335,10 +335,10 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 		try {
 			MethodInvocation mi = ExposeInvocationInterceptor.currentInvocation();
 			targetObject = mi.getThis();
-			if (!(mi instanceof ProxyMethodInvocation)) {
+			if (!(mi instanceof ProxyMethodInvocation _pmi)) {
 				throw new IllegalStateException("MethodInvocation is not a Spring ProxyMethodInvocation: " + mi);
 			}
-			pmi = (ProxyMethodInvocation) mi;
+			pmi = _pmi;
 			thisObject = pmi.getProxy();
 		}
 		catch (IllegalStateException ex) {
@@ -404,8 +404,8 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 	}
 
 	private RuntimeTestWalker getRuntimeTestWalker(ShadowMatch shadowMatch) {
-		if (shadowMatch instanceof DefensiveShadowMatch) {
-			return new RuntimeTestWalker(((DefensiveShadowMatch) shadowMatch).primary);
+		if (shadowMatch instanceof DefensiveShadowMatch defensiveShadowMatch) {
+			return new RuntimeTestWalker(defensiveShadowMatch.primary);
 		}
 		return new RuntimeTestWalker(shadowMatch);
 	}
@@ -422,7 +422,8 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 
 	private ShadowMatch getTargetShadowMatch(Method method, Class<?> targetClass) {
 		Method targetMethod = AopUtils.getMostSpecificMethod(method, targetClass);
-		if (targetMethod.getDeclaringClass().isInterface()) {
+		if (targetMethod.getDeclaringClass().isInterface() && targetMethod.getDeclaringClass() != targetClass &&
+				obtainPointcutExpression().getPointcutExpression().contains("." + targetMethod.getName() + "(")) {
 			// Try to build the most specific interface possible for inherited methods to be
 			// considered for sub-interface matches as well, in particular for proxy classes.
 			// Note: AspectJ is only going to take Method.getDeclaringClass() into account.

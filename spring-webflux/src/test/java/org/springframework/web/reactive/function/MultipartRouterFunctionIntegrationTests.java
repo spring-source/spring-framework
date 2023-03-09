@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ import static org.springframework.web.reactive.function.server.RouterFunctions.r
 /**
  * @author Sebastien Deleuze
  */
-class MultipartIntegrationTests extends AbstractRouterFunctionIntegrationTests {
+class MultipartRouterFunctionIntegrationTests extends AbstractRouterFunctionIntegrationTests {
 
 	private final WebClient webClient = WebClient.create();
 
@@ -163,6 +163,8 @@ class MultipartIntegrationTests extends AbstractRouterFunctionIntegrationTests {
 
 	@ParameterizedHttpServerTest
 	void proxy(HttpServer httpServer) throws Exception {
+		assumeFalse(httpServer instanceof UndertowHttpServer, "Undertow currently fails proxying requests");
+
 		startServer(httpServer);
 
 		Mono<ResponseEntity<Void>> result = webClient
@@ -240,7 +242,7 @@ class MultipartIntegrationTests extends AbstractRouterFunctionIntegrationTests {
 
 		public Mono<ServerResponse> transferTo(ServerRequest request) {
 			return request.body(BodyExtractors.toParts())
-					.filter(part -> part instanceof FilePart)
+					.filter(FilePart.class::isInstance)
 					.next()
 					.cast(FilePart.class)
 					.flatMap(part -> createTempFile()

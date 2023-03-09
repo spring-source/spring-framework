@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ public final class SourceFile extends DynamicFile implements AssertProvider<Sour
 		super(path, content);
 		this.className = className;
 	}
+
 
 	/**
 	 * Factory method to create a new {@link SourceFile} by looking up source
@@ -180,9 +181,8 @@ public final class SourceFile extends DynamicFile implements AssertProvider<Sour
 			}
 			Assert.state(javaSource.getClasses().size() == 1, "Source must define a single class");
 			JavaClass javaClass = javaSource.getClasses().get(0);
-			return (javaSource.getPackage() != null)
-					? javaSource.getPackageName() + "." + javaClass.getName()
-					: javaClass.getName();
+			return (javaSource.getPackage() != null) ?
+					(javaSource.getPackageName() + "." + javaClass.getName()) : javaClass.getName();
 		}
 		catch (Exception ex) {
 			throw new IllegalStateException(
@@ -227,7 +227,5 @@ public final class SourceFile extends DynamicFile implements AssertProvider<Sour
 	public SourceFileAssert assertThat() {
 		return new SourceFileAssert(this);
 	}
-
-
 
 }

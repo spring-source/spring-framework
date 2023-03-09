@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -200,7 +200,7 @@ public class WebFluxConfigurationSupportTests {
 		assertThat(handler.getOrder()).isEqualTo(0);
 
 		List<HttpMessageWriter<?>> writers = handler.getMessageWriters();
-		assertThat(writers).hasSize(14);
+		assertThat(writers).hasSize(16);
 
 		assertHasMessageWriter(writers, forClass(byte[].class), APPLICATION_OCTET_STREAM);
 		assertHasMessageWriter(writers, forClass(ByteBuffer.class), APPLICATION_OCTET_STREAM);
@@ -228,7 +228,7 @@ public class WebFluxConfigurationSupportTests {
 		assertThat(handler.getOrder()).isEqualTo(100);
 
 		List<HttpMessageWriter<?>> writers = handler.getMessageWriters();
-		assertThat(writers).hasSize(14);
+		assertThat(writers).hasSize(16);
 
 		assertHasMessageWriter(writers, forClass(byte[].class), APPLICATION_OCTET_STREAM);
 		assertHasMessageWriter(writers, forClass(ByteBuffer.class), APPLICATION_OCTET_STREAM);
@@ -333,7 +333,7 @@ public class WebFluxConfigurationSupportTests {
 
 		@GetMapping("/{id}")
 		public Principal getUser() {
-			return mock(Principal.class);
+			return mock();
 		}
 	}
 

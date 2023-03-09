@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,11 +42,12 @@ import org.springframework.web.testfixture.http.server.reactive.bootstrap.Abstra
 import org.springframework.web.testfixture.http.server.reactive.bootstrap.HttpServer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /**
  * @author Sebastien Deleuze
  */
-class MultipartIntegrationTests extends AbstractHttpHandlerIntegrationTests {
+class MultipartHttpHandlerIntegrationTests extends AbstractHttpHandlerIntegrationTests {
 
 	@Override
 	protected HttpHandler createHttpHandler() {
@@ -54,20 +55,23 @@ class MultipartIntegrationTests extends AbstractHttpHandlerIntegrationTests {
 	}
 
 	@ParameterizedHttpServerTest
-	void getFormParts(HttpServer httpServer) throws Exception {
-		startServer(httpServer);
-
-		@SuppressWarnings("resource")
-		RestTemplate restTemplate = new RestTemplate();
-		RequestEntity<MultiValueMap<String, Object>> request = RequestEntity
-				.post(new URI("http://localhost:" + port + "/form-parts"))
-				.contentType(MediaType.MULTIPART_FORM_DATA)
-				.body(generateBody());
-		ResponseEntity<Void> response = restTemplate.exchange(request, Void.class);
-		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+	void getMultipartFormData(HttpServer httpServer) throws Exception {
+		testMultipart(httpServer, MediaType.MULTIPART_FORM_DATA);
 	}
 
-	private MultiValueMap<String, Object> generateBody() {
+	@ParameterizedHttpServerTest
+	void getMultipartMixed(HttpServer httpServer) throws Exception {
+		testMultipart(httpServer, MediaType.MULTIPART_MIXED);
+	}
+
+	@ParameterizedHttpServerTest
+	void getMultipartRelated(HttpServer httpServer) throws Exception {
+		testMultipart(httpServer, MediaType.MULTIPART_RELATED);
+	}
+
+	private void testMultipart(HttpServer httpServer, MediaType mediaType) throws Exception {
+		startServer(httpServer);
+
 		HttpHeaders fooHeaders = new HttpHeaders();
 		fooHeaders.setContentType(MediaType.TEXT_PLAIN);
 		ClassPathResource fooResource = new ClassPathResource("org/springframework/http/codec/multipart/foo.txt");
@@ -76,7 +80,12 @@ class MultipartIntegrationTests extends AbstractHttpHandlerIntegrationTests {
 		MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
 		parts.add("fooPart", fooPart);
 		parts.add("barPart", barPart);
-		return parts;
+
+		URI url = URI.create("http://localhost:" + port + "/form-parts");
+		ResponseEntity<Void> response = new RestTemplate().exchange(
+				RequestEntity.post(url).contentType(mediaType).body(parts), Void.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 	}
 
 
@@ -95,9 +104,9 @@ class MultipartIntegrationTests extends AbstractHttpHandlerIntegrationTests {
 					.getMultipartData()
 					.doOnNext(parts -> {
 						assertThat(parts).hasSize(2);
-						assertThat(parts.containsKey("fooPart")).isTrue();
+						assertThat(parts).containsKey("fooPart");
 						assertFooPart(parts.getFirst("fooPart"));
-						assertThat(parts.containsKey("barPart")).isTrue();
+						assertThat(parts).containsKey("barPart");
 						assertBarPart(parts.getFirst("barPart"));
 					})
 					.then();
@@ -105,9 +114,9 @@ class MultipartIntegrationTests extends AbstractHttpHandlerIntegrationTests {
 
 		private void assertFooPart(Part part) {
 			assertThat(part.name()).isEqualTo("fooPart");
-			boolean condition = part instanceof FilePart;
-			assertThat(condition).isTrue();
-			assertThat(((FilePart) part).filename()).isEqualTo("foo.txt");
+			assertThat(part)
+				.asInstanceOf(type(FilePart.class))
+				.extracting(FilePart::filename).isEqualTo("foo.txt");
 
 			StepVerifier.create(DataBufferUtils.join(part.content()))
 					.consumeNextWith(buffer -> {
@@ -121,9 +130,9 @@ class MultipartIntegrationTests extends AbstractHttpHandlerIntegrationTests {
 
 		private void assertBarPart(Part part) {
 			assertThat(part.name()).isEqualTo("barPart");
-			boolean condition = part instanceof FormFieldPart;
-			assertThat(condition).isTrue();
-			assertThat(((FormFieldPart) part).value()).isEqualTo("bar");
+			assertThat(part)
+				.asInstanceOf(type(FormFieldPart.class))
+				.extracting(FormFieldPart::value).isEqualTo("bar");
 		}
 	}
 
