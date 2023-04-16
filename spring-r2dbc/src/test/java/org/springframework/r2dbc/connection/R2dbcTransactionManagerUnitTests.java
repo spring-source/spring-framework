@@ -155,7 +155,7 @@ class R2dbcTransactionManagerUnitTests {
 		io.r2dbc.spi.TransactionDefinition def = txCaptor.getValue();
 		assertThat(def.getAttribute(io.r2dbc.spi.TransactionDefinition.NAME)).isEqualTo("my-transaction");
 		assertThat(def.getAttribute(io.r2dbc.spi.TransactionDefinition.LOCK_WAIT_TIMEOUT)).isEqualTo(Duration.ofSeconds(10));
-		assertThat(def.getAttribute(io.r2dbc.spi.TransactionDefinition.READ_ONLY)).isEqualTo(true);
+		assertThat(def.getAttribute(io.r2dbc.spi.TransactionDefinition.READ_ONLY)).isTrue();
 		assertThat(def.getAttribute(io.r2dbc.spi.TransactionDefinition.ISOLATION_LEVEL)).isEqualTo(IsolationLevel.SERIALIZABLE);
 	}
 
@@ -270,6 +270,7 @@ class R2dbcTransactionManagerUnitTests {
 		verify(connectionMock).beginTransaction(any(io.r2dbc.spi.TransactionDefinition.class));
 		verify(connectionMock).createStatement("foo");
 		verify(connectionMock).commitTransaction();
+		verify(connectionMock).rollbackTransaction();
 		verify(connectionMock).close();
 		verifyNoMoreInteractions(connectionMock);
 	}
