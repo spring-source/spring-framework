@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -184,8 +184,9 @@ public abstract class YamlProcessor {
 	protected Yaml createYaml() {
 		LoaderOptions loaderOptions = new LoaderOptions();
 		loaderOptions.setAllowDuplicateKeys(false);
-		return new Yaml(new FilteringConstructor(loaderOptions), new Representer(),
-				new DumperOptions(), loaderOptions);
+		DumperOptions dumperOptions = new DumperOptions();
+		return new Yaml(new FilteringConstructor(loaderOptions), new Representer(dumperOptions),
+				dumperOptions, loaderOptions);
 	}
 
 	private boolean process(MatchCallback callback, Yaml yaml, Resource resource) {
