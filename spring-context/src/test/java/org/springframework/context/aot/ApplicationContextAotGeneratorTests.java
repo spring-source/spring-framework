@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,11 +59,13 @@ import org.springframework.context.testfixture.context.annotation.CglibConfigura
 import org.springframework.context.testfixture.context.annotation.ConfigurableCglibConfiguration;
 import org.springframework.context.testfixture.context.annotation.GenericTemplateConfiguration;
 import org.springframework.context.testfixture.context.annotation.InitDestroyComponent;
+import org.springframework.context.testfixture.context.annotation.InjectionPointConfiguration;
 import org.springframework.context.testfixture.context.annotation.LazyAutowiredFieldComponent;
 import org.springframework.context.testfixture.context.annotation.LazyAutowiredMethodComponent;
 import org.springframework.context.testfixture.context.annotation.LazyConstructorArgumentComponent;
 import org.springframework.context.testfixture.context.annotation.LazyFactoryMethodArgumentComponent;
 import org.springframework.context.testfixture.context.annotation.PropertySourceConfiguration;
+import org.springframework.context.testfixture.context.annotation.QualifierConfiguration;
 import org.springframework.context.testfixture.context.generator.SimpleComponent;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Environment;
@@ -300,6 +302,28 @@ class ApplicationContextAotGeneratorTests {
 			PropertySource<?> propertySource = environment.getPropertySources().get("testp1");
 			assertThat(propertySource).isNotNull();
 			assertThat(propertySource.getProperty("from.p1")).isEqualTo("p1Value");
+		});
+	}
+
+	@Test
+	void processAheadOfTimeWithQualifier() {
+		GenericApplicationContext applicationContext = new AnnotationConfigApplicationContext();
+		applicationContext.registerBean(QualifierConfiguration.class);
+		testCompiledResult(applicationContext, (initializer, compiled) -> {
+			GenericApplicationContext freshApplicationContext = toFreshApplicationContext(initializer);
+			QualifierConfiguration configuration = freshApplicationContext.getBean(QualifierConfiguration.class);
+			assertThat(configuration).hasFieldOrPropertyWithValue("bean", "one");
+		});
+	}
+
+	@Test
+	void processAheadOfTimeWithInjectionPoint() {
+		GenericApplicationContext applicationContext = new AnnotationConfigApplicationContext();
+		applicationContext.registerBean(InjectionPointConfiguration.class);
+		testCompiledResult(applicationContext, (initializer, compiled) -> {
+			GenericApplicationContext freshApplicationContext = toFreshApplicationContext(initializer);
+			assertThat(freshApplicationContext.getBean("classToString"))
+					.isEqualTo(InjectionPointConfiguration.class.getName());
 		});
 	}
 

@@ -67,14 +67,13 @@ final class RSocketServiceMethod {
 	RSocketServiceMethod(
 			Method method, Class<?> containingClass, List<RSocketServiceArgumentResolver> argumentResolvers,
 			RSocketRequester rsocketRequester, @Nullable StringValueResolver embeddedValueResolver,
-			ReactiveAdapterRegistry reactiveRegistry, Duration blockTimeout) {
+			ReactiveAdapterRegistry reactiveRegistry, @Nullable Duration blockTimeout) {
 
 		this.method = method;
 		this.parameters = initMethodParameters(method);
 		this.argumentResolvers = argumentResolvers;
 		this.route = initRoute(method, containingClass, rsocketRequester.strategies(), embeddedValueResolver);
-		this.responseFunction = initResponseFunction(
-				rsocketRequester, method, reactiveRegistry, blockTimeout);
+		this.responseFunction = initResponseFunction(rsocketRequester, method, reactiveRegistry, blockTimeout);
 	}
 
 	private static MethodParameter[] initMethodParameters(Method method) {
@@ -125,7 +124,7 @@ final class RSocketServiceMethod {
 
 	private static Function<RSocketRequestValues, Object> initResponseFunction(
 			RSocketRequester requester, Method method,
-			ReactiveAdapterRegistry reactiveRegistry, Duration blockTimeout) {
+			ReactiveAdapterRegistry reactiveRegistry, @Nullable Duration blockTimeout) {
 
 		MethodParameter returnParam = new MethodParameter(method, -1);
 		Class<?> returnType = returnParam.getParameterType();
@@ -163,9 +162,16 @@ final class RSocketServiceMethod {
 			if (reactiveAdapter != null) {
 				return reactiveAdapter.fromPublisher(responsePublisher);
 			}
-			return (blockForOptional ?
-					((Mono<?>) responsePublisher).blockOptional(blockTimeout) :
-					((Mono<?>) responsePublisher).block(blockTimeout));
+			if (blockForOptional) {
+				return (blockTimeout != null ?
+						((Mono<?>) responsePublisher).blockOptional(blockTimeout) :
+						((Mono<?>) responsePublisher).blockOptional());
+			}
+			else {
+				return (blockTimeout != null ?
+						((Mono<?>) responsePublisher).block(blockTimeout) :
+						((Mono<?>) responsePublisher).block());
+			}
 		});
 	}
 
