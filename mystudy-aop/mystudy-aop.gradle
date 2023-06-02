@@ -5,5 +5,8 @@ dependencies {
     implementation('org.aspectj:aspectjweaver:1.9.9.1')
     implementation(project(":spring-aop"))
     implementation(project(":spring-context"))
+    testFixturesImplementation("org.bouncycastle:bcpkix-jdk18on") {
+        because("needed by Netty's SelfSignedCertificate on JDK 15+")
+    }
 
 }

@@ -19,6 +19,8 @@ dependencies {
     implementation('org.aspectj:aspectjweaver:1.9.9.1')
     implementation('org.mybatis.caches:mybatis-ehcache:1.2.2')
     implementation("net.sf.ehcache:ehcache-core:2.6.11")
-
+    testFixturesImplementation("org.bouncycastle:bcpkix-jdk18on") {
+        because("needed by Netty's SelfSignedCertificate on JDK 15+")
+    }
 
 }

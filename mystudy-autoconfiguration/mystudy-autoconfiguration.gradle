@@ -11,5 +11,7 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.13.3'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.3'
     implementation 'com.alibaba.fastjson2:fastjson2:2.0.9'
-
+    testFixturesImplementation("org.bouncycastle:bcpkix-jdk18on") {
+        because("needed by Netty's SelfSignedCertificate on JDK 15+")
+    }
 }

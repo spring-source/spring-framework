@@ -10,5 +10,7 @@ dependencies {
     implementation(project(":spring-aop"))
     implementation(project(":spring-context"))
     implementation(project(":spring-jdbc"))
-
+    testFixturesImplementation("org.bouncycastle:bcpkix-jdk18on") {
+        because("needed by Netty's SelfSignedCertificate on JDK 15+")
+    }
 }
