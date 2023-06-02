@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,14 @@ package org.springframework.http.server.reactive.observation;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
 import io.micrometer.observation.transport.RequestReplyReceiverContext;
 
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.lang.Nullable;
+import org.springframework.web.server.ServerWebExchange;
 
 /**
  * Context that holds information for metadata collection regarding
@@ -36,6 +38,13 @@ import org.springframework.lang.Nullable;
  */
 public class ServerRequestObservationContext extends RequestReplyReceiverContext<ServerHttpRequest, ServerHttpResponse> {
 
+	/**
+	 * Name of the request attribute holding the {@link ServerRequestObservationContext context} for the current observation.
+	 * @since 6.1
+	 */
+	public static final String CURRENT_OBSERVATION_CONTEXT_ATTRIBUTE = ServerRequestObservationContext.class.getName() + ".context";
+
+
 	private final Map<String, Object> attributes;
 
 	@Nullable
@@ -43,12 +52,14 @@ public class ServerRequestObservationContext extends RequestReplyReceiverContext
 
 	private boolean connectionAborted;
 
+
 	public ServerRequestObservationContext(ServerHttpRequest request, ServerHttpResponse response, Map<String, Object> attributes) {
 		super((req, key) -> req.getHeaders().getFirst(key));
 		setCarrier(request);
 		setResponse(response);
 		this.attributes = Collections.unmodifiableMap(attributes);
 	}
+
 
 	/**
 	 * Return an immutable map of the current request attributes.
@@ -95,6 +106,17 @@ public class ServerRequestObservationContext extends RequestReplyReceiverContext
 	 */
 	public void setConnectionAborted(boolean connectionAborted) {
 		this.connectionAborted = connectionAborted;
+	}
+
+
+	/**
+	 * Get the current {@link ServerRequestObservationContext observation context} from the given exchange, if available.
+	 * @param exchange the current exchange
+	 * @return the current observation context
+	 * @since 6.1
+	 */
+	public static Optional<ServerRequestObservationContext> findCurrent(ServerWebExchange exchange) {
+		return Optional.ofNullable(exchange.getAttribute(CURRENT_OBSERVATION_CONTEXT_ATTRIBUTE));
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,18 +23,17 @@ import org.springframework.http.HttpMethod;
 /**
  * @author Arjen Poutsma
  */
-public class StreamingHttpComponentsClientHttpRequestFactoryTests extends AbstractHttpRequestFactoryTests {
+public class JettyClientHttpRequestFactoryTests extends AbstractHttpRequestFactoryTests {
 
 	@Override
 	protected ClientHttpRequestFactory createRequestFactory() {
-		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
-		requestFactory.setBufferRequestBody(false);
-		return requestFactory;
+		return new JettyClientHttpRequestFactory();
 	}
 
 	@Override
 	@Test
 	public void httpMethods() throws Exception {
+		super.httpMethods();
 		assertHttpMethod("patch", HttpMethod.PATCH);
 	}
 
