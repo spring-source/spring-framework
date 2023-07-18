@@ -212,11 +212,22 @@ public final class RegisteredBean {
 				.resolveConstructorOrFactoryMethod(getBeanName(), getMergedBeanDefinition());
 	}
 
+	/**
+	 * Resolve an autowired argument.
+	 * @param descriptor the descriptor for the dependency (field/method/constructor)
+	 * @param typeConverter the TypeConverter to use for populating arrays and collections
+	 * @param autowiredBeanNames a Set that all names of autowired beans (used for
+	 * resolving the given dependency) are supposed to be added to
+	 * @return the resolved object, or {@code null} if none found
+	 * @since 6.0.9
+	 */
 	@Nullable
-	public Object resolveAutowiredArgument(DependencyDescriptor descriptor, TypeConverter typeConverter,
-			Set<String> autowiredBeans) {
+	public Object resolveAutowiredArgument(
+			DependencyDescriptor descriptor, TypeConverter typeConverter, Set<String> autowiredBeanNames) {
+
 		return new ConstructorResolver((AbstractAutowireCapableBeanFactory) getBeanFactory())
-				.resolveAutowiredArgument(descriptor, getBeanName(), autowiredBeans, typeConverter, true);
+				.resolveAutowiredArgument(descriptor, descriptor.getDependencyType(),
+						getBeanName(), autowiredBeanNames, typeConverter, true);
 	}
 
 

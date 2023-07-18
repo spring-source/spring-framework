@@ -1000,7 +1000,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			Object singletonInstance = getSingleton(beanName);
 			//判断当前的bean是否实现了SmartInitializingSingleton接口
 			if (singletonInstance instanceof SmartInitializingSingleton smartSingleton) {
-				StartupStep smartInitialize = this.getApplicationStartup().start("spring.beans.smart-initialize")
+				StartupStep smartInitialize = getApplicationStartup().start("spring.beans.smart-initialize")
 						.tag("beanName", beanName);
 				smartSingleton.afterSingletonsInstantiated();
 				smartInitialize.end();

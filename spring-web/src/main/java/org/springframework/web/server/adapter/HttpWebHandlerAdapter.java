@@ -16,9 +16,7 @@
 
 package org.springframework.web.server.adapter;
 
-import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
@@ -36,7 +34,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.codec.LoggingCodecSupport;
 import org.springframework.http.codec.ServerCodecConfigurer;
-import org.springframework.http.codec.multipart.Part;
 import org.springframework.http.server.reactive.HttpHandler;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -209,7 +206,7 @@ public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHa
 	}
 
 	/**
-	 * Configure a {@link ObservationRegistry} for recording server exchange observations.
+	 * Configure an {@link ObservationRegistry} for recording server exchange observations.
 	 * By default, a {@link ObservationRegistry#NOOP no-op} instance will be used.
 	 * @param observationRegistry the observation registry to use
 	 * @since 6.1
@@ -299,13 +296,14 @@ public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHa
 				exchange.getLogPrefix() + formatRequest(exchange.getRequest()) +
 						(traceOn ? ", headers=" + formatHeaders(exchange.getRequest().getHeaders()) : ""));
 
-		ServerRequestObservationContext observationContext = new ServerRequestObservationContext(exchange.getRequest(),
-				exchange.getResponse(), exchange.getAttributes());
-		exchange.getAttributes().put(ServerRequestObservationContext.CURRENT_OBSERVATION_CONTEXT_ATTRIBUTE, observationContext);
+		ServerRequestObservationContext observationContext = new ServerRequestObservationContext(
+				exchange.getRequest(), exchange.getResponse(), exchange.getAttributes());
+		exchange.getAttributes().put(
+				ServerRequestObservationContext.CURRENT_OBSERVATION_CONTEXT_ATTRIBUTE, observationContext);
 
 		return getDelegate().handle(exchange)
 				.transformDeferred(call -> transform(exchange, observationContext, call))
-				.then(cleanupMultipart(exchange))
+				.then(exchange.cleanupMultipart())
 				.then(Mono.defer(response::setComplete));
 	}
 
@@ -415,24 +413,6 @@ public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHa
 			}
 		}
 		return DISCONNECTED_CLIENT_EXCEPTIONS.contains(ex.getClass().getSimpleName());
-	}
-
-	private Mono<Void> cleanupMultipart(ServerWebExchange exchange) {
-		return exchange.getMultipartData()
-				.onErrorResume(t -> Mono.empty()) // ignore errors reading multipart data
-				.flatMapIterable(Map::values)
-				.flatMapIterable(Function.identity())
-				.flatMap(this::deletePart)
-				.then();
-	}
-
-	private Mono<Void> deletePart(Part part) {
-		return part.delete().onErrorResume(ex -> {
-					if (logger.isWarnEnabled()) {
-						logger.warn("Failed to perform cleanup of multipart items", ex);
-					}
-					return Mono.empty();
-				});
 	}
 
 }

@@ -51,6 +51,7 @@ class HttpWebHandlerAdapterObservabilityTests {
 
 	private final MockServerHttpResponse response = new MockServerHttpResponse();
 
+
 	@Test
 	void handlerShouldSetObservationContextOnExchange() {
 		HttpStatusSuccessStubWebHandler targetHandler = new HttpStatusSuccessStubWebHandler(HttpStatus.OK);
@@ -97,23 +98,25 @@ class HttpWebHandlerAdapterObservabilityTests {
 				.hasObservationWithNameEqualTo("http.server.requests").that();
 	}
 
+
 	private static class HttpStatusSuccessStubWebHandler implements WebHandler {
 
 		private final HttpStatus responseStatus;
 
 		private Optional<ServerRequestObservationContext> observationContext;
 
-		public HttpStatusSuccessStubWebHandler(HttpStatus responseStatus) {
+		HttpStatusSuccessStubWebHandler(HttpStatus responseStatus) {
 			this.responseStatus = responseStatus;
 		}
 
 		@Override
 		public Mono<Void> handle(ServerWebExchange exchange) {
-			this.observationContext = ServerRequestObservationContext.findCurrent(exchange);
+			this.observationContext = ServerRequestObservationContext.findCurrent(exchange.getAttributes());
 			exchange.getResponse().setStatusCode(this.responseStatus);
 			return Mono.empty();
 		}
 	}
+
 
 	private static class ReactorContextWebHandler implements WebHandler {
 
@@ -129,6 +132,7 @@ class HttpWebHandlerAdapterObservabilityTests {
 		}
 	}
 
+
 	private static class ThrowingExceptionWebHandler implements WebHandler {
 
 		private final Throwable exception;
@@ -141,10 +145,11 @@ class HttpWebHandlerAdapterObservabilityTests {
 
 		@Override
 		public Mono<Void> handle(ServerWebExchange exchange) {
-			this.observationContext = ServerRequestObservationContext.findCurrent(exchange);
+			this.observationContext = ServerRequestObservationContext.findCurrent(exchange.getAttributes());
 			return Mono.error(this.exception);
 		}
 	}
+
 
 	private static class BadRequestExceptionHandler implements WebExceptionHandler {
 
