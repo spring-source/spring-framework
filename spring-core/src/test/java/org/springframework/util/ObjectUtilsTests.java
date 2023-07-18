@@ -16,20 +16,34 @@
 
 package org.springframework.util;
 
+import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URL;
+import java.net.UnknownHostException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.ArrayList;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Currency;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.TimeZone;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -223,7 +237,7 @@ class ObjectUtilsTests {
 	}
 
 	@Test
-	void addObjectToNullArray() throws Exception {
+	void addObjectToNullArray() {
 		String newElement = "foo";
 		String[] newArray = ObjectUtils.addObjectToArray(null, newElement);
 		assertThat(newArray).hasSize(1);
@@ -231,14 +245,14 @@ class ObjectUtilsTests {
 	}
 
 	@Test
-	void addNullObjectToNullArray() throws Exception {
+	void addNullObjectToNullArray() {
 		Object[] newArray = ObjectUtils.addObjectToArray(null, null);
 		assertThat(newArray).hasSize(1);
 		assertThat(newArray[0]).isNull();
 	}
 
 	@Test
-	void nullSafeEqualsWithArrays() throws Exception {
+	void nullSafeEqualsWithArrays() {
 		assertThat(ObjectUtils.nullSafeEquals(new String[] {"a", "b", "c"}, new String[] {"a", "b", "c"})).isTrue();
 		assertThat(ObjectUtils.nullSafeEquals(new int[] {1, 2, 3}, new int[] {1, 2, 3})).isTrue();
 	}
@@ -826,6 +840,17 @@ class ObjectUtilsTests {
 			.withMessage("Constant [bogus] does not exist in enum type org.springframework.util.ObjectUtilsTests$Tropes");
 	}
 
+
+	private static void assertEqualHashCodes(int expected, Object array) {
+		int actual = ObjectUtils.nullSafeHashCode(array);
+		assertThat(actual).isEqualTo(expected);
+		assertThat(array.hashCode()).isNotEqualTo(actual);
+	}
+
+
+	enum Tropes {FOO, BAR, baz}
+
+
 	@Nested
 	class NullSafeConciseToStringTests {
 
@@ -835,6 +860,41 @@ class ObjectUtilsTests {
 		@Test
 		void nullSafeConciseToStringForNull() {
 			assertThat(ObjectUtils.nullSafeConciseToString(null)).isEqualTo("null");
+		}
+
+		@Test
+		void nullSafeConciseToStringForEmptyOptional() {
+			Optional<String> optional = Optional.empty();
+			assertThat(ObjectUtils.nullSafeConciseToString(optional)).isEqualTo("Optional.empty");
+		}
+
+		@Test
+		void nullSafeConciseToStringForNonEmptyOptionals() {
+			Optional<Tropes> optionalEnum = Optional.of(Tropes.BAR);
+			String expected = "Optional[BAR]";
+			assertThat(ObjectUtils.nullSafeConciseToString(optionalEnum)).isEqualTo(expected);
+
+			String repeat100 = repeat("X", 100);
+			String repeat101 = repeat("X", 101);
+
+			Optional<String> optionalString = Optional.of(repeat100);
+			expected = String.format("Optional[%s]", repeat100);
+			assertThat(ObjectUtils.nullSafeConciseToString(optionalString)).isEqualTo(expected);
+
+			optionalString = Optional.of(repeat101);
+			expected = String.format("Optional[%s]", repeat100 + truncated);
+			assertThat(ObjectUtils.nullSafeConciseToString(optionalString)).isEqualTo(expected);
+		}
+
+		@Test
+		void nullSafeConciseToStringForNonEmptyOptionalCustomType() {
+			class CustomType {
+			}
+
+			CustomType customType = new CustomType();
+			Optional<CustomType> optional = Optional.of(customType);
+			String expected = String.format("Optional[%s]", ObjectUtils.nullSafeConciseToString(customType));
+			assertThat(ObjectUtils.nullSafeConciseToString(optional)).isEqualTo(expected);
 		}
 
 		@Test
@@ -869,9 +929,17 @@ class ObjectUtilsTests {
 		}
 
 		@Test
-		void nullSafeConciseToStringForNumber() {
+		void nullSafeConciseToStringForPrimitivesAndWrappers() {
+			assertThat(ObjectUtils.nullSafeConciseToString(true)).isEqualTo("true");
+			assertThat(ObjectUtils.nullSafeConciseToString('X')).isEqualTo("X");
 			assertThat(ObjectUtils.nullSafeConciseToString(42L)).isEqualTo("42");
 			assertThat(ObjectUtils.nullSafeConciseToString(99.1234D)).isEqualTo("99.1234");
+		}
+
+		@Test
+		void nullSafeConciseToStringForBigNumbers() {
+			assertThat(ObjectUtils.nullSafeConciseToString(BigInteger.valueOf(42L))).isEqualTo("42");
+			assertThat(ObjectUtils.nullSafeConciseToString(BigDecimal.valueOf(99.1234D))).isEqualTo("99.1234");
 		}
 
 		@Test
@@ -887,7 +955,37 @@ class ObjectUtilsTests {
 		}
 
 		@Test
-		void nullSafeConciseToStringForUri() {
+		void nullSafeConciseToStringForUUID() {
+			UUID id = UUID.randomUUID();
+			assertThat(ObjectUtils.nullSafeConciseToString(id)).isEqualTo(id.toString());
+		}
+
+		@Test
+		void nullSafeConciseToStringForFile() {
+			String path = "/tmp/file.txt".replace('/', File.separatorChar);
+			assertThat(ObjectUtils.nullSafeConciseToString(new File(path))).isEqualTo(path);
+
+			path = ("/tmp/" + repeat("xyz", 32)).replace('/', File.separatorChar);
+			assertThat(ObjectUtils.nullSafeConciseToString(new File(path)))
+					.hasSize(truncatedLength)
+					.startsWith(path.subSequence(0, 100))
+					.endsWith(truncated);
+		}
+
+		@Test
+		void nullSafeConciseToStringForPath() {
+			String path = "/tmp/file.txt".replace('/', File.separatorChar);
+			assertThat(ObjectUtils.nullSafeConciseToString(Paths.get(path))).isEqualTo(path);
+
+			path = ("/tmp/" + repeat("xyz", 32)).replace('/', File.separatorChar);
+			assertThat(ObjectUtils.nullSafeConciseToString(Paths.get(path)))
+					.hasSize(truncatedLength)
+					.startsWith(path.subSequence(0, 100))
+					.endsWith(truncated);
+		}
+
+		@Test
+		void nullSafeConciseToStringForURI() {
 			String uri = "https://www.example.com/?foo=1&bar=2&baz=3";
 			assertThat(ObjectUtils.nullSafeConciseToString(URI.create(uri))).isEqualTo(uri);
 
@@ -899,7 +997,7 @@ class ObjectUtilsTests {
 		}
 
 		@Test
-		void nullSafeConciseToStringForUrl() throws Exception {
+		void nullSafeConciseToStringForURL() throws Exception {
 			String url = "https://www.example.com/?foo=1&bar=2&baz=3";
 			assertThat(ObjectUtils.nullSafeConciseToString(new URL(url))).isEqualTo(url);
 
@@ -911,18 +1009,99 @@ class ObjectUtilsTests {
 		}
 
 		@Test
+		void nullSafeConciseToStringForInetAddress() {
+			InetAddress localhost = getLocalhost();
+			assertThat(ObjectUtils.nullSafeConciseToString(localhost)).isEqualTo(localhost.toString());
+		}
+
+		private InetAddress getLocalhost() {
+			try {
+				return InetAddress.getLocalHost();
+			}
+			catch (UnknownHostException ex) {
+				return InetAddress.getLoopbackAddress();
+			}
+		}
+
+		@Test
+		void nullSafeConciseToStringForCharset() {
+			Charset charset = StandardCharsets.UTF_8;
+			assertThat(ObjectUtils.nullSafeConciseToString(charset)).isEqualTo(charset.name());
+		}
+
+		@Test
+		void nullSafeConciseToStringForCurrency() {
+			Currency currency = Currency.getInstance(Locale.US);
+			assertThat(ObjectUtils.nullSafeConciseToString(currency)).isEqualTo(currency.toString());
+		}
+
+		@Test
 		void nullSafeConciseToStringForLocale() {
 			assertThat(ObjectUtils.nullSafeConciseToString(Locale.GERMANY)).isEqualTo("de_DE");
 		}
 
 		@Test
-		void nullSafeConciseToStringForArraysAndCollections() {
-			List<String> list = Arrays.asList("a", "b", "c");
-			assertThat(ObjectUtils.nullSafeConciseToString(new int[][] {{1, 2}, {3, 4}})).startsWith(prefix(int[][].class));
-			assertThat(ObjectUtils.nullSafeConciseToString(list.toArray(new Object[0]))).startsWith(prefix(Object[].class));
-			assertThat(ObjectUtils.nullSafeConciseToString(list.toArray(new String[0]))).startsWith(prefix(String[].class));
-			assertThat(ObjectUtils.nullSafeConciseToString(new ArrayList<>(list))).startsWith(prefix(ArrayList.class));
-			assertThat(ObjectUtils.nullSafeConciseToString(new HashSet<>(list))).startsWith(prefix(HashSet.class));
+		void nullSafeConciseToStringForRegExPattern() {
+			Pattern pattern = Pattern.compile("^(foo|bar)$");
+			assertThat(ObjectUtils.nullSafeConciseToString(pattern)).isEqualTo(pattern.toString());
+		}
+
+		@Test
+		void nullSafeConciseToStringForTimeZone() {
+			TimeZone timeZone = TimeZone.getDefault();
+			assertThat(ObjectUtils.nullSafeConciseToString(timeZone)).isEqualTo(timeZone.getID());
+		}
+
+		@Test
+		void nullSafeConciseToStringForZoneId() {
+			ZoneId zoneId = ZoneId.systemDefault();
+			assertThat(ObjectUtils.nullSafeConciseToString(zoneId)).isEqualTo(zoneId.getId());
+		}
+
+		@Test
+		void nullSafeConciseToStringForEmptyArrays() {
+			assertThat(ObjectUtils.nullSafeConciseToString(new char[] {})).isEqualTo("{}");
+			assertThat(ObjectUtils.nullSafeConciseToString(new int[][] {})).isEqualTo("{}");
+			assertThat(ObjectUtils.nullSafeConciseToString(new String[] {})).isEqualTo("{}");
+			assertThat(ObjectUtils.nullSafeConciseToString(new Integer[][] {})).isEqualTo("{}");
+		}
+
+		@Test
+		void nullSafeConciseToStringForNonEmptyArrays() {
+			assertThat(ObjectUtils.nullSafeConciseToString(new char[] {'a'})).isEqualTo("{...}");
+			assertThat(ObjectUtils.nullSafeConciseToString(new int[][] {{1}, {2}})).isEqualTo("{...}");
+			assertThat(ObjectUtils.nullSafeConciseToString(new String[] {"enigma"})).isEqualTo("{...}");
+			assertThat(ObjectUtils.nullSafeConciseToString(new Integer[][] {{1}, {2}})).isEqualTo("{...}");
+		}
+
+		@Test
+		void nullSafeConciseToStringForEmptyCollections() {
+			List<String> list = Collections.emptyList();
+			Set<Integer> set = Collections.emptySet();
+			assertThat(ObjectUtils.nullSafeConciseToString(list)).isEqualTo("[]");
+			assertThat(ObjectUtils.nullSafeConciseToString(set)).isEqualTo("[]");
+		}
+
+		@Test
+		void nullSafeConciseToStringForNonEmptyCollections() {
+			List<String> list = Arrays.asList("a", "b");
+			Set<String> set = new HashSet<>();
+			set.add("foo");
+			assertThat(ObjectUtils.nullSafeConciseToString(list)).isEqualTo("[...]");
+			assertThat(ObjectUtils.nullSafeConciseToString(set)).isEqualTo("[...]");
+		}
+
+		@Test
+		void nullSafeConciseToStringForEmptyMaps() {
+			Map<String, Object> map = Collections.emptyMap();
+			assertThat(ObjectUtils.nullSafeConciseToString(map)).isEqualTo("{}");
+		}
+
+		@Test
+		void nullSafeConciseToStringForNonEmptyMaps() {
+			HashMap<String, Object> map = new HashMap<>();
+			map.put("foo", 42L);
+			assertThat(ObjectUtils.nullSafeConciseToString(map)).isEqualTo("{...}");
 		}
 
 		@Test
@@ -959,17 +1138,6 @@ class ObjectUtilsTests {
 		private String prefix(Class<?> clazz) {
 			return clazz.getTypeName() + "@";
 		}
-
 	}
-
-
-	private static void assertEqualHashCodes(int expected, Object array) {
-		int actual = ObjectUtils.nullSafeHashCode(array);
-		assertThat(actual).isEqualTo(expected);
-		assertThat(array.hashCode() != actual).isTrue();
-	}
-
-
-	enum Tropes {FOO, BAR, baz}
 
 }

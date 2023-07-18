@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1665,7 +1665,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			converter = bw;
 		}
 
-		Set<String> autowiredBeanNames = new LinkedHashSet<>(4);
+		String[] propertyNames = unsatisfiedNonSimpleProperties(mbd, bw);
+		Set<String> autowiredBeanNames = new LinkedHashSet<>(propertyNames.length * 2);
+		//循环属性,循环我们的依赖属性
 		/**
 		 *   spring认为的简单属性
 		 *   1. CharSequence 接口的实现类，比如 String
@@ -1678,8 +1680,6 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		 *   8. 以上所有类型的数组形式，比如 String[]、Date[]、int[] 等等
 		 * 不包含在当前bean的配置文件的中属性 !pvs.contains(pd.getName()
 		 **/
-		String[] propertyNames = unsatisfiedNonSimpleProperties(mbd, bw);
-		//循环属性,循环我们的依赖属性
 		for (String propertyName : propertyNames) {
 			try {
 				//获取 PropertyDescriptor 实例

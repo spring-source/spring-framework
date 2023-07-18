@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -115,7 +115,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 
 	/** Disposable bean instances: bean name to disposable instance. */
 	/** 用户缓存记录实现了DisposableBean 接口的实例 */
-	private final Map<String, Object> disposableBeans = new LinkedHashMap<>();
+	private final Map<String, DisposableBean> disposableBeans = new LinkedHashMap<>();
 
 	/** Map between containing bean names: bean name to Set of bean names that the bean contains. */
 	/** 缓存bean的属性关系的映射<dujieServce,<dujieDao,dujieDao2> --> Set of bean names that the bean contains */
@@ -417,7 +417,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * (within the entire factory).
 	 * @param beanName the name of the bean
 	 */
-	public boolean isSingletonCurrentlyInCreation(String beanName) {
+	public boolean isSingletonCurrentlyInCreation(@Nullable String beanName) {
 		return this.singletonsCurrentlyInCreation.contains(beanName);
 	}
 
@@ -524,17 +524,17 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		}
 		String canonicalName = canonicalName(beanName);
 		Set<String> dependentBeans = this.dependentBeanMap.get(canonicalName);
-		if (dependentBeans == null) {
+		if (dependentBeans == null || dependentBeans.isEmpty()) {
 			return false;
 		}
 		if (dependentBeans.contains(dependentBeanName)) {
 			return true;
 		}
+		if (alreadySeen == null) {
+			alreadySeen = new HashSet<>();
+		}
+		alreadySeen.add(beanName);
 		for (String transitiveDependency : dependentBeans) {
-			if (alreadySeen == null) {
-				alreadySeen = new HashSet<>();
-			}
-			alreadySeen.add(beanName);
 			if (isDependent(transitiveDependency, dependentBeanName, alreadySeen)) {
 				return true;
 			}
@@ -630,7 +630,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		//创建一个变量用于接受 实现了DisposableBean接口的对象变量
 		DisposableBean disposableBean;
 		synchronized (this.disposableBeans) {
-			disposableBean = (DisposableBean) this.disposableBeans.remove(beanName);
+			disposableBean = this.disposableBeans.remove(beanName);
 		}
 		//进行bean的销毁
 		destroyBean(beanName, disposableBean);
