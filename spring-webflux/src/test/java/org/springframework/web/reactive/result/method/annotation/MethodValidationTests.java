@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
@@ -47,6 +48,7 @@ import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.support.ConfigurableWebBindingInitializer;
@@ -75,7 +77,7 @@ import static org.mockito.Mockito.mock;
  *
  * @author Rossen Stoyanchev
  */
-public class MethodValidationTests {
+class MethodValidationTests {
 
 	private static final Person mockPerson = mock(Person.class);
 
@@ -206,7 +208,7 @@ public class MethodValidationTests {
 					assertThat(this.jakartaValidator.getValidationCount()).isEqualTo(1);
 					assertThat(this.jakartaValidator.getMethodValidationCount()).isEqualTo(1);
 
-					assertThat(ex.getAllValidationResults()).hasSize(2);
+					assertThat(ex.getParameterValidationResults()).hasSize(2);
 
 					assertBeanResult(ex.getBeanResults().get(0), "student", Collections.singletonList(
 							"""
@@ -218,11 +220,48 @@ public class MethodValidationTests {
 
 					assertValueResult(ex.getValueResults().get(0), 2, "123", Collections.singletonList(
 							"""
-						org.springframework.context.support.DefaultMessageSourceResolvable: \
+						org.springframework.validation.beanvalidation.MethodValidationAdapter$ViolationMessageSourceResolvable: \
 						codes [Size.validController#handle.myHeader,Size.myHeader,Size.java.lang.String,Size]; \
 						arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
 						codes [validController#handle.myHeader,myHeader]; arguments []; default message [myHeader],10,5]; \
 						default message [size must be between 5 and 10]"""
+					));
+				})
+				.verify();
+	}
+
+
+	@Test
+	void validateList() {
+		HandlerMethod hm = handlerMethod(new ValidController(), c -> c.handle(List.of(mockPerson, mockPerson)));
+		ServerWebExchange exchange = MockServerWebExchange.from(request()
+				.contentType(MediaType.APPLICATION_JSON)
+				.body("[{\"name\":\"Faustino1234\"},{\"name\":\"Cayetana6789\"}]"));
+
+		StepVerifier.create(this.handlerAdapter.handle(exchange, hm))
+				.consumeErrorWith(throwable -> {
+					HandlerMethodValidationException ex = (HandlerMethodValidationException) throwable;
+
+					assertThat(this.jakartaValidator.getValidationCount()).isEqualTo(1);
+					assertThat(this.jakartaValidator.getMethodValidationCount()).isEqualTo(1);
+
+					assertThat(ex.getParameterValidationResults()).hasSize(2);
+
+					assertBeanResult(ex.getBeanResults().get(0), "personList", Collections.singletonList(
+							"""
+							Field error in object 'personList' on field 'name': rejected value [Faustino1234]; \
+							codes [Size.personList.name,Size.name,Size.java.lang.String,Size]; \
+							arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+							codes [personList.name,name]; arguments []; default message [name],10,1]; \
+							default message [size must be between 1 and 10]"""));
+
+					assertBeanResult(ex.getBeanResults().get(1), "personList", Collections.singletonList(
+							"""
+							Field error in object 'personList' on field 'name': rejected value [Cayetana6789]; \
+							codes [Size.personList.name,Size.name,Size.java.lang.String,Size]; \
+							arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+							codes [personList.name,name]; arguments []; default message [name],10,1]; \
+							default message [size must be between 1 and 10]"""
 					));
 				})
 				.verify();
@@ -300,7 +339,7 @@ public class MethodValidationTests {
 	@SuppressWarnings("unchecked")
 	private static <T> HandlerMethod handlerMethod(T controller, Consumer<T> mockCallConsumer) {
 		Method method = ResolvableMethod.on((Class<T>) controller.getClass()).mockCall(mockCallConsumer).method();
-		return new HandlerMethod(controller, method);
+		return new HandlerMethod(controller, method).createWithValidateFlags();
 	}
 
 	private static MockServerHttpRequest.BodyBuilder request() {
@@ -321,14 +360,20 @@ public class MethodValidationTests {
 
 		assertThat(result.getMethodParameter().getParameterIndex()).isEqualTo(parameterIndex);
 		assertThat(result.getArgument()).isEqualTo(argument);
-		assertThat(result.getResolvableErrors())
+
+		List<MessageSourceResolvable> resolvableErrors = result.getResolvableErrors();
+		assertThat(resolvableErrors)
 				.extracting(MessageSourceResolvable::toString)
 				.containsExactlyInAnyOrderElementsOf(errors);
+
+		resolvableErrors.forEach(error ->
+				assertThat(result.unwrap(error, ConstraintViolation.class)).isNotNull());
+
 	}
 
 
 	@SuppressWarnings("unused")
-	private record Person(@Size(min = 1, max = 10) String name) {
+	private record Person(@Size(min = 1, max = 10) @JsonProperty("name") String name) {
 
 		@Override
 		public String name() {
@@ -356,6 +401,9 @@ public class MethodValidationTests {
 				@RequestHeader @Size(min = 5, max = 10) String myHeader) {
 
 			return errors.toString();
+		}
+
+		void handle(@Valid @RequestBody List<Person> persons) {
 		}
 
 		Mono<String> handleAsync(@Valid @ModelAttribute("student") Mono<Person> person,

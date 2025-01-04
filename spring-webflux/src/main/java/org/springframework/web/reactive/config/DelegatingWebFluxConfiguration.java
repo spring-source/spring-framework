@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package org.springframework.web.reactive.config;
 
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
@@ -25,6 +27,7 @@ import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.util.CollectionUtils;
 import org.springframework.validation.MessageCodesResolver;
 import org.springframework.validation.Validator;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.reactive.accept.RequestedContentTypeResolverBuilder;
 import org.springframework.web.reactive.result.method.annotation.ArgumentResolverConfigurer;
 import org.springframework.web.reactive.socket.server.WebSocketService;
@@ -63,13 +66,13 @@ public class DelegatingWebFluxConfiguration extends WebFluxConfigurationSupport 
 	}
 
 	@Override
-	protected Validator getValidator() {
+	protected @Nullable Validator getValidator() {
 		Validator validator = this.configurers.getValidator();
 		return (validator != null ? validator : super.getValidator());
 	}
 
 	@Override
-	protected MessageCodesResolver getMessageCodesResolver() {
+	protected @Nullable MessageCodesResolver getMessageCodesResolver() {
 		MessageCodesResolver messageCodesResolver = this.configurers.getMessageCodesResolver();
 		return (messageCodesResolver != null ? messageCodesResolver : super.getMessageCodesResolver());
 	}
@@ -100,6 +103,12 @@ public class DelegatingWebFluxConfiguration extends WebFluxConfigurationSupport 
 	}
 
 	@Override
+	protected void configureErrorResponseInterceptors(List<ErrorResponse.Interceptor> interceptors) {
+		this.configurers.addErrorResponseInterceptors(interceptors);
+	}
+
+
+	@Override
 	protected void addResourceHandlers(ResourceHandlerRegistry registry) {
 		this.configurers.addResourceHandlers(registry);
 	}
@@ -110,7 +119,7 @@ public class DelegatingWebFluxConfiguration extends WebFluxConfigurationSupport 
 	}
 
 	@Override
-	protected WebSocketService getWebSocketService() {
+	protected @Nullable WebSocketService getWebSocketService() {
 		WebSocketService service = this.configurers.getWebSocketService();
 		return (service != null ? service : super.getWebSocketService());
 	}

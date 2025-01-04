@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.testfixture.beans.TestBean;
 import org.springframework.context.MessageSourceResolvable;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.context.support.StaticMessageSource;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
@@ -32,7 +34,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
-import org.springframework.lang.Nullable;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindingResult;
@@ -51,6 +52,7 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import org.springframework.web.server.MethodNotAllowedException;
 import org.springframework.web.server.MissingRequestValueException;
 import org.springframework.web.server.NotAcceptableStatusException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerErrorException;
 import org.springframework.web.server.UnsatisfiedRequestParameterException;
 import org.springframework.web.server.UnsupportedMediaTypeStatusException;
@@ -68,7 +70,7 @@ import static org.mockito.BDDMockito.when;
  *
  * @author Rossen Stoyanchev
  */
-public class ErrorResponseExceptionTests {
+class ErrorResponseExceptionTests {
 
 	private final MethodParameter methodParameter =
 			new MethodParameter(ResolvableMethod.on(getClass()).resolveMethod("handle"), 0);
@@ -102,7 +104,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Could not parse Content-Type.");
 		assertDetailMessageCode(ex, "parseError", null);
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -115,7 +117,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Acceptable representations: [application/json, application/cbor].");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getSupportedMediaTypes()});
 
-		assertThat(ex.getHeaders()).hasSize(1);
+		assertThat(ex.getHeaders().size()).isOne();
 		assertThat(ex.getHeaders().getAccept()).isEqualTo(mediaTypes);
 	}
 
@@ -129,7 +131,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Could not parse Accept header.");
 		assertDetailMessageCode(ex, "parseError", null);
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -141,7 +143,7 @@ public class ErrorResponseExceptionTests {
 		assertStatus(ex, HttpStatus.SERVICE_UNAVAILABLE);
 		assertDetail(ex, null);
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -154,7 +156,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Method 'PUT' is not supported.");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getMethod(), ex.getSupportedHttpMethods()});
 
-		assertThat(ex.getHeaders()).hasSize(1);
+		assertThat(ex.getHeaders().size()).isOne();
 		assertThat(ex.getHeaders().getAllow()).containsExactly(HttpMethod.GET, HttpMethod.POST);
 	}
 
@@ -167,7 +169,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Required header 'Authorization' is not present.");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getHeaderName()});
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -179,7 +181,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Required parameter 'query' is not present.");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getParameterName()});
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -192,7 +194,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Required path parameter 'region' is not present.");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getVariableName()});
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -204,7 +206,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Required path variable 'id' is not present.");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getVariableName()});
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -216,7 +218,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Required cookie 'oreo' is not present.");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getCookieName()});
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -229,7 +231,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Invalid request parameters.");
 		assertDetailMessageCode(ex, null, new Object[] {List.of("\"foo=bar, bar=baz\"")});
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -241,7 +243,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Required part 'file' is not present.");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getRequestPartName()});
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -256,7 +258,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Invalid request content.");
 		testHelper.assertMessages(ex, ex.getAllErrors());
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -304,7 +306,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Could not parse Content-Type.");
 		assertDetailMessageCode(ex, "parseError", null);
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -317,7 +319,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Acceptable representations: [application/json, application/cbor].");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getSupportedMediaTypes()});
 
-		assertThat(ex.getHeaders()).hasSize(1);
+		assertThat(ex.getHeaders().size()).isOne();
 		assertThat(ex.getHeaders().getAccept()).isEqualTo(mediaTypes);
 	}
 
@@ -331,7 +333,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Could not parse Accept header.");
 		assertDetailMessageCode(ex, "parseError", null);
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -343,7 +345,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Failure");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getReason()});
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -356,7 +358,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Required header 'foo' is not present.");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getLabel(), ex.getName()});
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -371,7 +373,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Invalid request parameters.");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getConditions()});
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -386,7 +388,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Invalid request content.");
 		testHelper.assertMessages(ex, ex.getAllErrors());
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
 	}
 
 	@Test
@@ -399,7 +401,7 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Supported methods: [GET, POST]");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getHttpMethod(), supportedMethods});
 
-		assertThat(ex.getHeaders()).hasSize(1);
+		assertThat(ex.getHeaders().size()).isOne();
 		assertThat(ex.getHeaders().getAllow()).containsExactly(HttpMethod.GET, HttpMethod.POST);
 	}
 
@@ -412,7 +414,29 @@ public class ErrorResponseExceptionTests {
 		assertDetail(ex, "Request method 'PUT' is not supported.");
 		assertDetailMessageCode(ex, null, new Object[] {ex.getHttpMethod(), Collections.emptyList()});
 
-		assertThat(ex.getHeaders()).isEmpty();
+		assertThat(ex.getHeaders().isEmpty()).isTrue();
+	}
+
+	@Test // gh-30300
+	void responseStatusException() {
+
+		Locale locale = Locale.UK;
+		LocaleContextHolder.setLocale(locale);
+
+		try {
+			String reason = "bad.request";
+			String message = "Breaking Bad Request";
+			StaticMessageSource messageSource = new StaticMessageSource();
+			messageSource.addMessage(reason, locale, message);
+
+			ResponseStatusException ex = new ResponseStatusException(HttpStatus.BAD_REQUEST, reason);
+
+			ProblemDetail problemDetail = ex.updateAndGetBody(messageSource, locale);
+			assertThat(problemDetail.getDetail()).isEqualTo(message);
+		}
+		finally {
+			LocaleContextHolder.resetLocaleContext();
+		}
 	}
 
 	private void assertStatus(ErrorResponse ex, HttpStatus status) {
@@ -432,10 +456,10 @@ public class ErrorResponseExceptionTests {
 	}
 
 	private void assertDetailMessageCode(
-			ErrorResponse ex, @Nullable String suffix, @Nullable Object[] arguments) {
+			ErrorResponse ex, @Nullable String suffix, Object @Nullable [] arguments) {
 
 		assertThat(ex.getDetailMessageCode())
-				.isEqualTo(ErrorResponse.getDefaultDetailMessageCode(((Exception) ex).getClass(), suffix));
+				.isEqualTo(ErrorResponse.getDefaultDetailMessageCode(ex.getClass(), suffix));
 
 		if (arguments != null) {
 			assertThat(ex.getDetailMessageArguments()).containsExactlyElementsOf(Arrays.asList(arguments));

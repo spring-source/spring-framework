@@ -22,11 +22,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.DecoratingClassLoader;
 import org.springframework.core.OverridingClassLoader;
 import org.springframework.core.SmartClassLoader;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ReflectionUtils;
 
 /**
@@ -47,15 +47,14 @@ class ContextTypeMatchClassLoader extends DecoratingClassLoader implements Smart
 	}
 
 
-	@Nullable
-	private static final Method findLoadedClassMethod;
+	private static final @Nullable Method findLoadedClassMethod;
 
 	static {
 		// Try to enable findLoadedClass optimization which allows us to selectively
 		// override classes that have not been loaded yet. If not accessible, we will
 		// always override requested classes, even when the classes have been loaded
 		// by the parent ClassLoader already and cannot be transformed anymore anyway.
-		Method method = null;
+		Method method;
 		try {
 			method = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
 			ReflectionUtils.makeAccessible(method);
@@ -63,6 +62,7 @@ class ContextTypeMatchClassLoader extends DecoratingClassLoader implements Smart
 		catch (Throwable ex) {
 			// Typically a JDK 9+ InaccessibleObjectException...
 			// Avoid through JVM startup with --add-opens=java.base/java.lang=ALL-UNNAMED
+			method = null;
 			LogFactory.getLog(ContextTypeMatchClassLoader.class).debug(
 					"ClassLoader.findLoadedClass not accessible -> will always override requested class", ex);
 		}
@@ -122,7 +122,7 @@ class ContextTypeMatchClassLoader extends DecoratingClassLoader implements Smart
 		}
 
 		@Override
-		protected Class<?> loadClassForOverriding(String name) throws ClassNotFoundException {
+		protected @Nullable Class<?> loadClassForOverriding(String name) throws ClassNotFoundException {
 			byte[] bytes = bytesCache.get(name);
 			if (bytes == null) {
 				bytes = loadBytesForClass(name);

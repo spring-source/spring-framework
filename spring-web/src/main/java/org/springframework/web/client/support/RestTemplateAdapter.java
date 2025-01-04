@@ -19,7 +19,8 @@ package org.springframework.web.client.support;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpCookie;
@@ -32,6 +33,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.service.invoker.HttpExchangeAdapter;
 import org.springframework.web.service.invoker.HttpRequestValues;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
+import org.springframework.web.util.UriBuilderFactory;
 
 /**
  * {@link HttpExchangeAdapter} that enables an {@link HttpServiceProxyFactory}
@@ -41,6 +43,7 @@ import org.springframework.web.service.invoker.HttpServiceProxyFactory;
  * {@link HttpServiceProxyFactory} configured with the given {@link RestTemplate}.
  *
  * @author Olga Maciaszek-Sharma
+ * @author Brian Clozel
  * @since 6.1
  */
 public final class RestTemplateAdapter implements HttpExchangeAdapter {
@@ -69,7 +72,7 @@ public final class RestTemplateAdapter implements HttpExchangeAdapter {
 	}
 
 	@Override
-	public <T> T exchangeForBody(HttpRequestValues values, ParameterizedTypeReference<T> bodyType) {
+	public <T> @Nullable T exchangeForBody(HttpRequestValues values, ParameterizedTypeReference<T> bodyType) {
 		return this.restTemplate.exchange(newRequest(values), bodyType).getBody();
 	}
 
@@ -84,23 +87,28 @@ public final class RestTemplateAdapter implements HttpExchangeAdapter {
 	}
 
 	private RequestEntity<?> newRequest(HttpRequestValues values) {
-		URI uri;
+		HttpMethod httpMethod = values.getHttpMethod();
+		Assert.notNull(httpMethod, "HttpMethod is required");
+
+		RequestEntity.BodyBuilder builder;
+
 		if (values.getUri() != null) {
-			uri = values.getUri();
+			builder = RequestEntity.method(httpMethod, values.getUri());
 		}
 		else if (values.getUriTemplate() != null) {
-			String uriTemplate = values.getUriTemplate();
-			Map<String, String> variables = values.getUriVariables();
-			uri = this.restTemplate.getUriTemplateHandler().expand(uriTemplate, variables);
+			UriBuilderFactory uriBuilderFactory = values.getUriBuilderFactory();
+			if (uriBuilderFactory != null) {
+				URI expanded = uriBuilderFactory.expand(values.getUriTemplate(), values.getUriVariables());
+				builder = RequestEntity.method(httpMethod, expanded);
+			}
+			else {
+				builder = RequestEntity.method(httpMethod, values.getUriTemplate(), values.getUriVariables());
+			}
 		}
 		else {
 			throw new IllegalStateException("Neither full URL nor URI template");
 		}
 
-		HttpMethod httpMethod = values.getHttpMethod();
-		Assert.notNull(httpMethod, "HttpMethod is required");
-
-		RequestEntity.BodyBuilder builder = RequestEntity.method(httpMethod, uri);
 		builder.headers(values.getHeaders());
 
 		if (!values.getCookies().isEmpty()) {

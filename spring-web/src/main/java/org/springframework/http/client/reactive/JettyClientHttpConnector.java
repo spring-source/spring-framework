@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,16 +21,14 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.Request;
-import org.eclipse.jetty.reactive.client.ContentChunk;
+import org.eclipse.jetty.client.Request;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.core.io.buffer.DataBufferFactory;
-import org.springframework.core.io.buffer.DefaultDataBufferFactory;
+import org.springframework.core.io.buffer.JettyDataBufferFactory;
 import org.springframework.http.HttpMethod;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -44,7 +42,7 @@ public class JettyClientHttpConnector implements ClientHttpConnector {
 
 	private final HttpClient httpClient;
 
-	private DataBufferFactory bufferFactory = DefaultDataBufferFactory.sharedInstance;
+	private JettyDataBufferFactory bufferFactory = new JettyDataBufferFactory();
 
 
 	/**
@@ -97,7 +95,7 @@ public class JettyClientHttpConnector implements ClientHttpConnector {
 	/**
 	 * Set the buffer factory to use.
 	 */
-	public void setBufferFactory(DataBufferFactory bufferFactory) {
+	public void setBufferFactory(JettyDataBufferFactory bufferFactory) {
 		this.bufferFactory = bufferFactory;
 	}
 
@@ -128,24 +126,9 @@ public class JettyClientHttpConnector implements ClientHttpConnector {
 	private Mono<ClientHttpResponse> execute(JettyClientHttpRequest request) {
 		return Mono.fromDirect(request.toReactiveRequest()
 				.response((reactiveResponse, chunkPublisher) -> {
-					Flux<DataBuffer> content = Flux.from(chunkPublisher).map(this::toDataBuffer);
+					Flux<DataBuffer> content = Flux.from(chunkPublisher).map(this.bufferFactory::wrap);
 					return Mono.just(new JettyClientHttpResponse(reactiveResponse, content));
 				}));
-	}
-
-	private DataBuffer toDataBuffer(ContentChunk chunk) {
-
-		// Originally we copy due to do:
-		// https://github.com/eclipse/jetty.project/issues/2429
-
-		// Now that the issue is marked fixed we need to replace the below with a
-		// PooledDataBuffer that adapts "release()" to "succeeded()", and also
-		// evaluate if the concern here is addressed.
-
-		DataBuffer buffer = this.bufferFactory.allocateBuffer(chunk.buffer.capacity());
-		buffer.write(chunk.buffer);
-		chunk.callback.succeeded();
-		return buffer;
 	}
 
 }

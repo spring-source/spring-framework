@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -90,7 +91,8 @@ class DefaultServerResponseBuilder implements ServerResponse.BodyBuilder {
 
 
 	@Override
-	public ServerResponse.BodyBuilder header(String headerName, String... headerValues) {
+	@SuppressWarnings("NullAway") // https://github.com/uber/NullAway/issues/1113
+	public ServerResponse.BodyBuilder header(String headerName, @Nullable String... headerValues) {
 		Assert.notNull(headerName, "HeaderName must not be null");
 		for (String headerValue : headerValues) {
 			this.headers.add(headerName, headerValue);
@@ -146,15 +148,8 @@ class DefaultServerResponseBuilder implements ServerResponse.BodyBuilder {
 	}
 
 	@Override
-	public ServerResponse.BodyBuilder eTag(String etag) {
-		Assert.notNull(etag, "etag must not be null");
-		if (!etag.startsWith("\"") && !etag.startsWith("W/\"")) {
-			etag = "\"" + etag;
-		}
-		if (!etag.endsWith("\"")) {
-			etag = etag + "\"";
-		}
-		this.headers.setETag(etag);
+	public ServerResponse.BodyBuilder eTag(String tag) {
+		this.headers.setETag(tag);
 		return this;
 	}
 
@@ -226,6 +221,11 @@ class DefaultServerResponseBuilder implements ServerResponse.BodyBuilder {
 	}
 
 	@Override
+	public <T> Mono<ServerResponse> bodyValue(T body, ParameterizedTypeReference<T> bodyType) {
+		return initBuilder(body, BodyInserters.fromValue(body, bodyType));
+	}
+
+	@Override
 	public <T, P extends Publisher<T>> Mono<ServerResponse> body(P publisher, Class<T> elementClass) {
 		return initBuilder(publisher, BodyInserters.fromPublisher(publisher, elementClass));
 	}
@@ -245,7 +245,7 @@ class DefaultServerResponseBuilder implements ServerResponse.BodyBuilder {
 		return initBuilder(producer, BodyInserters.fromProducer(producer, elementTypeRef));
 	}
 
-	private  <T> Mono<ServerResponse> initBuilder(T entity, BodyInserter<T, ReactiveHttpOutputMessage> inserter) {
+	private <T> Mono<ServerResponse> initBuilder(T entity, BodyInserter<T, ReactiveHttpOutputMessage> inserter) {
 		return new DefaultEntityResponseBuilder<>(entity, inserter)
 				.status(this.statusCode)
 				.headers(this.headers)
@@ -322,12 +322,6 @@ class DefaultServerResponseBuilder implements ServerResponse.BodyBuilder {
 		}
 
 		@Override
-		@Deprecated
-		public int rawStatusCode() {
-			return this.statusCode.value();
-		}
-
-		@Override
 		public final HttpHeaders headers() {
 			return this.headers;
 		}
@@ -359,6 +353,12 @@ class DefaultServerResponseBuilder implements ServerResponse.BodyBuilder {
 		protected abstract Mono<Void> writeToInternal(ServerWebExchange exchange, Context context);
 
 		private static <K,V> void copy(MultiValueMap<K,V> src, MultiValueMap<K,V> dst) {
+			if (!src.isEmpty()) {
+				dst.putAll(src);
+			}
+		}
+
+		private static void copy(HttpHeaders src, HttpHeaders dst) {
 			if (!src.isEmpty()) {
 				dst.putAll(src);
 			}

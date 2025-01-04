@@ -16,7 +16,7 @@
 
 package org.springframework.transaction;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This is the central interface in Spring's imperative transaction infrastructure.
@@ -34,7 +34,7 @@ import org.springframework.lang.Nullable;
  * <p>A classic implementation of this strategy interface is
  * {@link org.springframework.transaction.jta.JtaTransactionManager}. However,
  * in common single-resource scenarios, Spring's specific transaction managers
- * for e.g. JDBC, JPA, JMS are preferred choices.
+ * for example, JDBC, JPA, JMS are preferred choices.
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
@@ -45,6 +45,7 @@ import org.springframework.lang.Nullable;
  *
  * TransactionManager是做什么的？它保存着当前的数据源连接，对外提供对该数据源的事务提交回滚操作接口，
  * 同时实现了事务相关操作的方法。一个数据源DataSource需要一个事务管理器。
+ * @see ConfigurableTransactionManager
  */
 public interface PlatformTransactionManager extends TransactionManager {
 
@@ -71,8 +72,7 @@ public interface PlatformTransactionManager extends TransactionManager {
 	 * @see TransactionDefinition#getTimeout
 	 * @see TransactionDefinition#isReadOnly
 	 */
-	TransactionStatus getTransaction(@Nullable TransactionDefinition definition)
-			throws TransactionException;
+	TransactionStatus getTransaction(@Nullable TransactionDefinition definition) throws TransactionException;
 
 	/**
 	 * Commit the given transaction, with regard to its status. If the transaction

@@ -20,11 +20,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
 import org.springframework.core.annotation.RepeatableContainers;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.MultiValueMap;
 
@@ -130,8 +131,7 @@ public class StandardMethodMetadata implements MethodMetadata {
 	}
 
 	@Override
-	@Nullable
-	public Map<String, Object> getAnnotationAttributes(String annotationName, boolean classValuesAsString) {
+	public @Nullable Map<String, Object> getAnnotationAttributes(String annotationName, boolean classValuesAsString) {
 		if (this.nestedAnnotationsAsMap) {
 			return MethodMetadata.super.getAnnotationAttributes(annotationName, classValuesAsString);
 		}
@@ -140,8 +140,7 @@ public class StandardMethodMetadata implements MethodMetadata {
 	}
 
 	@Override
-	@Nullable
-	public MultiValueMap<String, Object> getAllAnnotationAttributes(String annotationName, boolean classValuesAsString) {
+	public @Nullable MultiValueMap<String, Object> getAllAnnotationAttributes(String annotationName, boolean classValuesAsString) {
 		if (this.nestedAnnotationsAsMap) {
 			return MethodMetadata.super.getAllAnnotationAttributes(annotationName, classValuesAsString);
 		}
@@ -149,9 +148,10 @@ public class StandardMethodMetadata implements MethodMetadata {
 				annotationName, classValuesAsString, false);
 	}
 
+
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return (this == obj || (obj instanceof StandardMethodMetadata that &&
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof StandardMethodMetadata that &&
 				this.introspectedMethod.equals(that.introspectedMethod)));
 	}
 

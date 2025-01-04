@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,25 +19,26 @@ package org.springframework.transaction.interceptor;
 import java.io.Serializable;
 import java.lang.reflect.Method;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aop.ClassFilter;
 import org.springframework.aop.support.StaticMethodMatcherPointcut;
 import org.springframework.dao.support.PersistenceExceptionTranslator;
-import org.springframework.lang.Nullable;
 import org.springframework.transaction.TransactionManager;
 import org.springframework.util.ObjectUtils;
 
 /**
- * Abstract class that implements a Pointcut that matches if the underlying
+ * Internal class that implements a {@code Pointcut} that matches if the underlying
  * {@link TransactionAttributeSource} has an attribute for a given method.
  *
  * @author Juergen Hoeller
+ * @author Sam Brannen
  * @since 2.5.5
  */
 @SuppressWarnings("serial")
-class TransactionAttributeSourcePointcut extends StaticMethodMatcherPointcut implements Serializable {
+final class TransactionAttributeSourcePointcut extends StaticMethodMatcherPointcut implements Serializable {
 
-	@Nullable
-	private TransactionAttributeSource transactionAttributeSource;
+	private @Nullable TransactionAttributeSource transactionAttributeSource;
 
 
 	public TransactionAttributeSourcePointcut() {
@@ -52,13 +53,13 @@ class TransactionAttributeSourcePointcut extends StaticMethodMatcherPointcut imp
 	@Override
 	public boolean matches(Method method, Class<?> targetClass) {
 		return (this.transactionAttributeSource == null ||
-				this.transactionAttributeSource.getTransactionAttribute(method, targetClass) != null);
+				this.transactionAttributeSource.hasTransactionAttribute(method, targetClass));
 	}
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		return (this == other || (other instanceof TransactionAttributeSourcePointcut otherPc &&
-				ObjectUtils.nullSafeEquals(this.transactionAttributeSource, otherPc.transactionAttributeSource)));
+		return (this == other || (other instanceof TransactionAttributeSourcePointcut that &&
+				ObjectUtils.nullSafeEquals(this.transactionAttributeSource, that.transactionAttributeSource)));
 	}
 
 	@Override
@@ -76,7 +77,7 @@ class TransactionAttributeSourcePointcut extends StaticMethodMatcherPointcut imp
 	 * {@link ClassFilter} that delegates to {@link TransactionAttributeSource#isCandidateClass}
 	 * for filtering classes whose methods are not worth searching to begin with.
 	 */
-	private class TransactionAttributeSourceClassFilter implements ClassFilter {
+	private final class TransactionAttributeSourceClassFilter implements ClassFilter {
 
 		@Override
 		public boolean matches(Class<?> clazz) {
@@ -86,6 +87,26 @@ class TransactionAttributeSourcePointcut extends StaticMethodMatcherPointcut imp
 				return false;
 			}
 			return (transactionAttributeSource == null || transactionAttributeSource.isCandidateClass(clazz));
+		}
+
+		private @Nullable TransactionAttributeSource getTransactionAttributeSource() {
+			return transactionAttributeSource;
+		}
+
+		@Override
+		public boolean equals(@Nullable Object other) {
+			return (this == other || (other instanceof TransactionAttributeSourceClassFilter that &&
+					ObjectUtils.nullSafeEquals(getTransactionAttributeSource(), that.getTransactionAttributeSource())));
+		}
+
+		@Override
+		public int hashCode() {
+			return TransactionAttributeSourceClassFilter.class.hashCode();
+		}
+
+		@Override
+		public String toString() {
+			return TransactionAttributeSourceClassFilter.class.getName() + ": " + getTransactionAttributeSource();
 		}
 	}
 

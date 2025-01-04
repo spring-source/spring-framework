@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import java.util.function.Supplier;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.context.request.NativeWebRequest;
 
@@ -59,25 +59,19 @@ public class DeferredResult<T> {
 	private static final Log logger = LogFactory.getLog(DeferredResult.class);
 
 
-	@Nullable
-	private final Long timeoutValue;
+	private final @Nullable Long timeoutValue;
 
 	private final Supplier<?> timeoutResult;
 
-	@Nullable
-	private Runnable timeoutCallback;
+	private @Nullable Runnable timeoutCallback;
 
-	@Nullable
-	private Consumer<Throwable> errorCallback;
+	private @Nullable Consumer<Throwable> errorCallback;
 
-	@Nullable
-	private Runnable completionCallback;
+	private @Nullable Runnable completionCallback;
 
-	@Nullable
-	private DeferredResultHandler resultHandler;
+	private @Nullable DeferredResultHandler resultHandler;
 
-	@Nullable
-	private volatile Object result = RESULT_NONE;
+	private volatile @Nullable Object result = RESULT_NONE;
 
 	private volatile boolean expired;
 
@@ -96,7 +90,7 @@ public class DeferredResult<T> {
 	 * timeout depends on the default of the underlying server.
 	 * @param timeoutValue timeout value in milliseconds
 	 */
-	public DeferredResult(Long timeoutValue) {
+	public DeferredResult(@Nullable Long timeoutValue) {
 		this(timeoutValue, () -> RESULT_NONE);
 	}
 
@@ -149,8 +143,7 @@ public class DeferredResult<T> {
 	 * to check if there is a result prior to calling this method.
 	 * @since 4.0
 	 */
-	@Nullable
-	public Object getResult() {
+	public @Nullable Object getResult() {
 		Object resultToCheck = this.result;
 		return (resultToCheck != RESULT_NONE ? resultToCheck : null);
 	}
@@ -158,8 +151,7 @@ public class DeferredResult<T> {
 	/**
 	 * Return the configured timeout value in milliseconds.
 	 */
-	@Nullable
-	final Long getTimeoutValue() {
+	final @Nullable Long getTimeoutValue() {
 		return this.timeoutValue;
 	}
 
@@ -239,11 +231,11 @@ public class DeferredResult<T> {
 	 * {@code false} if the result was already set or the async request expired
 	 * @see #isSetOrExpired()
 	 */
-	public boolean setResult(T result) {
+	public boolean setResult(@Nullable T result) {
 		return setResultInternal(result);
 	}
 
-	private boolean setResultInternal(Object result) {
+	private boolean setResultInternal(@Nullable Object result) {
 		// Immediate expiration check outside of the result lock
 		if (isSetOrExpired()) {
 			return false;

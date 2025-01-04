@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import javax.annotation.Nonnull;
  *
  * <p>The user should implement the {@link
  * #construct(ConstructorInvocation)} method to modify the original
- * behavior. E.g. the following class implements a singleton
+ * behavior. For example, the following class implements a singleton
  * interceptor (allows only one unique instance for the intercepted
  * class):
  *
@@ -43,7 +43,7 @@ import javax.annotation.Nonnull;
  *
  * @author Rod Johnson
  */
-public interface ConstructorInterceptor extends Interceptor  {
+public interface ConstructorInterceptor extends Interceptor {
 
 	/**
 	 * Implement this method to perform extra treatments before and

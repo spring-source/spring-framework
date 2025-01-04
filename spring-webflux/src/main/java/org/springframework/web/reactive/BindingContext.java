@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,20 +18,20 @@ package org.springframework.web.reactive;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 
-import reactor.core.publisher.Mono;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.ResolvableType;
-import org.springframework.lang.Nullable;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.DataBinder;
+import org.springframework.validation.SmartValidator;
 import org.springframework.validation.support.BindingAwareConcurrentModel;
+import org.springframework.web.bind.support.BindParamNameResolver;
 import org.springframework.web.bind.support.WebBindingInitializer;
 import org.springframework.web.bind.support.WebExchangeDataBinder;
 import org.springframework.web.server.ServerErrorException;
@@ -53,8 +53,7 @@ import org.springframework.web.server.ServerWebExchange;
  */
 public class BindingContext {
 
-	@Nullable
-	private final WebBindingInitializer initializer;
+	private final @Nullable WebBindingInitializer initializer;
 
 	private final Model model = new BindingAwareConcurrentModel();
 
@@ -137,7 +136,9 @@ public class BindingContext {
 	public WebExchangeDataBinder createDataBinder(
 			ServerWebExchange exchange, @Nullable Object target, String name, @Nullable ResolvableType targetType) {
 
-		WebExchangeDataBinder dataBinder = new ExtendedWebExchangeDataBinder(target, name);
+		WebExchangeDataBinder dataBinder = createBinderInstance(target, name);
+		dataBinder.setNameResolver(new BindParamNameResolver());
+
 		if (target == null && targetType != null) {
 			dataBinder.setTargetType(targetType);
 		}
@@ -145,6 +146,7 @@ public class BindingContext {
 		if (this.initializer != null) {
 			this.initializer.initBinder(dataBinder);
 		}
+
 		dataBinder = initDataBinder(dataBinder, exchange);
 
 		if (this.methodValidationApplicable && targetType != null) {
@@ -154,6 +156,18 @@ public class BindingContext {
 		}
 
 		return dataBinder;
+	}
+
+	/**
+	 * Extension point to create the WebDataBinder instance.
+	 * By default, this is {@code WebRequestDataBinder}.
+	 * @param target the binding target or {@code null} for type conversion only
+	 * @param name the binding target object name
+	 * @return the created {@link WebExchangeDataBinder} instance
+	 * @since 6.2.1
+	 */
+	protected WebExchangeDataBinder createBinderInstance(@Nullable Object target, String name) {
+		return new WebExchangeDataBinder(target, name);
 	}
 
 	/**
@@ -194,24 +208,6 @@ public class BindingContext {
 
 
 	/**
-	 * Extended variant of {@link WebExchangeDataBinder}, adding path variables.
-	 */
-	private static class ExtendedWebExchangeDataBinder extends WebExchangeDataBinder {
-
-		public ExtendedWebExchangeDataBinder(@Nullable Object target, String objectName) {
-			super(target, objectName);
-		}
-
-		@Override
-		public Mono<Map<String, Object>> getValuesToBind(ServerWebExchange exchange) {
-			return super.getValuesToBind(exchange).doOnNext(map ->
-					map.putAll(exchange.<Map<String, String>>getAttributeOrDefault(
-							HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, Collections.emptyMap())));
-		}
-	}
-
-
-	/**
 	 * Excludes Bean Validation if the method parameter has {@code @Valid}.
 	 */
 	private static class MethodValidationInitializer {
@@ -220,7 +216,8 @@ public class BindingContext {
 			if (ReactiveAdapterRegistry.getSharedInstance().getAdapter(parameter.getParameterType()) == null) {
 				for (Annotation annotation : parameter.getParameterAnnotations()) {
 					if (annotation.annotationType().getName().equals("jakarta.validation.Valid")) {
-						binder.setExcludedValidators(validator -> validator instanceof jakarta.validation.Validator);
+						binder.setExcludedValidators(v -> v instanceof jakarta.validation.Validator ||
+								v instanceof SmartValidator sv && sv.unwrap(jakarta.validation.Validator.class) != null);
 					}
 				}
 			}

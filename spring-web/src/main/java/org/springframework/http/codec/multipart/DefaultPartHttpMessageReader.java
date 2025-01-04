@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
@@ -37,7 +38,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ReactiveHttpInputMessage;
 import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.http.codec.LoggingCodecSupport;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -66,7 +66,7 @@ public class DefaultPartHttpMessageReader extends LoggingCodecSupport implements
 
 	private int maxParts = -1;
 
-	private Scheduler blockingOperationScheduler = Schedulers.boundedElastic();
+	private @Nullable Scheduler blockingOperationScheduler;
 
 	private FileStorage fileStorage = FileStorage.tempDirectory(this::getBlockingOperationScheduler);
 
@@ -144,7 +144,7 @@ public class DefaultPartHttpMessageReader extends LoggingCodecSupport implements
 	 * changing it to an externally managed scheduler.
 	 * <p>Note that this property is ignored when
 	 * {@link #setMaxInMemorySize(int) maxInMemorySize} is set to -1.
-	 * @see Schedulers#newBoundedElastic
+	 * @see Schedulers#boundedElastic
 	 */
 	public void setBlockingOperationScheduler(Scheduler blockingOperationScheduler) {
 		Assert.notNull(blockingOperationScheduler, "'blockingOperationScheduler' must not be null");
@@ -152,7 +152,8 @@ public class DefaultPartHttpMessageReader extends LoggingCodecSupport implements
 	}
 
 	private Scheduler getBlockingOperationScheduler() {
-		return this.blockingOperationScheduler;
+		return (this.blockingOperationScheduler != null ?
+				this.blockingOperationScheduler : Schedulers.boundedElastic());
 	}
 
 	/**
@@ -206,7 +207,7 @@ public class DefaultPartHttpMessageReader extends LoggingCodecSupport implements
 						else {
 							return PartGenerator.createPart(partsTokens,
 									this.maxInMemorySize, this.maxDiskUsagePerPart,
-									this.fileStorage.directory(), this.blockingOperationScheduler);
+									this.fileStorage.directory(), getBlockingOperationScheduler());
 						}
 					});
 		});

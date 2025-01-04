@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,11 +29,11 @@ import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.core.annotation.MergedAnnotations.Search;
 import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
 
@@ -197,7 +197,7 @@ class AnnotationsScannerTests {
 	}
 
 	@Test
-	void typeHierarchyStrategyOnClassWhenHasInterfaceDoesNotIncludeInterfaces() {
+	void typeHierarchyStrategyOnClassWhenHasSingleInterfaceScansInterfaces() {
 		Class<?> source = WithSingleInterface.class;
 		assertThat(scan(source, SearchStrategy.TYPE_HIERARCHY)).containsExactly(
 				"0:TestAnnotation1", "1:TestAnnotation2", "1:TestInheritedAnnotation2");
@@ -353,10 +353,19 @@ class AnnotationsScannerTests {
 	}
 
 	@Test
-	void typeHierarchyStrategyOnMethodWhenHasInterfaceDoesNotIncludeInterfaces() {
+	void typeHierarchyStrategyOnMethodWhenHasInterfaceScansInterfaces() {
 		Method source = methodFrom(WithSingleInterface.class);
 		assertThat(scan(source, SearchStrategy.TYPE_HIERARCHY)).containsExactly(
 				"0:TestAnnotation1", "1:TestAnnotation2", "1:TestInheritedAnnotation2");
+
+		source = methodFrom(Hello1Impl.class);
+		assertThat(scan(source, SearchStrategy.TYPE_HIERARCHY)).containsExactly("1:TestAnnotation1");
+	}
+
+	@Test  // gh-31803
+	void typeHierarchyStrategyOnMethodWhenHasInterfaceHierarchyScansInterfacesOnlyOnce() {
+		Method source = methodFrom(Hello2Impl.class);
+		assertThat(scan(source, SearchStrategy.TYPE_HIERARCHY)).containsExactly("1:TestAnnotation1");
 	}
 
 	@Test
@@ -460,15 +469,13 @@ class AnnotationsScannerTests {
 				new AnnotationsProcessor<Object, String>() {
 
 					@Override
-					@Nullable
 					public String doWithAggregate(Object context, int aggregateIndex) {
 						return "";
 					}
 
 					@Override
-					@Nullable
 					public String doWithAnnotations(Object context, int aggregateIndex,
-							Object source, Annotation[] annotations) {
+							@Nullable Object source, Annotation[] annotations) {
 						throw new IllegalStateException("Should not call");
 					}
 
@@ -494,15 +501,13 @@ class AnnotationsScannerTests {
 				new AnnotationsProcessor<Object, String>() {
 
 					@Override
-					@Nullable
 					public String doWithAnnotations(Object context, int aggregateIndex,
-							Object source, Annotation[] annotations) {
+							@Nullable Object source, Annotation[] annotations) {
 						return "K";
 					}
 
 					@Override
-					@Nullable
-					public String finish(String result) {
+					public String finish(@Nullable String result) {
 						return "O" + result;
 					}
 
@@ -691,6 +696,30 @@ class AnnotationsScannerTests {
 		}
 	}
 
+	interface Hello1 {
+
+		@TestAnnotation1
+		void method();
+	}
+
+	interface Hello2 extends Hello1 {
+	}
+
+	static class Hello1Impl implements Hello1 {
+
+		@Override
+		public void method() {
+		}
+	}
+
+	static class Hello2Impl implements Hello2 {
+
+		@Override
+		public void method() {
+		}
+	}
+
+
 	@TestAnnotation2
 	@TestInheritedAnnotation2
 	static class HierarchySuperclass extends HierarchySuperSuperclass {
@@ -760,17 +789,15 @@ class AnnotationsScannerTests {
 
 	interface IgnorableOverrideInterface1 {
 
-		@Nullable
 		void method();
 	}
 
 	interface IgnorableOverrideInterface2 {
 
-		@Nullable
 		void method();
 	}
 
-	static abstract class MultipleMethods implements MultipleMethodsInterface {
+	abstract static class MultipleMethods implements MultipleMethodsInterface {
 
 		@TestAnnotation1
 		public void method() {
@@ -800,7 +827,7 @@ class AnnotationsScannerTests {
 		void method(T argument);
 	}
 
-	static abstract class GenericNonOverride implements GenericNonOverrideInterface<String> {
+	abstract static class GenericNonOverride implements GenericNonOverrideInterface<String> {
 
 		@TestAnnotation1
 		public void method(StringBuilder argument) {

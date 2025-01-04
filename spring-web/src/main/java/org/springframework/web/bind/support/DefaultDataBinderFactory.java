@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,12 @@ package org.springframework.web.bind.support;
 
 import java.lang.annotation.Annotation;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ResolvableType;
-import org.springframework.lang.Nullable;
 import org.springframework.validation.DataBinder;
+import org.springframework.validation.SmartValidator;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.context.request.NativeWebRequest;
 
@@ -34,8 +36,7 @@ import org.springframework.web.context.request.NativeWebRequest;
  */
 public class DefaultDataBinderFactory implements WebDataBinderFactory {
 
-	@Nullable
-	private final WebBindingInitializer initializer;
+	private final @Nullable WebBindingInitializer initializer;
 
 	private boolean methodValidationApplicable;
 
@@ -74,7 +75,7 @@ public class DefaultDataBinderFactory implements WebDataBinderFactory {
 	}
 
 	/**
-	 * {@inheritDoc}.
+	 * {@inheritDoc}
 	 * <p>By default, if the parameter has {@code @Valid}, Bean Validation is
 	 * excluded, deferring to method validation.
 	 */
@@ -91,6 +92,7 @@ public class DefaultDataBinderFactory implements WebDataBinderFactory {
 			@Nullable ResolvableType type) throws Exception {
 
 		WebDataBinder dataBinder = createBinderInstance(target, objectName, webRequest);
+		dataBinder.setNameResolver(new BindParamNameResolver());
 
 		if (target == null && type != null) {
 			dataBinder.setTargetType(type);
@@ -99,6 +101,7 @@ public class DefaultDataBinderFactory implements WebDataBinderFactory {
 		if (this.initializer != null) {
 			this.initializer.initBinder(dataBinder);
 		}
+
 		initBinder(dataBinder, webRequest);
 
 		if (this.methodValidationApplicable && type != null) {
@@ -112,7 +115,7 @@ public class DefaultDataBinderFactory implements WebDataBinderFactory {
 
 	/**
 	 * Extension point to create the WebDataBinder instance.
-	 * By default this is {@code WebRequestDataBinder}.
+	 * By default, this is {@code WebRequestDataBinder}.
 	 * @param target the binding target or {@code null} for type conversion only
 	 * @param objectName the binding target object name
 	 * @param webRequest the current request
@@ -126,7 +129,7 @@ public class DefaultDataBinderFactory implements WebDataBinderFactory {
 
 	/**
 	 * Extension point to further initialize the created data binder instance
-	 * (e.g. with {@code @InitBinder} methods) after "global" initialization
+	 * (for example, with {@code @InitBinder} methods) after "global" initialization
 	 * via {@link WebBindingInitializer}.
 	 * @param dataBinder the data binder instance to customize
 	 * @param webRequest the current request
@@ -146,7 +149,8 @@ public class DefaultDataBinderFactory implements WebDataBinderFactory {
 		public static void initBinder(DataBinder binder, MethodParameter parameter) {
 			for (Annotation annotation : parameter.getParameterAnnotations()) {
 				if (annotation.annotationType().getName().equals("jakarta.validation.Valid")) {
-					binder.setExcludedValidators(validator -> validator instanceof jakarta.validation.Validator);
+					binder.setExcludedValidators(v -> v instanceof jakarta.validation.Validator ||
+							v instanceof SmartValidator sv && sv.unwrap(jakarta.validation.Validator.class) != null);
 				}
 			}
 		}

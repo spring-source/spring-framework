@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import java.util.function.Consumer;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,6 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,6 +47,8 @@ import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.PostExchange;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 import org.springframework.web.testfixture.servlet.MockMultipartFile;
+import org.springframework.web.util.DefaultUriBuilderFactory;
+import org.springframework.web.util.UriBuilderFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -58,14 +60,19 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Rossen Stoyanchev
  * @author Olga Maciaszek-Sharma
  */
-public class WebClientAdapterTests {
+class WebClientAdapterTests {
+
+	private static final String ANOTHER_SERVER_RESPONSE_BODY = "Hello Spring 2!";
 
 	private MockWebServer server;
+
+	private MockWebServer anotherServer;
 
 
 	@BeforeEach
 	void setUp() {
 		this.server = new MockWebServer();
+		this.anotherServer = anotherServer();
 	}
 
 	@SuppressWarnings("ConstantConditions")
@@ -73,6 +80,10 @@ public class WebClientAdapterTests {
 	void shutdown() throws IOException {
 		if (this.server != null) {
 			this.server.shutdown();
+		}
+
+		if (this.anotherServer != null) {
+			this.anotherServer.shutdown();
 		}
 	}
 
@@ -134,7 +145,7 @@ public class WebClientAdapterTests {
 		initService().postForm(map);
 
 		RecordedRequest request = this.server.takeRequest();
-		assertThat(request.getHeaders().get("Content-Type")).isEqualTo("application/x-www-form-urlencoded;charset=UTF-8");
+		assertThat(request.getHeaders().get("Content-Type")).isEqualTo("application/x-www-form-urlencoded");
 		assertThat(request.getBody().readUtf8()).isEqualTo("param1=value+1&param2=value+2");
 	}
 
@@ -157,13 +168,62 @@ public class WebClientAdapterTests {
 						"Content-Type: text/plain;charset=UTF-8", "Content-Length: 5", "test2");
 	}
 
+	@Test
+	void uriBuilderFactory() throws Exception {
+		String ignoredResponseBody = "hello";
+		prepareResponse(response -> response.setResponseCode(200).setBody(ignoredResponseBody));
+		UriBuilderFactory factory = new DefaultUriBuilderFactory(this.anotherServer.url("/").toString());
+
+		String actualBody = initService().getWithUriBuilderFactory(factory);
+
+		assertThat(actualBody).isEqualTo(ANOTHER_SERVER_RESPONSE_BODY);
+		assertThat(this.anotherServer.takeRequest().getPath()).isEqualTo("/greeting");
+		assertThat(this.server.getRequestCount()).isEqualTo(0);
+	}
+
+	@Test
+	void uriBuilderFactoryWithPathVariableAndRequestParam() throws Exception {
+		String ignoredResponseBody = "hello";
+		prepareResponse(response -> response.setResponseCode(200).setBody(ignoredResponseBody));
+		UriBuilderFactory factory = new DefaultUriBuilderFactory(this.anotherServer.url("/").toString());
+
+		String actualBody = initService().getWithUriBuilderFactory(factory, "123", "test");
+
+		assertThat(actualBody).isEqualTo(ANOTHER_SERVER_RESPONSE_BODY);
+		assertThat(this.anotherServer.takeRequest().getPath()).isEqualTo("/greeting/123?param=test");
+		assertThat(this.server.getRequestCount()).isEqualTo(0);
+	}
+
+	@Test
+	void ignoredUriBuilderFactory() throws Exception {
+		String expectedResponseBody = "hello";
+		prepareResponse(response -> response.setResponseCode(200).setBody(expectedResponseBody));
+		URI dynamicUri = this.server.url("/greeting/123").uri();
+		UriBuilderFactory factory = new DefaultUriBuilderFactory(this.anotherServer.url("/").toString());
+
+		String actualBody = initService().getWithIgnoredUriBuilderFactory(dynamicUri, factory);
+
+		assertThat(actualBody).isEqualTo(expectedResponseBody);
+		assertThat(this.server.takeRequest().getRequestUrl().uri()).isEqualTo(dynamicUri);
+		assertThat(this.anotherServer.getRequestCount()).isEqualTo(0);
+	}
+
+
+	private static MockWebServer anotherServer() {
+		MockWebServer anotherServer = new MockWebServer();
+		MockResponse response = new MockResponse();
+		response.setHeader("Content-Type", "text/plain").setBody(ANOTHER_SERVER_RESPONSE_BODY);
+		anotherServer.enqueue(response);
+		return anotherServer;
+	}
+
 	private Service initService() {
 		WebClient webClient = WebClient.builder().baseUrl(this.server.url("/").toString()).build();
 		return initService(webClient);
 	}
 
 	private Service initService(WebClient webClient) {
-		WebClientAdapter adapter = WebClientAdapter.forClient(webClient);
+		WebClientAdapter adapter = WebClientAdapter.create(webClient);
 		return HttpServiceProxyFactory.builderFor(adapter).build().createClient(Service.class);
 	}
 
@@ -190,6 +250,16 @@ public class WebClientAdapterTests {
 
 		@PostExchange
 		void postMultipart(MultipartFile file, @RequestPart String anotherPart);
+
+		@GetExchange("/greeting")
+		String getWithUriBuilderFactory(UriBuilderFactory uriBuilderFactory);
+
+		@GetExchange("/greeting/{id}")
+		String getWithUriBuilderFactory(UriBuilderFactory uriBuilderFactory,
+				@PathVariable String id, @RequestParam String param);
+
+		@GetExchange("/greeting")
+		String getWithIgnoredUriBuilderFactory(URI uri, UriBuilderFactory uriBuilderFactory);
 
 	}
 

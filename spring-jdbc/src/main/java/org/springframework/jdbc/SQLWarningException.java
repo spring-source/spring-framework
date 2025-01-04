@@ -18,6 +18,8 @@ package org.springframework.jdbc;
 
 import java.sql.SQLWarning;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.dao.UncategorizedDataAccessException;
 
 /**
@@ -49,7 +51,7 @@ public class SQLWarningException extends UncategorizedDataAccessException {
 	 * Return the underlying {@link SQLWarning}.
 	 * @since 5.3.29
 	 */
-	public SQLWarning getSQLWarning() {
+	public @Nullable SQLWarning getSQLWarning() {
 		return (SQLWarning) getCause();
 	}
 
@@ -58,7 +60,7 @@ public class SQLWarningException extends UncategorizedDataAccessException {
 	 * @deprecated as of 5.3.29, in favor of {@link #getSQLWarning()}
 	 */
 	@Deprecated(since = "5.3.29")
-	public SQLWarning SQLWarning() {
+	public @Nullable SQLWarning SQLWarning() {
 		return getSQLWarning();
 	}
 

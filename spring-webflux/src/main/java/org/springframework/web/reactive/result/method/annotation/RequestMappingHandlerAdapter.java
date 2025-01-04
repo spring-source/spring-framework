@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.util.function.Predicate;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
@@ -32,10 +33,10 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.KotlinDetector;
 import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.http.codec.ServerCodecConfigurer;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.support.WebBindingInitializer;
@@ -45,8 +46,11 @@ import org.springframework.web.reactive.DispatchExceptionHandler;
 import org.springframework.web.reactive.HandlerAdapter;
 import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.reactive.HandlerResult;
+import org.springframework.web.reactive.accept.RequestedContentTypeResolver;
+import org.springframework.web.reactive.accept.RequestedContentTypeResolverBuilder;
 import org.springframework.web.reactive.result.method.InvocableHandlerMethod;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.util.DisconnectedClientHelper;
 
 /**
  * Supports the invocation of
@@ -54,6 +58,7 @@ import org.springframework.web.server.ServerWebExchange;
  * handler methods.
  *
  * @author Rossen Stoyanchev
+ * @author Brian Clozel
  * @since 5.0
  */
 public class RequestMappingHandlerAdapter
@@ -61,32 +66,36 @@ public class RequestMappingHandlerAdapter
 
 	private static final Log logger = LogFactory.getLog(RequestMappingHandlerAdapter.class);
 
+	/**
+	 * Log category to use for network failure after a client has gone away.
+	 * @see DisconnectedClientHelper
+	 */
+	private static final String DISCONNECTED_CLIENT_LOG_CATEGORY =
+			"org.springframework.web.reactive.result.method.annotation.DisconnectedClient";
+
+	private static final DisconnectedClientHelper disconnectedClientHelper =
+			new DisconnectedClientHelper(DISCONNECTED_CLIENT_LOG_CATEGORY);
+
 
 	private List<HttpMessageReader<?>> messageReaders = Collections.emptyList();
 
-	@Nullable
-	private WebBindingInitializer webBindingInitializer;
+	private @Nullable WebBindingInitializer webBindingInitializer;
 
-	@Nullable
-	private ArgumentResolverConfigurer argumentResolverConfigurer;
+	private @Nullable ArgumentResolverConfigurer argumentResolverConfigurer;
 
-	@Nullable
-	private Scheduler scheduler;
+	private RequestedContentTypeResolver contentTypeResolver = new RequestedContentTypeResolverBuilder().build();
 
-	@Nullable
-	private Predicate<HandlerMethod> blockingMethodPredicate;
+	private @Nullable Scheduler scheduler;
 
-	@Nullable
-	private ReactiveAdapterRegistry reactiveAdapterRegistry;
+	private @Nullable Predicate<HandlerMethod> blockingMethodPredicate;
 
-	@Nullable
-	private ConfigurableApplicationContext applicationContext;
+	private @Nullable ReactiveAdapterRegistry reactiveAdapterRegistry;
 
-	@Nullable
-	private ControllerMethodResolver methodResolver;
+	private @Nullable ConfigurableApplicationContext applicationContext;
 
-	@Nullable
-	private ModelInitializer modelInitializer;
+	private @Nullable ControllerMethodResolver methodResolver;
+
+	private @Nullable ModelInitializer modelInitializer;
 
 
 	/**
@@ -116,8 +125,7 @@ public class RequestMappingHandlerAdapter
 	/**
 	 * Return the configured WebBindingInitializer, or {@code null} if none.
 	 */
-	@Nullable
-	public WebBindingInitializer getWebBindingInitializer() {
+	public @Nullable WebBindingInitializer getWebBindingInitializer() {
 		return this.webBindingInitializer;
 	}
 
@@ -131,9 +139,26 @@ public class RequestMappingHandlerAdapter
 	/**
 	 * Return the configured resolvers for controller method arguments.
 	 */
-	@Nullable
-	public ArgumentResolverConfigurer getArgumentResolverConfigurer() {
+	public @Nullable ArgumentResolverConfigurer getArgumentResolverConfigurer() {
 		return this.argumentResolverConfigurer;
+	}
+
+	/**
+	 * Set the {@link RequestedContentTypeResolver} to use to determine requested
+	 * media types. If not set, the default constructor is used.
+	 * @since 6.2
+	 */
+	public void setContentTypeResolver(RequestedContentTypeResolver contentTypeResolver) {
+		Assert.notNull(contentTypeResolver, "'contentTypeResolver' must not be null");
+		this.contentTypeResolver = contentTypeResolver;
+	}
+
+	/**
+	 * Return the configured {@link RequestedContentTypeResolver}.
+	 * @since 6.2
+	 */
+	public RequestedContentTypeResolver getContentTypeResolver() {
+		return this.contentTypeResolver;
 	}
 
 	/**
@@ -172,8 +197,7 @@ public class RequestMappingHandlerAdapter
 	/**
 	 * Return the configured registry for adapting reactive types.
 	 */
-	@Nullable
-	public ReactiveAdapterRegistry getReactiveAdapterRegistry() {
+	public @Nullable ReactiveAdapterRegistry getReactiveAdapterRegistry() {
 		return this.reactiveAdapterRegistry;
 	}
 
@@ -213,7 +237,8 @@ public class RequestMappingHandlerAdapter
 
 		this.methodResolver = new ControllerMethodResolver(
 				this.argumentResolverConfigurer, this.reactiveAdapterRegistry, this.applicationContext,
-				this.messageReaders, this.webBindingInitializer);
+				this.contentTypeResolver, this.messageReaders, this.webBindingInitializer,
+				this.scheduler, this.blockingMethodPredicate);
 
 		this.modelInitializer = new ModelInitializer(this.methodResolver, this.reactiveAdapterRegistry);
 	}
@@ -248,11 +273,9 @@ public class RequestMappingHandlerAdapter
 				.doOnNext(result -> result.setExceptionHandler(exceptionHandler))
 				.onErrorResume(ex -> exceptionHandler.handleError(exchange, ex));
 
-		if (this.scheduler != null) {
-			Assert.state(this.blockingMethodPredicate != null, "Expected HandlerMethod Predicate");
-			if (this.blockingMethodPredicate.test(handlerMethod)) {
-				resultMono = resultMono.subscribeOn(this.scheduler);
-			}
+		Scheduler optionalScheduler = this.methodResolver.getSchedulerFor(handlerMethod);
+		if (optionalScheduler != null) {
+			return resultMono.subscribeOn(optionalScheduler);
 		}
 
 		return resultMono;
@@ -269,7 +292,7 @@ public class RequestMappingHandlerAdapter
 		exchange.getResponse().getHeaders().clearContentHeaders();
 
 		InvocableHandlerMethod invocable =
-				this.methodResolver.getExceptionHandlerMethod(exception, handlerMethod);
+				this.methodResolver.getExceptionHandlerMethod(exception, exchange, handlerMethod);
 
 		if (invocable != null) {
 			ArrayList<Throwable> exceptions = new ArrayList<>();
@@ -295,16 +318,31 @@ public class RequestMappingHandlerAdapter
 				exceptions.toArray(arguments);  // efficient arraycopy call in ArrayList
 				arguments[arguments.length - 1] = handlerMethod;
 
-				return invocable.invoke(exchange, bindingContext, arguments);
+				return invocable.invoke(exchange, bindingContext, arguments)
+						.onErrorResume(invocationEx ->
+								handleExceptionHandlerFailure(exchange, exception, invocationEx, exceptions, invocable));
 			}
 			catch (Throwable invocationEx) {
-				// Any other than the original exception (or a cause) is unintended here,
-				// probably an accident (e.g. failed assertion or the like).
-				if (!exceptions.contains(invocationEx) && logger.isWarnEnabled()) {
-					logger.warn(exchange.getLogPrefix() + "Failure in @ExceptionHandler " + invocable, invocationEx);
-				}
+				return handleExceptionHandlerFailure(exchange, exception, invocationEx, exceptions, invocable);
 			}
 		}
+		return Mono.error(exception);
+	}
+
+	private static Mono<HandlerResult> handleExceptionHandlerFailure(
+			ServerWebExchange exchange, Throwable exception, Throwable invocationEx,
+			ArrayList<Throwable> exceptions, InvocableHandlerMethod invocable) {
+
+		if (disconnectedClientHelper.checkAndLogClientDisconnectedException(invocationEx)) {
+			return Mono.empty();
+		}
+
+		// Any other than the original exception (or a cause) is unintended here,
+		// probably an accident (for example, failed assertion or the like).
+		if (!exceptions.contains(invocationEx) && logger.isWarnEnabled()) {
+			logger.warn(exchange.getLogPrefix() + "Failure in @ExceptionHandler " + invocable, invocationEx);
+		}
+
 		return Mono.error(exception);
 	}
 
@@ -315,7 +353,8 @@ public class RequestMappingHandlerAdapter
 
 
 	/**
-	 * Match methods with a return type without an adapter in {@link ReactiveAdapterRegistry}.
+	 * Match methods with a return type without an adapter in {@link ReactiveAdapterRegistry}
+	 * which are not suspending functions.
 	 */
 	private record NonReactiveHandlerMethodPredicate(ReactiveAdapterRegistry adapterRegistry)
 			implements Predicate<HandlerMethod> {
@@ -323,7 +362,8 @@ public class RequestMappingHandlerAdapter
 		@Override
 		public boolean test(HandlerMethod handlerMethod) {
 			Class<?> returnType = handlerMethod.getReturnType().getParameterType();
-			return (this.adapterRegistry.getAdapter(returnType) == null);
+			return (this.adapterRegistry.getAdapter(returnType) == null
+					&& !KotlinDetector.isSuspendingFunction(handlerMethod.getMethod()));
 		}
 	}
 

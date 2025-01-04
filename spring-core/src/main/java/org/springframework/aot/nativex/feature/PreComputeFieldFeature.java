@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import java.util.regex.Pattern;
 import org.graalvm.nativeimage.hosted.Feature;
 
 /**
- * GraalVM {@link Feature} that substitutes boolean field values that match a certain pattern
- * with values pre-computed AOT without causing class build-time initialization.
+ * GraalVM {@link Feature} that substitutes boolean field values that match certain patterns
+ * with values pre-computed ahead-of-time without causing class build-time initialization.
  *
  * <p>It is possible to pass <pre style="code">-Dspring.native.precompute.log=verbose</pre> as a
  * <pre style="code">native-image</pre> compiler build argument to display detailed logs
@@ -45,7 +45,7 @@ class PreComputeFieldFeature implements Feature {
 			Pattern.compile(Pattern.quote("org.springframework.aot.AotDetector#inNativeImage")),
 			Pattern.compile(Pattern.quote("org.springframework.") + ".*#.*Present"),
 			Pattern.compile(Pattern.quote("org.springframework.") + ".*#.*PRESENT"),
-			Pattern.compile(Pattern.quote("reactor.") + ".*#.*Available"),
+			Pattern.compile(Pattern.quote("reactor.core.") + ".*#.*Available"),
 			Pattern.compile(Pattern.quote("org.apache.commons.logging.LogAdapter") + "#.*Present")
 	};
 

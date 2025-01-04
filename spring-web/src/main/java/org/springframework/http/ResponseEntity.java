@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.ObjectUtils;
@@ -87,7 +88,7 @@ public class ResponseEntity<T> extends HttpEntity<T> {
 	 * @param status the status code
 	 */
 	public ResponseEntity(HttpStatusCode status) {
-		this(null, null, status);
+		this(null, (HttpHeaders) null, status);
 	}
 
 	/**
@@ -96,14 +97,51 @@ public class ResponseEntity<T> extends HttpEntity<T> {
 	 * @param status the status code
 	 */
 	public ResponseEntity(@Nullable T body, HttpStatusCode status) {
-		this(body, null, status);
+		this(body, (HttpHeaders) null, status);
 	}
 
 	/**
 	 * Create a {@code ResponseEntity} with headers and a status code.
 	 * @param headers the entity headers
 	 * @param status the status code
+	 * @since 7.0
 	 */
+	public ResponseEntity(HttpHeaders headers, HttpStatusCode status) {
+		this(null, headers, status);
+	}
+
+	/**
+	 * Create a {@code ResponseEntity} with a body, headers, and a raw status code.
+	 * @param body the entity body
+	 * @param headers the entity headers
+	 * @param rawStatus the status code value
+	 * @since 7.0
+	 */
+	public ResponseEntity(@Nullable T body, @Nullable HttpHeaders headers, int rawStatus) {
+		this(body, headers, HttpStatusCode.valueOf(rawStatus));
+	}
+
+	/**
+	 * Create a {@code ResponseEntity} with a body, headers, and a status code.
+	 * @param body the entity body
+	 * @param headers the entity headers
+	 * @param statusCode the status code
+	 * @since 7.0
+	 */
+	public ResponseEntity(@Nullable T body, @Nullable HttpHeaders headers, HttpStatusCode statusCode) {
+		super(body, headers);
+		Assert.notNull(statusCode, "HttpStatusCode must not be null");
+
+		this.status = statusCode;
+	}
+
+	/**
+	 * Create a {@code ResponseEntity} with headers and a status code.
+	 * @param headers the entity headers
+	 * @param status the status code
+	 * @deprecated Use {@link #ResponseEntity(HttpHeaders, HttpStatusCode)}
+	 */
+	@Deprecated
 	public ResponseEntity(MultiValueMap<String, String> headers, HttpStatusCode status) {
 		this(null, headers, status);
 	}
@@ -114,7 +152,9 @@ public class ResponseEntity<T> extends HttpEntity<T> {
 	 * @param headers the entity headers
 	 * @param rawStatus the status code value
 	 * @since 5.3.2
+	 * @deprecated Use {@link #ResponseEntity(Object, HttpHeaders, int)}
 	 */
+	@Deprecated
 	public ResponseEntity(@Nullable T body, @Nullable MultiValueMap<String, String> headers, int rawStatus) {
 		this(body, headers, HttpStatusCode.valueOf(rawStatus));
 	}
@@ -124,7 +164,9 @@ public class ResponseEntity<T> extends HttpEntity<T> {
 	 * @param body the entity body
 	 * @param headers the entity headers
 	 * @param statusCode the status code
+	 * @deprecated Use {@link #ResponseEntity(Object, HttpHeaders, HttpStatusCode)}
 	 */
+	@Deprecated
 	public ResponseEntity(@Nullable T body, @Nullable MultiValueMap<String, String> headers, HttpStatusCode statusCode) {
 		super(body, headers);
 		Assert.notNull(statusCode, "HttpStatusCode must not be null");
@@ -162,8 +204,7 @@ public class ResponseEntity<T> extends HttpEntity<T> {
 		if (!super.equals(other)) {
 			return false;
 		}
-		ResponseEntity<?> otherEntity = (ResponseEntity<?>) other;
-		return ObjectUtils.nullSafeEquals(this.status, otherEntity.status);
+		return (other instanceof ResponseEntity<?> otherEntity && ObjectUtils.nullSafeEquals(this.status, otherEntity.status));
 	}
 
 	@Override
@@ -382,7 +423,7 @@ public class ResponseEntity<T> extends HttpEntity<T> {
 		 * Manipulate this entity's headers with the given consumer. The
 		 * headers provided to the consumer are "live", so that the consumer can be used to
 		 * {@linkplain HttpHeaders#set(String, String) overwrite} existing header values,
-		 * {@linkplain HttpHeaders#remove(Object) remove} values, or use any of the other
+		 * {@linkplain HttpHeaders#remove(String) remove} values, or use any of the other
 		 * {@link HttpHeaders} methods.
 		 * @param headersConsumer a function that consumes the {@code HttpHeaders}
 		 * @return this builder
@@ -459,7 +500,7 @@ public class ResponseEntity<T> extends HttpEntity<T> {
 		B cacheControl(CacheControl cacheControl);
 
 		/**
-		 * Configure one or more request header names (e.g. "Accept-Language") to
+		 * Configure one or more request header names (for example, "Accept-Language") to
 		 * add to the "Vary" response header to inform clients that the response is
 		 * subject to content negotiation and variances based on the value of the
 		 * given request headers. The configured request header names are added only
@@ -569,16 +610,8 @@ public class ResponseEntity<T> extends HttpEntity<T> {
 		}
 
 		@Override
-		public BodyBuilder eTag(@Nullable String etag) {
-			if (etag != null) {
-				if (!etag.startsWith("\"") && !etag.startsWith("W/\"")) {
-					etag = "\"" + etag;
-				}
-				if (!etag.endsWith("\"")) {
-					etag = etag + "\"";
-				}
-			}
-			this.headers.setETag(etag);
+		public BodyBuilder eTag(@Nullable String tag) {
+			this.headers.setETag(tag);
 			return this;
 		}
 

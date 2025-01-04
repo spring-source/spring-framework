@@ -27,6 +27,7 @@ import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ResolvableType;
@@ -39,7 +40,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.http.server.ServletServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.ui.ModelMap;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -103,13 +103,27 @@ public class HttpEntityMethodProcessor extends AbstractMessageConverterMethodPro
 	}
 
 	/**
-	 * Complete constructor for resolving {@code HttpEntity} and handling
-	 * {@code ResponseEntity}.
+	 * Variant of {@link #HttpEntityMethodProcessor(List, List)}
+	 * with an additional {@link ContentNegotiationManager} argument for return
+	 * value handling.
 	 */
 	public HttpEntityMethodProcessor(List<HttpMessageConverter<?>> converters,
 			@Nullable ContentNegotiationManager manager, List<Object> requestResponseBodyAdvice) {
 
 		super(converters, manager, requestResponseBodyAdvice);
+	}
+
+	/**
+	 * Variant of {@link #HttpEntityMethodProcessor(List, ContentNegotiationManager, List)}
+	 * with additional list of {@link ErrorResponse.Interceptor}s for return
+	 * value handling.
+	 * @since 6.2
+	 */
+	public HttpEntityMethodProcessor(List<HttpMessageConverter<?>> converters,
+			@Nullable ContentNegotiationManager manager, List<Object> requestResponseBodyAdvice,
+			List<ErrorResponse.Interceptor> interceptors) {
+
+		super(converters, manager, requestResponseBodyAdvice, interceptors);
 	}
 
 
@@ -127,8 +141,7 @@ public class HttpEntityMethodProcessor extends AbstractMessageConverterMethodPro
 	}
 
 	@Override
-	@Nullable
-	public Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer mavContainer,
+	public @Nullable Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer mavContainer,
 			NativeWebRequest webRequest, @Nullable WebDataBinderFactory binderFactory)
 			throws IOException, HttpMediaTypeNotSupportedException {
 
@@ -149,8 +162,7 @@ public class HttpEntityMethodProcessor extends AbstractMessageConverterMethodPro
 		}
 	}
 
-	@Nullable
-	private Type getHttpEntityType(MethodParameter parameter) {
+	private @Nullable Type getHttpEntityType(MethodParameter parameter) {
 		Assert.isAssignable(HttpEntity.class, parameter.getParameterType());
 		Type parameterType = parameter.getGenericParameterType();
 		if (parameterType instanceof ParameterizedType type) {
@@ -204,13 +216,15 @@ public class HttpEntityMethodProcessor extends AbstractMessageConverterMethodPro
 							" doesn't match the ProblemDetail status: " + detail.getStatus());
 				}
 			}
+			invokeErrorResponseInterceptors(
+					detail, (returnValue instanceof ErrorResponse response ? response : null));
 		}
 
 		HttpHeaders outputHeaders = outputMessage.getHeaders();
 		HttpHeaders entityHeaders = httpEntity.getHeaders();
 		if (!entityHeaders.isEmpty()) {
 			entityHeaders.forEach((key, value) -> {
-				if (HttpHeaders.VARY.equals(key) && outputHeaders.containsKey(HttpHeaders.VARY)) {
+				if (HttpHeaders.VARY.equals(key) && outputHeaders.containsHeader(HttpHeaders.VARY)) {
 					List<String> values = getVaryRequestHeadersToAdd(outputHeaders, entityHeaders);
 					if (!values.isEmpty()) {
 						outputHeaders.setVary(values);

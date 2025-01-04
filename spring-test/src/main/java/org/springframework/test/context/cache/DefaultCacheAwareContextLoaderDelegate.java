@@ -20,13 +20,13 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aot.AotDetector;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
-import org.springframework.lang.Nullable;
 import org.springframework.test.annotation.DirtiesContext.HierarchyMode;
 import org.springframework.test.context.ApplicationContextFailureProcessor;
 import org.springframework.test.context.CacheAwareContextLoaderDelegate;
@@ -137,7 +137,7 @@ public class DefaultCacheAwareContextLoaderDelegate implements CacheAwareContext
 			ApplicationContext context = this.contextCache.get(mergedConfig);
 			try {
 				if (context == null) {
-					Integer failureCount = this.contextCache.getFailureCount(mergedConfig);
+					int failureCount = this.contextCache.getFailureCount(mergedConfig);
 					if (failureCount >= this.failureThreshold) {
 						throw new IllegalStateException("""
 								ApplicationContext failure threshold (%d) exceeded: \
@@ -287,7 +287,6 @@ public class DefaultCacheAwareContextLoaderDelegate implements CacheAwareContext
 	 * have an AOT-optimized {@code ApplicationContext}
 	 * @since 6.0
 	 */
-	@SuppressWarnings("unchecked")
 	private MergedContextConfiguration replaceIfNecessary(MergedContextConfiguration mergedConfig) {
 		if (AotDetector.useGeneratedArtifacts()) {
 			Class<?> testClass = mergedConfig.getTestClass();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,10 +29,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import io.micrometer.observation.ObservationRegistry;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.lang.Nullable;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.Trigger;
 import org.springframework.scheduling.concurrent.ConcurrentTaskScheduler;
@@ -74,26 +74,21 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	public static final String CRON_DISABLED = "-";
 
 
-	@Nullable
-	private TaskScheduler taskScheduler;
+	private @Nullable TaskScheduler taskScheduler;
 
-	@Nullable
-	private ScheduledExecutorService localExecutor;
+	private @Nullable ScheduledExecutorService localExecutor;
 
-	@Nullable
-	private ObservationRegistry observationRegistry;
+	private @Nullable ObservationRegistry observationRegistry;
 
-	@Nullable
-	private List<TriggerTask> triggerTasks;
+	private @Nullable List<TriggerTask> triggerTasks;
 
-	@Nullable
-	private List<CronTask> cronTasks;
+	private @Nullable List<CronTask> cronTasks;
 
-	@Nullable
-	private List<IntervalTask> fixedRateTasks;
+	private @Nullable List<IntervalTask> fixedRateTasks;
 
-	@Nullable
-	private List<IntervalTask> fixedDelayTasks;
+	private @Nullable List<IntervalTask> fixedDelayTasks;
+
+	private @Nullable List<DelayedTask> oneTimeTasks;
 
 	private final Map<Task, ScheduledTask> unresolvedTasks = new HashMap<>(16);
 
@@ -131,18 +126,8 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	/**
 	 * Return the {@link TaskScheduler} instance for this registrar (may be {@code null}).
 	 */
-	@Nullable
-	public TaskScheduler getScheduler() {
+	public @Nullable TaskScheduler getScheduler() {
 		return this.taskScheduler;
-	}
-
-	/**
-	 * Return the {@link ObservationRegistry} for this registrar.
-	 * @since 6.1
-	 */
-	@Nullable
-	public ObservationRegistry getObservationRegistry() {
-		return this.observationRegistry;
 	}
 
 	/**
@@ -151,6 +136,14 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	 */
 	public void setObservationRegistry(@Nullable ObservationRegistry observationRegistry) {
 		this.observationRegistry = observationRegistry;
+	}
+
+	/**
+	 * Return the {@link ObservationRegistry} for this registrar.
+	 * @since 6.1
+	 */
+	public @Nullable ObservationRegistry getObservationRegistry() {
+		return this.observationRegistry;
 	}
 
 	/**
@@ -292,8 +285,8 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 
 	/**
 	 * Add a {@link Runnable} task to be triggered per the given cron {@code expression}.
-	 * <p>As of Spring Framework 5.2, this method will not register the task if the
-	 * {@code expression} is equal to {@link #CRON_DISABLED}.
+	 * <p>This method will not register the task if the {@code expression} is
+	 * equal to {@link #CRON_DISABLED}.
 	 */
 	public void addCronTask(Runnable task, String expression) {
 		if (!CRON_DISABLED.equals(expression)) {
@@ -318,7 +311,7 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	 */
 	@Deprecated(since = "6.0")
 	public void addFixedRateTask(Runnable task, long interval) {
-		addFixedRateTask(new IntervalTask(task, Duration.ofMillis(interval)));
+		addFixedRateTask(new IntervalTask(task, interval));
 	}
 
 	/**
@@ -334,6 +327,7 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	 * Add a fixed-rate {@link IntervalTask}.
 	 * @since 3.2
 	 * @see TaskScheduler#scheduleAtFixedRate(Runnable, Duration)
+	 * @see FixedRateTask
 	 */
 	public void addFixedRateTask(IntervalTask task) {
 		if (this.fixedRateTasks == null) {
@@ -347,8 +341,8 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	 * @deprecated as of 6.0, in favor of {@link #addFixedDelayTask(Runnable, Duration)}
 	 */
 	@Deprecated(since = "6.0")
-	public void addFixedDelayTask(Runnable task, long delay) {
-		addFixedDelayTask(new IntervalTask(task, Duration.ofMillis(delay)));
+	public void addFixedDelayTask(Runnable task, long interval) {
+		addFixedDelayTask(new IntervalTask(task, interval));
 	}
 
 	/**
@@ -356,20 +350,43 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	 * @since 6.0
 	 * @see TaskScheduler#scheduleWithFixedDelay(Runnable, Duration)
 	 */
-	public void addFixedDelayTask(Runnable task, Duration delay) {
-		addFixedDelayTask(new IntervalTask(task, delay));
+	public void addFixedDelayTask(Runnable task, Duration interval) {
+		addFixedDelayTask(new IntervalTask(task, interval));
 	}
 
 	/**
 	 * Add a fixed-delay {@link IntervalTask}.
 	 * @since 3.2
 	 * @see TaskScheduler#scheduleWithFixedDelay(Runnable, Duration)
+	 * @see FixedDelayTask
 	 */
 	public void addFixedDelayTask(IntervalTask task) {
 		if (this.fixedDelayTasks == null) {
 			this.fixedDelayTasks = new ArrayList<>();
 		}
 		this.fixedDelayTasks.add(task);
+	}
+
+	/**
+	 * Add a Runnable task to be triggered once after the given initial delay.
+	 * @since 6.1
+	 * @see TaskScheduler#schedule(Runnable, Instant)
+	 */
+	public void addOneTimeTask(Runnable task, Duration initialDelay) {
+		addOneTimeTask(new OneTimeTask(task, initialDelay));
+	}
+
+	/**
+	 * Add a one-time {@link DelayedTask}.
+	 * @since 6.1
+	 * @see TaskScheduler#schedule(Runnable, Instant)
+	 * @see OneTimeTask
+	 */
+	public void addOneTimeTask(DelayedTask task) {
+		if (this.oneTimeTasks == null) {
+			this.oneTimeTasks = new ArrayList<>();
+		}
+		this.oneTimeTasks.add(task);
 	}
 
 
@@ -381,7 +398,8 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 		return (!CollectionUtils.isEmpty(this.triggerTasks) ||
 				!CollectionUtils.isEmpty(this.cronTasks) ||
 				!CollectionUtils.isEmpty(this.fixedRateTasks) ||
-				!CollectionUtils.isEmpty(this.fixedDelayTasks));
+				!CollectionUtils.isEmpty(this.fixedDelayTasks) ||
+				!CollectionUtils.isEmpty(this.oneTimeTasks));
 	}
 
 
@@ -432,6 +450,16 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 				}
 			}
 		}
+		if (this.oneTimeTasks != null) {
+			for (DelayedTask task : this.oneTimeTasks) {
+				if (task instanceof OneTimeTask oneTimeTask) {
+					addScheduledTask(scheduleOneTimeTask(oneTimeTask));
+				}
+				else {
+					addScheduledTask(scheduleOneTimeTask(new OneTimeTask(task)));
+				}
+			}
+		}
 	}
 
 	private void addScheduledTask(@Nullable ScheduledTask task) {
@@ -447,8 +475,7 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	 * @return a handle to the scheduled task, allowing to cancel it
 	 * @since 4.3
 	 */
-	@Nullable
-	public ScheduledTask scheduleTriggerTask(TriggerTask task) {
+	public @Nullable ScheduledTask scheduleTriggerTask(TriggerTask task) {
 		ScheduledTask scheduledTask = this.unresolvedTasks.remove(task);
 		boolean newTask = false;
 		if (scheduledTask == null) {
@@ -472,8 +499,7 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	 * (or {@code null} if processing a previously registered task)
 	 * @since 4.3
 	 */
-	@Nullable
-	public ScheduledTask scheduleCronTask(CronTask task) {
+	public @Nullable ScheduledTask scheduleCronTask(CronTask task) {
 		ScheduledTask scheduledTask = this.unresolvedTasks.remove(task);
 		boolean newTask = false;
 		if (scheduledTask == null) {
@@ -497,8 +523,7 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	 * (or {@code null} if processing a previously registered task)
 	 * @since 5.0.2
 	 */
-	@Nullable
-	public ScheduledTask scheduleFixedRateTask(FixedRateTask task) {
+	public @Nullable ScheduledTask scheduleFixedRateTask(FixedRateTask task) {
 		ScheduledTask scheduledTask = this.unresolvedTasks.remove(task);
 		boolean newTask = false;
 		if (scheduledTask == null) {
@@ -531,8 +556,7 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	 * (or {@code null} if processing a previously registered task)
 	 * @since 5.0.2
 	 */
-	@Nullable
-	public ScheduledTask scheduleFixedDelayTask(FixedDelayTask task) {
+	public @Nullable ScheduledTask scheduleFixedDelayTask(FixedDelayTask task) {
 		ScheduledTask scheduledTask = this.unresolvedTasks.remove(task);
 		boolean newTask = false;
 		if (scheduledTask == null) {
@@ -558,6 +582,31 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 		return (newTask ? scheduledTask : null);
 	}
 
+	/**
+	 * Schedule the specified one-time task, either right away if possible
+	 * or on initialization of the scheduler.
+	 * @return a handle to the scheduled task, allowing to cancel it
+	 * (or {@code null} if processing a previously registered task)
+	 * @since 6.1
+	 */
+	public @Nullable ScheduledTask scheduleOneTimeTask(OneTimeTask task) {
+		ScheduledTask scheduledTask = this.unresolvedTasks.remove(task);
+		boolean newTask = false;
+		if (scheduledTask == null) {
+			scheduledTask = new ScheduledTask(task);
+			newTask = true;
+		}
+		if (this.taskScheduler != null) {
+			Instant startTime = this.taskScheduler.getClock().instant().plus(task.getInitialDelayDuration());
+			scheduledTask.future = this.taskScheduler.schedule(task.getRunnable(), startTime);
+		}
+		else {
+			addOneTimeTask(task);
+			this.unresolvedTasks.put(task, scheduledTask);
+		}
+		return (newTask ? scheduledTask : null);
+	}
+
 
 	/**
 	 * Return all locally registered tasks that have been scheduled by this registrar.
@@ -575,7 +624,7 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	@Override
 	public void destroy() {
 		for (ScheduledTask task : this.scheduledTasks) {
-			task.cancel();
+			task.cancel(false);
 		}
 		if (this.localExecutor != null) {
 			this.localExecutor.shutdownNow();

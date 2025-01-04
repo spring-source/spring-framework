@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -283,7 +284,7 @@ public class ServerRequestWrapper implements ServerRequest {
 		}
 
 		@Override
-		public InetSocketAddress host() {
+		public @Nullable InetSocketAddress host() {
 			return this.headers.host();
 		}
 

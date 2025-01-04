@@ -27,6 +27,7 @@ import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.jvm.toolchain.JavaLanguageVersion;
+import org.gradle.jvm.toolchain.JvmVendorSpec;
 
 /**
  * {@link Plugin} that applies conventions for compiling Java sources in Spring Framework.
@@ -70,21 +71,29 @@ public class JavaConventions {
 	 * @param project the current project
 	 */
 	private void applyJavaCompileConventions(Project project) {
-		project.getExtensions().getByType(JavaPluginExtension.class)
-				.getToolchain().getLanguageVersion().set(JavaLanguageVersion.of(17));
-		project.getTasks().withType(JavaCompile.class)
-				.matching(compileTask -> compileTask.getName().equals(JavaPlugin.COMPILE_JAVA_TASK_NAME))
-				.forEach(compileTask -> {
-					compileTask.getOptions().setCompilerArgs(COMPILER_ARGS);
-					compileTask.getOptions().setEncoding("UTF-8");
-				});
-		project.getTasks().withType(JavaCompile.class)
-				.matching(compileTask -> compileTask.getName().equals(JavaPlugin.COMPILE_TEST_JAVA_TASK_NAME)
-						|| compileTask.getName().equals("compileTestFixturesJava"))
-				.forEach(compileTask -> {
-					compileTask.getOptions().setCompilerArgs(TEST_COMPILER_ARGS);
-					compileTask.getOptions().setEncoding("UTF-8");
-				});
+		project.getExtensions().getByType(JavaPluginExtension.class).toolchain(toolchain -> {
+			toolchain.getVendor().set(JvmVendorSpec.BELLSOFT);
+			toolchain.getLanguageVersion().set(JavaLanguageVersion.of(17));
+		});
+		SpringFrameworkExtension frameworkExtension = project.getExtensions().getByType(SpringFrameworkExtension.class);
+		project.afterEvaluate(p -> {
+			p.getTasks().withType(JavaCompile.class)
+					.matching(compileTask -> compileTask.getName().startsWith(JavaPlugin.COMPILE_JAVA_TASK_NAME))
+					.forEach(compileTask -> {
+						compileTask.getOptions().setCompilerArgs(COMPILER_ARGS);
+						compileTask.getOptions().getCompilerArgumentProviders().add(frameworkExtension.asArgumentProvider());
+						compileTask.getOptions().setEncoding("UTF-8");
+					});
+			p.getTasks().withType(JavaCompile.class)
+					.matching(compileTask -> compileTask.getName().startsWith(JavaPlugin.COMPILE_TEST_JAVA_TASK_NAME)
+							|| compileTask.getName().equals("compileTestFixturesJava"))
+					.forEach(compileTask -> {
+						compileTask.getOptions().setCompilerArgs(TEST_COMPILER_ARGS);
+						compileTask.getOptions().getCompilerArgumentProviders().add(frameworkExtension.asArgumentProvider());
+						compileTask.getOptions().setEncoding("UTF-8");
+					});
+
+		});
 	}
 
 }

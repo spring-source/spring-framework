@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.reactivex.rxjava3.core.Single;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
@@ -31,7 +32,6 @@ import org.springframework.context.support.StaticApplicationContext;
 import org.springframework.core.MethodIntrospector;
 import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.ui.Model;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.validation.Validator;
@@ -45,6 +45,7 @@ import org.springframework.web.bind.support.ConfigurableWebBindingInitializer;
 import org.springframework.web.bind.support.WebBindingInitializer;
 import org.springframework.web.bind.support.WebExchangeDataBinder;
 import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.reactive.accept.RequestedContentTypeResolverBuilder;
 import org.springframework.web.reactive.result.method.SyncInvocableHandlerMethod;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebSession;
@@ -57,11 +58,11 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import static org.mockito.Mockito.mock;
 
 /**
- * Unit tests for {@link ModelInitializer}.
+ * Tests for {@link ModelInitializer}.
  *
  * @author Rossen Stoyanchev
  */
-public class ModelInitializerTests {
+class ModelInitializerTests {
 
 	private static final Duration TIMEOUT = Duration.ofMillis(5000);
 
@@ -72,7 +73,7 @@ public class ModelInitializerTests {
 
 
 	@BeforeEach
-	public void setup() {
+	void setup() {
 		ReactiveAdapterRegistry adapterRegistry = ReactiveAdapterRegistry.getSharedInstance();
 
 		ArgumentResolverConfigurer resolverConfigurer = new ArgumentResolverConfigurer();
@@ -80,14 +81,15 @@ public class ModelInitializerTests {
 
 		ControllerMethodResolver methodResolver = new ControllerMethodResolver(
 				resolverConfigurer, adapterRegistry, new StaticApplicationContext(),
-				Collections.emptyList(), null);
+				new RequestedContentTypeResolverBuilder().build(), Collections.emptyList(),
+				null, null, null);
 
 		this.modelInitializer = new ModelInitializer(methodResolver, adapterRegistry);
 	}
 
 
 	@Test
-	public void initBinderMethod() {
+	void initBinderMethod() {
 		Validator validator = mock();
 
 		TestController controller = new TestController();
@@ -104,7 +106,7 @@ public class ModelInitializerTests {
 
 	@SuppressWarnings("unchecked")
 	@Test
-	public void modelAttributeMethods() {
+	void modelAttributeMethods() {
 		TestController controller = new TestController();
 		InitBinderBindingContext context = getBindingContext(controller);
 
@@ -132,7 +134,7 @@ public class ModelInitializerTests {
 	}
 
 	@Test
-	public void saveModelAttributeToSession() {
+	void saveModelAttributeToSession() {
 		TestController controller = new TestController();
 		InitBinderBindingContext context = getBindingContext(controller);
 
@@ -150,7 +152,7 @@ public class ModelInitializerTests {
 	}
 
 	@Test
-	public void retrieveModelAttributeFromSession() {
+	void retrieveModelAttributeFromSession() {
 		WebSession session = this.exchange.getSession().block(TIMEOUT);
 		assertThat(session).isNotNull();
 
@@ -170,7 +172,7 @@ public class ModelInitializerTests {
 	}
 
 	@Test
-	public void requiredSessionAttributeMissing() {
+	void requiredSessionAttributeMissing() {
 		TestController controller = new TestController();
 		InitBinderBindingContext context = getBindingContext(controller);
 
@@ -182,7 +184,7 @@ public class ModelInitializerTests {
 	}
 
 	@Test
-	public void clearModelAttributeFromSession() {
+	void clearModelAttributeFromSession() {
 		WebSession session = this.exchange.getSession().block(TIMEOUT);
 		assertThat(session).isNotNull();
 
@@ -220,8 +222,7 @@ public class ModelInitializerTests {
 	@SessionAttributes({"bean", "missing-bean"})
 	private static class TestController {
 
-		@Nullable
-		private Validator validator;
+		private @Nullable Validator validator;
 
 
 		void setValidator(Validator validator) {

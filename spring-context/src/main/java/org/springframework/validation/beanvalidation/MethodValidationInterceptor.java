@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,25 +17,39 @@
 package org.springframework.validation.beanvalidation;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.jspecify.annotations.Nullable;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import org.springframework.aop.ProxyMethodInvocation;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.SmartFactoryBean;
-import org.springframework.lang.Nullable;
+import org.springframework.core.MethodParameter;
+import org.springframework.core.ReactiveAdapter;
+import org.springframework.core.ReactiveAdapterRegistry;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.Errors;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.validation.method.MethodValidationException;
 import org.springframework.validation.method.MethodValidationResult;
+import org.springframework.validation.method.ParameterErrors;
+import org.springframework.validation.method.ParameterValidationResult;
 
 /**
  * An AOP Alliance {@link MethodInterceptor} implementation that delegates to a
@@ -45,7 +59,7 @@ import org.springframework.validation.method.MethodValidationResult;
  * their parameters and/or on their return value (in the latter case specified at
  * the method level, typically as inline annotation).
  *
- * <p>E.g.: {@code public @NotNull Object myValidMethod(@NotNull String arg1, @Max(10) int arg2)}
+ * <p>For example: {@code public @NotNull Object myValidMethod(@NotNull String arg1, @Max(10) int arg2)}
  *
  * <p>In case of validation errors, the interceptor can raise
  * {@link ConstraintViolationException}, or adapt the violations to
@@ -55,7 +69,7 @@ import org.springframework.validation.method.MethodValidationResult;
  * at the type level of the containing target class, applying to all public service methods
  * of that class. By default, JSR-303 will validate against its default group only.
  *
- * <p>As of Spring 5.0, this functionality requires a Bean Validation 1.1+ provider.
+ * <p>This functionality requires a Bean Validation 1.1+ provider.
  *
  * @author Juergen Hoeller
  * @author Rossen Stoyanchev
@@ -64,6 +78,10 @@ import org.springframework.validation.method.MethodValidationResult;
  * @see jakarta.validation.executable.ExecutableValidator
  */
 public class MethodValidationInterceptor implements MethodInterceptor {
+
+	private static final boolean reactorPresent = ClassUtils.isPresent(
+			"reactor.core.publisher.Mono", MethodValidationInterceptor.class.getClassLoader());
+
 
 	private final MethodValidationAdapter validationAdapter;
 
@@ -123,8 +141,7 @@ public class MethodValidationInterceptor implements MethodInterceptor {
 
 
 	@Override
-	@Nullable
-	public Object invoke(MethodInvocation invocation) throws Throwable {
+	public @Nullable Object invoke(MethodInvocation invocation) throws Throwable {
 		// Avoid Validator invocation on FactoryBean.getObjectType/isSingleton
 		if (isFactoryBeanMetadataMethod(invocation.getMethod())) {
 			return invocation.proceed();
@@ -134,6 +151,12 @@ public class MethodValidationInterceptor implements MethodInterceptor {
 		Method method = invocation.getMethod();
 		Object[] arguments = invocation.getArguments();
 		Class<?>[] groups = determineValidationGroups(invocation);
+
+		if (reactorPresent) {
+			arguments = ReactorValidationHelper.insertAsyncValidation(
+					this.validationAdapter.getSpringValidatorAdapter(), this.adaptViolations,
+					target, method, arguments);
+		}
 
 		Set<ConstraintViolation<Object>> violations;
 
@@ -150,7 +173,7 @@ public class MethodValidationInterceptor implements MethodInterceptor {
 		Object returnValue = invocation.proceed();
 
 		if (this.adaptViolations) {
-			this.validationAdapter.applyReturnValueValidation(target, method, null, arguments, groups);
+			this.validationAdapter.applyReturnValueValidation(target, method, null, returnValue, groups);
 		}
 		else {
 			violations = this.validationAdapter.invokeValidatorForReturnValue(target, method, returnValue, groups);
@@ -204,6 +227,79 @@ public class MethodValidationInterceptor implements MethodInterceptor {
 	protected Class<?>[] determineValidationGroups(MethodInvocation invocation) {
 		Object target = getTarget(invocation);
 		return this.validationAdapter.determineValidationGroups(target, invocation.getMethod());
+	}
+
+
+	/**
+	 * Helper class to decorate reactive arguments with async validation.
+	 */
+	private static final class ReactorValidationHelper {
+
+		private static final ReactiveAdapterRegistry reactiveAdapterRegistry =
+				ReactiveAdapterRegistry.getSharedInstance();
+
+
+		static Object[] insertAsyncValidation(
+				Supplier<SpringValidatorAdapter> validatorAdapterSupplier, boolean adaptViolations,
+				Object target, Method method, Object[] arguments) {
+
+			for (int i = 0; i < method.getParameterCount(); i++) {
+				if (arguments[i] == null) {
+					continue;
+				}
+				Class<?> parameterType = method.getParameterTypes()[i];
+				ReactiveAdapter reactiveAdapter = reactiveAdapterRegistry.getAdapter(parameterType);
+				if (reactiveAdapter == null || reactiveAdapter.isNoValue()) {
+					continue;
+				}
+				Class<?>[] groups = determineValidationGroups(method.getParameters()[i]);
+				if (groups == null) {
+					continue;
+				}
+				SpringValidatorAdapter validatorAdapter = validatorAdapterSupplier.get();
+				MethodParameter param = new MethodParameter(method, i);
+				arguments[i] = (reactiveAdapter.isMultiValue() ?
+						Flux.from(reactiveAdapter.toPublisher(arguments[i])).doOnNext(value ->
+								validate(validatorAdapter, adaptViolations, target, method, param, value, groups)) :
+						Mono.from(reactiveAdapter.toPublisher(arguments[i])).doOnNext(value ->
+								validate(validatorAdapter, adaptViolations, target, method, param, value, groups)));
+			}
+			return arguments;
+		}
+
+		private static Class<?> @Nullable [] determineValidationGroups(Parameter parameter) {
+			Validated validated = AnnotationUtils.findAnnotation(parameter, Validated.class);
+			if (validated != null) {
+				return validated.value();
+			}
+			Valid valid = AnnotationUtils.findAnnotation(parameter, Valid.class);
+			if (valid != null) {
+				return new Class<?>[0];
+			}
+			return null;
+		}
+
+		@SuppressWarnings("unchecked")
+		private static <T> void validate(
+				SpringValidatorAdapter validatorAdapter, boolean adaptViolations,
+				Object target, Method method, MethodParameter parameter, Object argument, Class<?>[] groups) {
+
+			if (adaptViolations) {
+				Errors errors = new BeanPropertyBindingResult(argument, argument.getClass().getSimpleName());
+				validatorAdapter.validate(argument, errors);
+				if (errors.hasErrors()) {
+					ParameterErrors paramErrors = new ParameterErrors(parameter, argument, errors, null, null, null);
+					List<ParameterValidationResult> results = Collections.singletonList(paramErrors);
+					throw new MethodValidationException(MethodValidationResult.create(target, method, results));
+				}
+			}
+			else {
+				Set<ConstraintViolation<T>> violations = validatorAdapter.validate((T) argument, groups);
+				if (!violations.isEmpty()) {
+					throw new ConstraintViolationException(violations);
+				}
+			}
+		}
 	}
 
 }

@@ -16,9 +16,8 @@
 
 package org.springframework.transaction;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
-
-import org.springframework.lang.Nullable;
 
 /**
  * This is the central interface in Spring's reactive transaction infrastructure.
@@ -32,6 +31,7 @@ import org.springframework.lang.Nullable;
  * @see org.springframework.transaction.reactive.TransactionalOperator
  * @see org.springframework.transaction.interceptor.TransactionInterceptor
  * @see org.springframework.transaction.PlatformTransactionManager
+ * @see ConfigurableTransactionManager
  */
 public interface ReactiveTransactionManager extends TransactionManager {
 

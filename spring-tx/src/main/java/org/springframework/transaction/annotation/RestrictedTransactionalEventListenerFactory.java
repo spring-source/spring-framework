@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,13 @@ import java.lang.reflect.Method;
 
 import org.springframework.context.ApplicationListener;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.event.TransactionalEventListenerFactory;
 
 /**
  * Extension of {@link TransactionalEventListenerFactory},
  * detecting invalid transaction configuration for transactional event listeners:
- * {@link Transactional} only supported with {@link Propagation#REQUIRES_NEW} or
- * {@link Async}.
+ * {@link Transactional} only supported with {@link Propagation#REQUIRES_NEW}
+ * and {@link Propagation#NOT_SUPPORTED}.
  *
  * @author Juergen Hoeller
  * @since 6.1
@@ -39,10 +38,17 @@ public class RestrictedTransactionalEventListenerFactory extends TransactionalEv
 	@Override
 	public ApplicationListener<?> createApplicationListener(String beanName, Class<?> type, Method method) {
 		Transactional txAnn = AnnotatedElementUtils.findMergedAnnotation(method, Transactional.class);
-		if (txAnn != null && txAnn.propagation() != Propagation.REQUIRES_NEW &&
-				!AnnotatedElementUtils.hasAnnotation(method, Async.class)) {
-			throw new IllegalStateException("@TransactionalEventListener method must not be annotated with " +
-					"@Transactional unless when marked as REQUIRES_NEW or declared as @Async: " + method);
+
+		if (txAnn == null) {
+			txAnn = AnnotatedElementUtils.findMergedAnnotation(type, Transactional.class);
+		}
+
+		if (txAnn != null) {
+			Propagation propagation = txAnn.propagation();
+			if (propagation != Propagation.REQUIRES_NEW && propagation != Propagation.NOT_SUPPORTED) {
+				throw new IllegalStateException("@TransactionalEventListener method must not be annotated with " +
+						"@Transactional unless when declared as REQUIRES_NEW or NOT_SUPPORTED: " + method);
+			}
 		}
 		return super.createApplicationListener(beanName, type, method);
 	}

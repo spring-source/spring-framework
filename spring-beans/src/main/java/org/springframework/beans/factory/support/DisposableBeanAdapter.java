@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import java.util.concurrent.Future;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
@@ -35,7 +36,6 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
 import org.springframework.core.ReactiveAdapter;
 import org.springframework.core.ReactiveAdapterRegistry;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
@@ -89,14 +89,11 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 
 	private boolean invokeAutoCloseable;
 
-	@Nullable
-	private String[] destroyMethodNames;
+	private String @Nullable [] destroyMethodNames;
 
-	@Nullable
-	private transient Method[] destroyMethods;
+	private transient Method @Nullable [] destroyMethods;
 
-	@Nullable
-	private final List<DestructionAwareBeanPostProcessor> beanPostProcessors;
+	private final @Nullable List<DestructionAwareBeanPostProcessor> beanPostProcessors;
 
 
 	/**
@@ -147,7 +144,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 										beanName + "' has a non-boolean parameter - not supported as destroy method");
 							}
 						}
-						destroyMethod = ClassUtils.getInterfaceMethodIfPossible(destroyMethod, bean.getClass());
+						destroyMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(destroyMethod, bean.getClass());
 						destroyMethods.add(destroyMethod);
 					}
 				}
@@ -177,7 +174,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 	 * Create a new DisposableBeanAdapter for the given bean.
 	 */
 	private DisposableBeanAdapter(Object bean, String beanName, boolean nonPublicAccessAllowed,
-			boolean invokeDisposableBean, boolean invokeAutoCloseable, @Nullable String[] destroyMethodNames,
+			boolean invokeDisposableBean, boolean invokeAutoCloseable, String @Nullable [] destroyMethodNames,
 			@Nullable List<DestructionAwareBeanPostProcessor> postProcessors) {
 
 		this.bean = bean;
@@ -253,16 +250,15 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 			for (String destroyMethodName : this.destroyMethodNames) {
 				Method destroyMethod = determineDestroyMethod(destroyMethodName);
 				if (destroyMethod != null) {
-					invokeCustomDestroyMethod(
-							ClassUtils.getInterfaceMethodIfPossible(destroyMethod, this.bean.getClass()));
+					destroyMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(destroyMethod, this.bean.getClass());
+					invokeCustomDestroyMethod(destroyMethod);
 				}
 			}
 		}
 	}
 
 
-	@Nullable
-	private Method determineDestroyMethod(String destroyMethodName) {
+	private @Nullable Method determineDestroyMethod(String destroyMethodName) {
 		try {
 			Class<?> beanClass = this.bean.getClass();
 			MethodDescriptor descriptor = MethodDescriptor.create(this.beanName, beanClass, destroyMethodName);
@@ -272,7 +268,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 			if (destroyMethod != null) {
 				return destroyMethod;
 			}
-			for (Class<?> beanInterface : beanClass.getInterfaces()) {
+			for (Class<?> beanInterface : ClassUtils.getAllInterfacesForClass(beanClass)) {
 				destroyMethod = findDestroyMethod(beanInterface, methodName);
 				if (destroyMethod != null) {
 					return destroyMethod;
@@ -286,8 +282,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 		}
 	}
 
-	@Nullable
-	private Method findDestroyMethod(Class<?> clazz, String name) {
+	private @Nullable Method findDestroyMethod(Class<?> clazz, String name) {
 		return (this.nonPublicAccessAllowed ?
 				BeanUtils.findMethodWithMinimalParameters(clazz, name) :
 				BeanUtils.findMethodWithMinimalParameters(clazz.getMethods(), name));
@@ -342,7 +337,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 		}
 	}
 
-	void logDestroyMethodException(Method destroyMethod, Throwable ex) {
+	void logDestroyMethodException(Method destroyMethod, @Nullable Throwable ex) {
 		if (logger.isWarnEnabled()) {
 			String msg = "Custom destroy method '" + destroyMethod.getName() + "' on bean with name '" +
 					this.beanName + "' propagated an exception";
@@ -408,8 +403,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 	 * <p>Also processes the {@link java.io.Closeable} and {@link java.lang.AutoCloseable}
 	 * interfaces, reflectively calling the "close" method on implementing beans as well.
 	 */
-	@Nullable
-	static String[] inferDestroyMethodsIfNecessary(Class<?> target, RootBeanDefinition beanDefinition) {
+	static String @Nullable [] inferDestroyMethodsIfNecessary(Class<?> target, RootBeanDefinition beanDefinition) {
 		String[] destroyMethodNames = beanDefinition.getDestroyMethodNames();
 		if (destroyMethodNames != null && destroyMethodNames.length > 1) {
 			return destroyMethodNames;
@@ -469,8 +463,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 	 * @param processors the List to search
 	 * @return the filtered List of DestructionAwareBeanPostProcessors
 	 */
-	@Nullable
-	private static List<DestructionAwareBeanPostProcessor> filterPostProcessors(
+	private static @Nullable List<DestructionAwareBeanPostProcessor> filterPostProcessors(
 			List<DestructionAwareBeanPostProcessor> processors, Object bean) {
 
 		List<DestructionAwareBeanPostProcessor> filteredPostProcessors = null;

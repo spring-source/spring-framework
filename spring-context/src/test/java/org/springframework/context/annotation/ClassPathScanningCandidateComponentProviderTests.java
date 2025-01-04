@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import example.gh24375.AnnotatedComponent;
-import example.indexed.IndexedJakartaManagedBeanComponent;
 import example.indexed.IndexedJakartaNamedComponent;
 import example.profilescan.DevComponent;
 import example.profilescan.ProfileAnnotatedComponent;
@@ -38,7 +37,6 @@ import example.scannable.DefaultNamedComponent;
 import example.scannable.FooDao;
 import example.scannable.FooService;
 import example.scannable.FooServiceImpl;
-import example.scannable.JakartaManagedBeanComponent;
 import example.scannable.JakartaNamedComponent;
 import example.scannable.MessageBean;
 import example.scannable.NamedComponent;
@@ -95,16 +93,6 @@ class ClassPathScanningCandidateComponentProviderTests {
 			BarComponent.class
 	);
 
-	private static final Set<Class<?>> scannedJakartaComponents = Set.of(
-			JakartaNamedComponent.class,
-			JakartaManagedBeanComponent.class
-	);
-
-	private static final Set<Class<?>> indexedJakartaComponents = Set.of(
-			IndexedJakartaNamedComponent.class,
-			IndexedJakartaManagedBeanComponent.class
-	);
-
 
 	@Test
 	void defaultsWithScan() {
@@ -122,14 +110,14 @@ class ClassPathScanningCandidateComponentProviderTests {
 	}
 
 	private void testDefault(ClassPathScanningCandidateComponentProvider provider, String basePackage,
-			boolean includeScannedJakartaComponents, boolean includeIndexedJakartaComponents) {
+			boolean includeScannedJakartaComponents, boolean includeIndexedComponents) {
 
 		Set<Class<?>> expectedTypes = new HashSet<>(springComponents);
 		if (includeScannedJakartaComponents) {
-			expectedTypes.addAll(scannedJakartaComponents);
+			expectedTypes.add(JakartaNamedComponent.class);
 		}
-		if (includeIndexedJakartaComponents) {
-			expectedTypes.addAll(indexedJakartaComponents);
+		if (includeIndexedComponents) {
+			expectedTypes.add(IndexedJakartaNamedComponent.class);
 		}
 
 		Set<BeanDefinition> candidates = provider.findCandidateComponents(basePackage);
@@ -295,7 +283,7 @@ class ClassPathScanningCandidateComponentProviderTests {
 		Set<BeanDefinition> candidates = provider.findCandidateComponents(TEST_BASE_PACKAGE);
 		assertScannedBeanDefinitions(candidates);
 		assertBeanTypes(candidates, FooServiceImpl.class, StubFooDao.class, ServiceInvocationCounter.class,
-				BarComponent.class, JakartaManagedBeanComponent.class);
+				BarComponent.class);
 	}
 
 	@Test

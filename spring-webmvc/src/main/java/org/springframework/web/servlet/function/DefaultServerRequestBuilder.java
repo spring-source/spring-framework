@@ -40,6 +40,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.ResolvableType;
@@ -49,7 +50,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.GenericHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
-import org.springframework.lang.Nullable;
+import org.springframework.http.converter.SmartHttpMessageConverter;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -85,8 +86,7 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 
 	private final MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
 
-	@Nullable
-	private InetSocketAddress remoteAddress;
+	private @Nullable InetSocketAddress remoteAddress;
 
 	private byte[] body = new byte[0];
 
@@ -227,8 +227,7 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 
 		private final MultiValueMap<String, String> params;
 
-		@Nullable
-		private final InetSocketAddress remoteAddress;
+		private final @Nullable InetSocketAddress remoteAddress;
 
 		public BuiltServerRequest(HttpServletRequest servletRequest, HttpMethod method, URI uri,
 				HttpHeaders headers, MultiValueMap<String, Cookie> cookies,
@@ -318,7 +317,13 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 						return (T) genericMessageConverter.read(bodyType, bodyClass, inputMessage);
 					}
 				}
-				if (messageConverter.canRead(bodyClass, contentType)) {
+				else if (messageConverter instanceof SmartHttpMessageConverter<?> smartMessageConverter) {
+					ResolvableType resolvableType = ResolvableType.forType(bodyType);
+					if (smartMessageConverter.canRead(resolvableType, contentType)) {
+						return (T) smartMessageConverter.read(resolvableType, inputMessage, null);
+					}
+				}
+				else if (messageConverter.canRead(bodyClass, contentType)) {
 					HttpMessageConverter<T> theConverter =
 							(HttpMessageConverter<T>) messageConverter;
 					Class<? extends T> clazz = (Class<? extends T>) bodyClass;

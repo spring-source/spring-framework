@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package org.springframework.test.context.aot;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aot.generate.ClassNameGenerator;
 import org.springframework.aot.generate.DefaultGenerationContext;
 import org.springframework.aot.generate.GeneratedFiles;
@@ -30,7 +32,7 @@ import org.springframework.aot.hint.RuntimeHints;
  */
 class TestContextGenerationContext extends DefaultGenerationContext {
 
-	private final String featureName;
+	private final @Nullable String featureName;
 
 
 	/**
@@ -41,8 +43,9 @@ class TestContextGenerationContext extends DefaultGenerationContext {
 	 * @param generatedFiles the generated files
 	 * @param runtimeHints the runtime hints
 	 */
-	TestContextGenerationContext(ClassNameGenerator classNameGenerator, GeneratedFiles generatedFiles,
-			RuntimeHints runtimeHints) {
+	TestContextGenerationContext(
+			ClassNameGenerator classNameGenerator, GeneratedFiles generatedFiles, RuntimeHints runtimeHints) {
+
 		super(classNameGenerator, generatedFiles, runtimeHints);
 		this.featureName = null;
 	}
@@ -63,7 +66,7 @@ class TestContextGenerationContext extends DefaultGenerationContext {
 	 * Create a new {@link TestContextGenerationContext} instance using the specified
 	 * feature name to qualify generated assets for a dedicated round of code generation.
 	 * <p>If <em>this</em> {@code TestContextGenerationContext} has a configured feature
-	 * name, the existing feature name will prepended to the supplied feature name in
+	 * name, the existing feature name will be prepended to the supplied feature name in
 	 * order to avoid naming collisions.
 	 * @param featureName the feature name to use
 	 * @return a specialized {@link TestContextGenerationContext} for the specified

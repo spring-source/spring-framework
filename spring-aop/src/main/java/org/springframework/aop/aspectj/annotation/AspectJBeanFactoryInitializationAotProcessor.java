@@ -18,6 +18,8 @@ package org.springframework.aop.aspectj.annotation;
 
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aop.Advisor;
 import org.springframework.aop.aspectj.AbstractAspectJAdvice;
 import org.springframework.aot.generate.GenerationContext;
@@ -27,7 +29,6 @@ import org.springframework.beans.factory.aot.BeanFactoryInitializationAotContrib
 import org.springframework.beans.factory.aot.BeanFactoryInitializationAotProcessor;
 import org.springframework.beans.factory.aot.BeanFactoryInitializationCode;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 
 /**
@@ -40,30 +41,29 @@ import org.springframework.util.ClassUtils;
  */
 class AspectJBeanFactoryInitializationAotProcessor implements BeanFactoryInitializationAotProcessor {
 
-	private static final boolean aspectJPresent = ClassUtils.isPresent(
-			"org.aspectj.lang.annotation.Pointcut", AspectJBeanFactoryInitializationAotProcessor.class.getClassLoader());
+	private static final boolean aspectJPresent = ClassUtils.isPresent("org.aspectj.lang.annotation.Pointcut",
+			AspectJBeanFactoryInitializationAotProcessor.class.getClassLoader());
 
-	@Nullable
+
 	@Override
-	public BeanFactoryInitializationAotContribution processAheadOfTime(ConfigurableListableBeanFactory beanFactory) {
+	public @Nullable BeanFactoryInitializationAotContribution processAheadOfTime(ConfigurableListableBeanFactory beanFactory) {
 		if (aspectJPresent) {
 			return AspectDelegate.processAheadOfTime(beanFactory);
 		}
 		return null;
 	}
 
+
 	/**
 	 * Inner class to avoid a hard dependency on AspectJ at runtime.
 	 */
 	private static class AspectDelegate {
 
-		@Nullable
-		private static AspectContribution processAheadOfTime(ConfigurableListableBeanFactory beanFactory) {
+		private static @Nullable AspectContribution processAheadOfTime(ConfigurableListableBeanFactory beanFactory) {
 			BeanFactoryAspectJAdvisorsBuilder builder = new BeanFactoryAspectJAdvisorsBuilder(beanFactory);
 			List<Advisor> advisors = builder.buildAspectJAdvisors();
-			return advisors.isEmpty() ? null : new AspectContribution(advisors);
+			return (advisors.isEmpty() ? null : new AspectContribution(advisors));
 		}
-
 	}
 
 
@@ -84,7 +84,6 @@ class AspectJBeanFactoryInitializationAotProcessor implements BeanFactoryInitial
 				}
 			}
 		}
-
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,13 +23,15 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
+import org.springframework.core.task.AsyncTaskExecutor;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /**
- * Unit tests for {@link ThreadPoolTaskExecutor}.
+ * Tests for {@link ThreadPoolTaskExecutor}.
  *
  * @author Juergen Hoeller
  * @author Sam Brannen
@@ -41,8 +43,7 @@ class ThreadPoolTaskExecutorTests extends AbstractSchedulingTaskExecutorTests {
 
 
 	@Override
-	@SuppressWarnings("deprecation")
-	protected org.springframework.core.task.AsyncListenableTaskExecutor buildExecutor() {
+	protected AsyncTaskExecutor buildExecutor() {
 		executor.setThreadNamePrefix(this.threadNamePrefix);
 		executor.setMaxPoolSize(1);
 		executor.afterPropertiesSet();

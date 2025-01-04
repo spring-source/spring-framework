@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,12 +34,12 @@ import java.util.stream.Collectors;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.core.MethodIntrospector;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.LinkedMultiValueMap;
@@ -95,8 +95,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 
 	private boolean detectHandlerMethodsInAncestorContexts = false;
 
-	@Nullable
-	private HandlerMethodMappingNamingStrategy<T> namingStrategy;
+	private @Nullable HandlerMethodMappingNamingStrategy<T> namingStrategy;
 
 	private final MappingRegistry mappingRegistry = new MappingRegistry();
 
@@ -126,7 +125,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * Configure the naming strategy to use for assigning a default name to every
 	 * mapped handler method.
 	 * <p>The default naming strategy is based on the capital letters of the
-	 * class name followed by "#" and then the method name, e.g. "TC#getFoo"
+	 * class name followed by "#" and then the method name, for example, "TC#getFoo"
 	 * for a class named TestController with method getFoo.
 	 */
 	public void setHandlerMethodMappingNamingStrategy(HandlerMethodMappingNamingStrategy<T> namingStrategy) {
@@ -136,8 +135,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	/**
 	 * Return the configured naming strategy or {@code null}.
 	 */
-	@Nullable
-	public HandlerMethodMappingNamingStrategy<T> getNamingStrategy() {
+	public @Nullable HandlerMethodMappingNamingStrategy<T> getNamingStrategy() {
 		return this.namingStrategy;
 	}
 
@@ -162,8 +160,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * list will never be modified and is safe to iterate.
 	 * @see #setHandlerMethodMappingNamingStrategy
 	 */
-	@Nullable
-	public List<HandlerMethod> getHandlerMethodsForMappingName(String mappingName) {
+	public @Nullable List<HandlerMethod> getHandlerMethodsForMappingName(String mappingName) {
 		return this.mappingRegistry.getHandlerMethodsByMappingName(mappingName);
 	}
 
@@ -350,8 +347,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	/**
 	 * Extract and return the CORS configuration for the mapping.
 	 */
-	@Nullable
-	protected CorsConfiguration initCorsConfiguration(Object handler, Method method, T mapping) {
+	protected @Nullable CorsConfiguration initCorsConfiguration(Object handler, Method method, T mapping) {
 		return null;
 	}
 
@@ -374,8 +370,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * Look up a handler method for the given request.
 	 */
 	@Override
-	@Nullable
-	protected HandlerMethod getHandlerInternal(HttpServletRequest request) throws Exception {
+	protected @Nullable HandlerMethod getHandlerInternal(HttpServletRequest request) throws Exception {
 		String lookupPath = initLookupPath(request);
 		this.mappingRegistry.acquireReadLock();
 		try {
@@ -396,8 +391,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * @see #handleMatch(Object, String, HttpServletRequest)
 	 * @see #handleNoMatch(Set, String, HttpServletRequest)
 	 */
-	@Nullable
-	protected HandlerMethod lookupHandlerMethod(String lookupPath, HttpServletRequest request) throws Exception {
+	protected @Nullable HandlerMethod lookupHandlerMethod(String lookupPath, HttpServletRequest request) throws Exception {
 		List<Match> matches = new ArrayList<>();
 		List<T> directPathMatches = this.mappingRegistry.getMappingsByDirectPath(lookupPath);
 		if (directPathMatches != null) {
@@ -442,6 +436,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 		}
 	}
 
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	private void addMatchingMappings(Collection<T> mappings, List<Match> matches, HttpServletRequest request) {
 		for (T mapping : mappings) {
 			T match = getMatchingMapping(mapping, request);
@@ -468,8 +463,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * @param request the current request
 	 * @throws ServletException in case of errors
 	 */
-	@Nullable
-	protected HandlerMethod handleNoMatch(Set<T> mappings, String lookupPath, HttpServletRequest request)
+	protected @Nullable HandlerMethod handleNoMatch(Set<T> mappings, String lookupPath, HttpServletRequest request)
 			throws Exception {
 
 		return null;
@@ -478,12 +472,12 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	@Override
 	protected boolean hasCorsConfigurationSource(Object handler) {
 		return super.hasCorsConfigurationSource(handler) ||
-				(handler instanceof HandlerMethod handerMethod &&
-						this.mappingRegistry.getCorsConfiguration(handerMethod) != null);
+				(handler instanceof HandlerMethod handlerMethod &&
+						this.mappingRegistry.getCorsConfiguration(handlerMethod) != null);
 	}
 
 	@Override
-	protected CorsConfiguration getCorsConfiguration(Object handler, HttpServletRequest request) {
+	protected @Nullable CorsConfiguration getCorsConfiguration(Object handler, HttpServletRequest request) {
 		CorsConfiguration corsConfig = super.getCorsConfiguration(handler, request);
 		if (handler instanceof HandlerMethod handlerMethod) {
 			if (handlerMethod.equals(PREFLIGHT_AMBIGUOUS_MATCH)) {
@@ -515,8 +509,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * declaring class
 	 * @return the mapping, or {@code null} if the method is not mapped
 	 */
-	@Nullable
-	protected abstract T getMappingForMethod(Method method, Class<?> handlerType);
+	protected abstract @Nullable T getMappingForMethod(Method method, Class<?> handlerType);
 
 	/**
 	 * Extract and return the URL paths contained in the supplied mapping.
@@ -532,6 +525,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * Return the request mapping paths that are not patterns.
 	 * @since 5.3
 	 */
+	@SuppressWarnings("removal")
 	protected Set<String> getDirectPaths(T mapping) {
 		Set<String> urls = Collections.emptySet();
 		for (String path : getMappingPathPatterns(mapping)) {
@@ -550,8 +544,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * @param request the current HTTP servlet request
 	 * @return the match, or {@code null} if the mapping doesn't match
 	 */
-	@Nullable
-	protected abstract T getMatchingMapping(T mapping, HttpServletRequest request);
+	protected abstract @Nullable T getMatchingMapping(T mapping, HttpServletRequest request);
 
 	/**
 	 * Return a comparator for sorting matching mappings.
@@ -565,6 +558,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	/**
 	 * A registry that maintains all mappings to handler methods, exposing methods
 	 * to perform lookups and providing concurrent access.
+	 *
 	 * <p>Package-private for testing purposes.
 	 */
 	class MappingRegistry {
@@ -591,23 +585,21 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 		 * Return matches for the given URL path. Not thread-safe.
 		 * @see #acquireReadLock()
 		 */
-		@Nullable
-		public List<T> getMappingsByDirectPath(String urlPath) {
+		public @Nullable List<T> getMappingsByDirectPath(String urlPath) {
 			return this.pathLookup.get(urlPath);
 		}
 
 		/**
 		 * Return handler methods by mapping name. Thread-safe for concurrent use.
 		 */
-		public List<HandlerMethod> getHandlerMethodsByMappingName(String mappingName) {
+		public @Nullable List<HandlerMethod> getHandlerMethodsByMappingName(String mappingName) {
 			return this.nameLookup.get(mappingName);
 		}
 
 		/**
 		 * Return CORS configuration. Thread-safe for concurrent use.
 		 */
-		@Nullable
-		public CorsConfiguration getCorsConfiguration(HandlerMethod handlerMethod) {
+		public @Nullable CorsConfiguration getCorsConfiguration(HandlerMethod handlerMethod) {
 			HandlerMethod original = handlerMethod.getResolvedFromHandlerMethod();
 			return this.corsLookup.get(original != null ? original : handlerMethod);
 		}
@@ -632,6 +624,9 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 				HandlerMethod handlerMethod = createHandlerMethod(handler, method);
 				validateMethodMapping(handlerMethod, mapping);
 
+				// Enable method validation, if applicable
+				handlerMethod = handlerMethod.createWithValidateFlags();
+
 				Set<String> directPaths = AbstractHandlerMethodMapping.this.getDirectPaths(mapping);
 				for (String path : directPaths) {
 					this.pathLookup.add(path, mapping);
@@ -646,6 +641,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 				CorsConfiguration corsConfig = initCorsConfiguration(handler, method, mapping);
 				if (corsConfig != null) {
 					corsConfig.validateAllowCredentials();
+					corsConfig.validateAllowPrivateNetwork();
 					this.corsLookup.put(handlerMethod, corsConfig);
 				}
 
@@ -746,8 +742,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 
 		private final Set<String> directPaths;
 
-		@Nullable
-		private final String mappingName;
+		private final @Nullable String mappingName;
 
 		private final boolean corsConfig;
 
@@ -775,8 +770,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 			return this.directPaths;
 		}
 
-		@Nullable
-		public String getMappingName() {
+		public @Nullable String getMappingName() {
 			return this.mappingName;
 		}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -175,12 +175,11 @@ class ScheduledAnnotationBeanPostProcessorObservabilityTests {
 	}
 
 	private TestObservationRegistryAssert.TestObservationRegistryAssertReturningObservationContextAssert assertThatTaskObservation() {
-		return TestObservationRegistryAssert.assertThat(this.observationRegistry)
-				.hasObservationWithNameEqualTo("tasks.scheduled.execution").that();
+		return assertThat(this.observationRegistry).hasObservationWithNameEqualTo("tasks.scheduled.execution").that();
 	}
 
 
-	static abstract class TaskTester {
+	abstract static class TaskTester {
 
 		ObservationRegistry observationRegistry;
 
@@ -276,9 +275,9 @@ class ScheduledAnnotationBeanPostProcessorObservabilityTests {
 		@Scheduled(fixedDelay = 10_000, initialDelay = 5_000)
 		Mono<String> hasCurrentObservation() {
 			return Mono.just("test")
-					.tap(() -> new DefaultSignalListener<String>() {
+					.tap(() -> new DefaultSignalListener<>() {
 						@Override
-						public void doFirst() throws Throwable {
+						public void doFirst() {
 							Observation observation = observationRegistry.getCurrentObservation();
 							assertThat(observation).isNotNull();
 							assertThat(observation.getContext()).isInstanceOf(ScheduledTaskObservationContext.class);

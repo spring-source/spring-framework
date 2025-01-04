@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,14 @@ import java.net.URI;
 import java.util.Map;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
 
 /**
  * Interface specifying a basic set of RESTful operations.
@@ -52,8 +53,7 @@ public interface RestOperations {
 	 * @param uriVariables the variables to expand the template
 	 * @return the converted object
 	 */
-	@Nullable
-	<T> T getForObject(String url, Class<T> responseType, Object... uriVariables) throws RestClientException;
+	<T> @Nullable T getForObject(String url, Class<T> responseType, Object... uriVariables) throws RestClientException;
 
 	/**
 	 * Retrieve a representation by doing a GET on the URI template.
@@ -64,8 +64,7 @@ public interface RestOperations {
 	 * @param uriVariables the map containing variables for the URI template
 	 * @return the converted object
 	 */
-	@Nullable
-	<T> T getForObject(String url, Class<T> responseType, Map<String, ?> uriVariables) throws RestClientException;
+	<T> @Nullable T getForObject(String url, Class<T> responseType, Map<String, ?> uriVariables) throws RestClientException;
 
 	/**
 	 * Retrieve a representation by doing a GET on the URL.
@@ -74,8 +73,7 @@ public interface RestOperations {
 	 * @param responseType the type of the return value
 	 * @return the converted object
 	 */
-	@Nullable
-	<T> T getForObject(URI url, Class<T> responseType) throws RestClientException;
+	<T> @Nullable T getForObject(URI url, Class<T> responseType) throws RestClientException;
 
 	/**
 	 * Retrieve an entity by doing a GET on the specified URL.
@@ -145,7 +143,7 @@ public interface RestOperations {
 	// POST
 
 	/**
-	 * Create a new resource by POSTing the given object to the URI template, and returns the value of
+	 * Create a new resource by POSTing the given object to the URI template, and return the value of
 	 * the {@code Location} header. This header typically indicates where the new resource is stored.
 	 * <p>URI Template variables are expanded using the given URI variables, if any.
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
@@ -161,11 +159,10 @@ public interface RestOperations {
 	 * @return the value for the {@code Location} header
 	 * @see HttpEntity
 	 */
-	@Nullable
-	URI postForLocation(String url, @Nullable Object request, Object... uriVariables) throws RestClientException;
+	@Nullable URI postForLocation(String url, @Nullable Object request, Object... uriVariables) throws RestClientException;
 
 	/**
-	 * Create a new resource by POSTing the given object to the URI template, and returns the value of
+	 * Create a new resource by POSTing the given object to the URI template, and return the value of
 	 * the {@code Location} header. This header typically indicates where the new resource is stored.
 	 * <p>URI Template variables are expanded using the given map.
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
@@ -181,12 +178,11 @@ public interface RestOperations {
 	 * @return the value for the {@code Location} header
 	 * @see HttpEntity
 	 */
-	@Nullable
-	URI postForLocation(String url, @Nullable Object request, Map<String, ?> uriVariables)
+	@Nullable URI postForLocation(String url, @Nullable Object request, Map<String, ?> uriVariables)
 			throws RestClientException;
 
 	/**
-	 * Create a new resource by POSTing the given object to the URL, and returns the value of the
+	 * Create a new resource by POSTing the given object to the URL, and return the value of the
 	 * {@code Location} header. This header typically indicates where the new resource is stored.
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
 	 * add additional HTTP headers to the request.
@@ -200,12 +196,11 @@ public interface RestOperations {
 	 * @return the value for the {@code Location} header
 	 * @see HttpEntity
 	 */
-	@Nullable
-	URI postForLocation(URI url, @Nullable Object request) throws RestClientException;
+	@Nullable URI postForLocation(URI url, @Nullable Object request) throws RestClientException;
 
 	/**
 	 * Create a new resource by POSTing the given object to the URI template,
-	 * and returns the representation found in the response.
+	 * and return the representation found in the response.
 	 * <p>URI Template variables are expanded using the given URI variables, if any.
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
 	 * add additional HTTP headers to the request.
@@ -221,13 +216,12 @@ public interface RestOperations {
 	 * @return the converted object
 	 * @see HttpEntity
 	 */
-	@Nullable
-	<T> T postForObject(String url, @Nullable Object request, Class<T> responseType,
+	<T> @Nullable T postForObject(String url, @Nullable Object request, Class<T> responseType,
 			Object... uriVariables) throws RestClientException;
 
 	/**
 	 * Create a new resource by POSTing the given object to the URI template,
-	 * and returns the representation found in the response.
+	 * and return the representation found in the response.
 	 * <p>URI Template variables are expanded using the given map.
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
 	 * add additional HTTP headers to the request.
@@ -243,13 +237,12 @@ public interface RestOperations {
 	 * @return the converted object
 	 * @see HttpEntity
 	 */
-	@Nullable
-	<T> T postForObject(String url, @Nullable Object request, Class<T> responseType,
+	<T> @Nullable T postForObject(String url, @Nullable Object request, Class<T> responseType,
 			Map<String, ?> uriVariables) throws RestClientException;
 
 	/**
 	 * Create a new resource by POSTing the given object to the URL,
-	 * and returns the representation found in the response.
+	 * and return the representation found in the response.
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
 	 * add additional HTTP headers to the request.
 	 * <p>The body of the entity, or {@code request} itself, can be a
@@ -263,12 +256,11 @@ public interface RestOperations {
 	 * @return the converted object
 	 * @see HttpEntity
 	 */
-	@Nullable
-	<T> T postForObject(URI url, @Nullable Object request, Class<T> responseType) throws RestClientException;
+	<T> @Nullable T postForObject(URI url, @Nullable Object request, Class<T> responseType) throws RestClientException;
 
 	/**
 	 * Create a new resource by POSTing the given object to the URI template,
-	 * and returns the response as {@link ResponseEntity}.
+	 * and return the response as {@link ResponseEntity}.
 	 * <p>URI Template variables are expanded using the given URI variables, if any.
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
 	 * add additional HTTP headers to the request.
@@ -289,7 +281,7 @@ public interface RestOperations {
 
 	/**
 	 * Create a new resource by POSTing the given object to the URI template,
-	 * and returns the response as {@link HttpEntity}.
+	 * and return the response as {@link HttpEntity}.
 	 * <p>URI Template variables are expanded using the given map.
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
 	 * add additional HTTP headers to the request.
@@ -310,7 +302,7 @@ public interface RestOperations {
 
 	/**
 	 * Create a new resource by POSTing the given object to the URL,
-	 * and returns the response as {@link ResponseEntity}.
+	 * and return the response as {@link ResponseEntity}.
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
 	 * add additional HTTP headers to the request.
 	 * <p>The body of the entity, or {@code request} itself, can be a
@@ -374,7 +366,7 @@ public interface RestOperations {
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
 	 * add additional HTTP headers to the request.
 	 * <p><b>NOTE: The standard JDK HTTP library does not support HTTP PATCH.
-	 * You need to use the Apache HttpComponents or OkHttp request factory.</b>
+	 * You need to use, for example, the Apache HttpComponents request factory.</b>
 	 * @param url the URL
 	 * @param request the object to be PATCHed (may be {@code null})
 	 * @param responseType the type of the return value
@@ -384,10 +376,8 @@ public interface RestOperations {
 	 * @see HttpEntity
 	 * @see RestTemplate#setRequestFactory
 	 * @see org.springframework.http.client.HttpComponentsClientHttpRequestFactory
-	 * @see org.springframework.http.client.OkHttp3ClientHttpRequestFactory
 	 */
-	@Nullable
-	<T> T patchForObject(String url, @Nullable Object request, Class<T> responseType, Object... uriVariables)
+	<T> @Nullable T patchForObject(String url, @Nullable Object request, Class<T> responseType, Object... uriVariables)
 			throws RestClientException;
 
 	/**
@@ -397,7 +387,7 @@ public interface RestOperations {
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
 	 * add additional HTTP headers to the request.
 	 * <p><b>NOTE: The standard JDK HTTP library does not support HTTP PATCH.
-	 * You need to use the Apache HttpComponents or OkHttp request factory.</b>
+	 * You need to use, for example, the Apache HttpComponents request factory.</b>
 	 * @param url the URL
 	 * @param request the object to be PATCHed (may be {@code null})
 	 * @param responseType the type of the return value
@@ -407,10 +397,8 @@ public interface RestOperations {
 	 * @see HttpEntity
 	 * @see RestTemplate#setRequestFactory
 	 * @see org.springframework.http.client.HttpComponentsClientHttpRequestFactory
-	 * @see org.springframework.http.client.OkHttp3ClientHttpRequestFactory
 	 */
-	@Nullable
-	<T> T patchForObject(String url, @Nullable Object request, Class<T> responseType,
+	<T> @Nullable T patchForObject(String url, @Nullable Object request, Class<T> responseType,
 			Map<String, ?> uriVariables) throws RestClientException;
 
 	/**
@@ -419,7 +407,7 @@ public interface RestOperations {
 	 * <p>The {@code request} parameter can be a {@link HttpEntity} in order to
 	 * add additional HTTP headers to the request.
 	 * <p><b>NOTE: The standard JDK HTTP library does not support HTTP PATCH.
-	 * You need to use the Apache HttpComponents or OkHttp request factory.</b>
+	 * You need to use, for example, the Apache HttpComponents request factory.</b>
 	 * @param url the URL
 	 * @param request the object to be PATCHed (may be {@code null})
 	 * @param responseType the type of the return value
@@ -428,10 +416,8 @@ public interface RestOperations {
 	 * @see HttpEntity
 	 * @see RestTemplate#setRequestFactory
 	 * @see org.springframework.http.client.HttpComponentsClientHttpRequestFactory
-	 * @see org.springframework.http.client.OkHttp3ClientHttpRequestFactory
 	 */
-	@Nullable
-	<T> T patchForObject(URI url, @Nullable Object request, Class<T> responseType)
+	<T> @Nullable T patchForObject(URI url, @Nullable Object request, Class<T> responseType)
 			throws RestClientException;
 
 
@@ -492,8 +478,8 @@ public interface RestOperations {
 	// exchange
 
 	/**
-	 * Execute the HTTP method to the given URI template, writing the given request entity to the request, and
-	 * returns the response as {@link ResponseEntity}.
+	 * Execute the HTTP method to the given URI template, writing the given request entity to the request,
+	 * and return the response as {@link ResponseEntity}.
 	 * <p>URI Template variables are expanded using the given URI variables, if any.
 	 * @param url the URL
 	 * @param method the HTTP method (GET, POST, etc)
@@ -508,8 +494,8 @@ public interface RestOperations {
 			Class<T> responseType, Object... uriVariables) throws RestClientException;
 
 	/**
-	 * Execute the HTTP method to the given URI template, writing the given request entity to the request, and
-	 * returns the response as {@link ResponseEntity}.
+	 * Execute the HTTP method to the given URI template, writing the given request entity to the request,
+	 * and return the response as {@link ResponseEntity}.
 	 * <p>URI Template variables are expanded using the given URI variables, if any.
 	 * @param url the URL
 	 * @param method the HTTP method (GET, POST, etc)
@@ -524,8 +510,8 @@ public interface RestOperations {
 			Class<T> responseType, Map<String, ?> uriVariables) throws RestClientException;
 
 	/**
-	 * Execute the HTTP method to the given URI template, writing the given request entity to the request, and
-	 * returns the response as {@link ResponseEntity}.
+	 * Execute the HTTP method to the given URI template, writing the given request entity to the request,
+	 * and return the response as {@link ResponseEntity}.
 	 * @param url the URL
 	 * @param method the HTTP method (GET, POST, etc)
 	 * @param requestEntity the entity (headers and/or body) to write to the request
@@ -539,7 +525,7 @@ public interface RestOperations {
 
 	/**
 	 * Execute the HTTP method to the given URI template, writing the given
-	 * request entity to the request, and returns the response as {@link ResponseEntity}.
+	 * request entity to the request, and return the response as {@link ResponseEntity}.
 	 * The given {@link ParameterizedTypeReference} is used to pass generic type information:
 	 * <pre class="code">
 	 * ParameterizedTypeReference&lt;List&lt;MyBean&gt;&gt; myBean =
@@ -562,7 +548,7 @@ public interface RestOperations {
 
 	/**
 	 * Execute the HTTP method to the given URI template, writing the given
-	 * request entity to the request, and returns the response as {@link ResponseEntity}.
+	 * request entity to the request, and return the response as {@link ResponseEntity}.
 	 * The given {@link ParameterizedTypeReference} is used to pass generic type information:
 	 * <pre class="code">
 	 * ParameterizedTypeReference&lt;List&lt;MyBean&gt;&gt; myBean =
@@ -585,7 +571,7 @@ public interface RestOperations {
 
 	/**
 	 * Execute the HTTP method to the given URI template, writing the given
-	 * request entity to the request, and returns the response as {@link ResponseEntity}.
+	 * request entity to the request, and return the response as {@link ResponseEntity}.
 	 * The given {@link ParameterizedTypeReference} is used to pass generic type information:
 	 * <pre class="code">
 	 * ParameterizedTypeReference&lt;List&lt;MyBean&gt;&gt; myBean =
@@ -661,8 +647,7 @@ public interface RestOperations {
 	 * @param uriVariables the variables to expand in the template
 	 * @return an arbitrary object, as returned by the {@link ResponseExtractor}
 	 */
-	@Nullable
-	<T> T execute(String uriTemplate, HttpMethod method, @Nullable RequestCallback requestCallback,
+	<T> @Nullable T execute(String uriTemplate, HttpMethod method, @Nullable RequestCallback requestCallback,
 			@Nullable ResponseExtractor<T> responseExtractor, Object... uriVariables)
 			throws RestClientException;
 
@@ -677,8 +662,7 @@ public interface RestOperations {
 	 * @param uriVariables the variables to expand in the template
 	 * @return an arbitrary object, as returned by the {@link ResponseExtractor}
 	 */
-	@Nullable
-	<T> T execute(String uriTemplate, HttpMethod method, @Nullable RequestCallback requestCallback,
+	<T> @Nullable T execute(String uriTemplate, HttpMethod method, @Nullable RequestCallback requestCallback,
 			@Nullable ResponseExtractor<T> responseExtractor, Map<String, ?> uriVariables)
 			throws RestClientException;
 
@@ -691,8 +675,7 @@ public interface RestOperations {
 	 * @param responseExtractor object that extracts the return value from the response
 	 * @return an arbitrary object, as returned by the {@link ResponseExtractor}
 	 */
-	@Nullable
-	<T> T execute(URI url, HttpMethod method, @Nullable RequestCallback requestCallback,
+	<T> @Nullable T execute(URI url, HttpMethod method, @Nullable RequestCallback requestCallback,
 			@Nullable ResponseExtractor<T> responseExtractor) throws RestClientException;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.framework.AopInfrastructureBean;
 import org.springframework.aop.framework.AopProxyUtils;
@@ -45,6 +45,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
+import org.springframework.beans.factory.config.SingletonBeanRegistry;
 import org.springframework.beans.factory.support.MergedBeanDefinitionPostProcessor;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.context.ApplicationContext;
@@ -59,12 +60,14 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.lang.Nullable;
+import org.springframework.format.annotation.DurationFormat;
+import org.springframework.format.datetime.standard.DurationFormatterUtils;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.Trigger;
 import org.springframework.scheduling.config.CronTask;
 import org.springframework.scheduling.config.FixedDelayTask;
 import org.springframework.scheduling.config.FixedRateTask;
+import org.springframework.scheduling.config.OneTimeTask;
 import org.springframework.scheduling.config.ScheduledTask;
 import org.springframework.scheduling.config.ScheduledTaskHolder;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
@@ -88,7 +91,7 @@ import org.springframework.util.StringValueResolver;
  *
  * <p>Autodetects any {@link SchedulingConfigurer} instances in the container,
  * allowing for customization of the scheduler to be used or for fine-grained
- * control over task registration (e.g. registration of {@link Trigger} tasks).
+ * control over task registration (for example, registration of {@link Trigger} tasks).
  * See the {@link EnableScheduling @EnableScheduling} javadocs for complete usage
  * details.
  *
@@ -131,29 +134,25 @@ public class ScheduledAnnotationBeanPostProcessor
 
 	private final ScheduledTaskRegistrar registrar;
 
-	@Nullable
-	private Object scheduler;
+	private @Nullable Object scheduler;
 
-	@Nullable
-	private StringValueResolver embeddedValueResolver;
+	private @Nullable StringValueResolver embeddedValueResolver;
 
-	@Nullable
-	private String beanName;
+	private @Nullable String beanName;
 
-	@Nullable
-	private BeanFactory beanFactory;
+	private @Nullable BeanFactory beanFactory;
 
-	@Nullable
-	private ApplicationContext applicationContext;
+	private @Nullable ApplicationContext applicationContext;
 
-	@Nullable
-	private TaskSchedulerRouter localScheduler;
+	private @Nullable TaskSchedulerRouter localScheduler;
 
-	private final Set<Class<?>> nonAnnotatedClasses = Collections.newSetFromMap(new ConcurrentHashMap<>(64));
+	private final Set<Class<?>> nonAnnotatedClasses = ConcurrentHashMap.newKeySet(64);
 
 	private final Map<Object, Set<ScheduledTask>> scheduledTasks = new IdentityHashMap<>(16);
 
 	private final Map<Object, List<Runnable>> reactiveSubscriptions = new IdentityHashMap<>(16);
+
+	private final Set<Object> manualCancellationOnContextClose = Collections.newSetFromMap(new IdentityHashMap<>(16));
 
 
 	/**
@@ -305,6 +304,13 @@ public class ScheduledAnnotationBeanPostProcessor
 					logger.trace(annotatedMethods.size() + " @Scheduled methods processed on bean '" + beanName +
 							"': " + annotatedMethods);
 				}
+				if ((this.beanFactory != null &&
+						(!this.beanFactory.containsBean(beanName) || !this.beanFactory.isSingleton(beanName)) ||
+						(this.beanFactory instanceof SingletonBeanRegistry sbr && sbr.containsSingleton(beanName)))) {
+					// Either a prototype/scoped bean or a FactoryBean with a pre-existing managed singleton
+					// -> trigger manual cancellation when ContextClosedEvent comes in
+					this.manualCancellationOnContextClose.add(bean);
+				}
 			}
 		}
 		return bean;
@@ -393,8 +399,7 @@ public class ScheduledAnnotationBeanPostProcessor
 	private void processScheduledTask(Scheduled scheduled, Runnable runnable, Method method, Object bean) {
 		try {
 			boolean processedSchedule = false;
-			String errorMessage =
-					"Exactly one of the 'cron', 'fixedDelay(String)', or 'fixedRate(String)' attributes is required";
+			String errorMessage = "Exactly one of the 'cron', 'fixedDelay' or 'fixedRate' attributes is required";
 
 			Set<ScheduledTask> tasks = new LinkedHashSet<>(4);
 
@@ -412,7 +417,7 @@ public class ScheduledAnnotationBeanPostProcessor
 					}
 					catch (RuntimeException ex) {
 						throw new IllegalArgumentException(
-								"Invalid initialDelayString value \"" + initialDelayString + "\" - cannot parse into long");
+								"Invalid initialDelayString value \"" + initialDelayString + "\"; " + ex);
 					}
 				}
 			}
@@ -429,31 +434,28 @@ public class ScheduledAnnotationBeanPostProcessor
 					Assert.isTrue(initialDelay.isNegative(), "'initialDelay' not supported for cron triggers");
 					processedSchedule = true;
 					if (!Scheduled.CRON_DISABLED.equals(cron)) {
-						TimeZone timeZone;
+						CronTrigger trigger;
 						if (StringUtils.hasText(zone)) {
-							timeZone = StringUtils.parseTimeZoneString(zone);
+							trigger = new CronTrigger(cron, StringUtils.parseTimeZoneString(zone));
 						}
 						else {
-							timeZone = TimeZone.getDefault();
+							trigger = new CronTrigger(cron);
 						}
-						tasks.add(this.registrar.scheduleCronTask(new CronTask(runnable, new CronTrigger(cron, timeZone))));
+						tasks.add(this.registrar.scheduleCronTask(new CronTask(runnable, trigger)));
 					}
 				}
 			}
 
 			// At this point we don't need to differentiate between initial delay set or not anymore
-			if (initialDelay.isNegative()) {
-				initialDelay = Duration.ZERO;
-			}
+			Duration delayToUse = (initialDelay.isNegative() ? Duration.ZERO : initialDelay);
 
 			// Check fixed delay
 			Duration fixedDelay = toDuration(scheduled.fixedDelay(), scheduled.timeUnit());
 			if (!fixedDelay.isNegative()) {
 				Assert.isTrue(!processedSchedule, errorMessage);
 				processedSchedule = true;
-				tasks.add(this.registrar.scheduleFixedDelayTask(new FixedDelayTask(runnable, fixedDelay, initialDelay)));
+				tasks.add(this.registrar.scheduleFixedDelayTask(new FixedDelayTask(runnable, fixedDelay, delayToUse)));
 			}
-
 			String fixedDelayString = scheduled.fixedDelayString();
 			if (StringUtils.hasText(fixedDelayString)) {
 				if (this.embeddedValueResolver != null) {
@@ -467,9 +469,9 @@ public class ScheduledAnnotationBeanPostProcessor
 					}
 					catch (RuntimeException ex) {
 						throw new IllegalArgumentException(
-								"Invalid fixedDelayString value \"" + fixedDelayString + "\" - cannot parse into long");
+								"Invalid fixedDelayString value \"" + fixedDelayString + "\"; " + ex);
 					}
-					tasks.add(this.registrar.scheduleFixedDelayTask(new FixedDelayTask(runnable, fixedDelay, initialDelay)));
+					tasks.add(this.registrar.scheduleFixedDelayTask(new FixedDelayTask(runnable, fixedDelay, delayToUse)));
 				}
 			}
 
@@ -478,7 +480,7 @@ public class ScheduledAnnotationBeanPostProcessor
 			if (!fixedRate.isNegative()) {
 				Assert.isTrue(!processedSchedule, errorMessage);
 				processedSchedule = true;
-				tasks.add(this.registrar.scheduleFixedRateTask(new FixedRateTask(runnable, fixedRate, initialDelay)));
+				tasks.add(this.registrar.scheduleFixedRateTask(new FixedRateTask(runnable, fixedRate, delayToUse)));
 			}
 			String fixedRateString = scheduled.fixedRateString();
 			if (StringUtils.hasText(fixedRateString)) {
@@ -493,14 +495,18 @@ public class ScheduledAnnotationBeanPostProcessor
 					}
 					catch (RuntimeException ex) {
 						throw new IllegalArgumentException(
-								"Invalid fixedRateString value \"" + fixedRateString + "\" - cannot parse into long");
+								"Invalid fixedRateString value \"" + fixedRateString + "\"; " + ex);
 					}
-					tasks.add(this.registrar.scheduleFixedRateTask(new FixedRateTask(runnable, fixedRate, initialDelay)));
+					tasks.add(this.registrar.scheduleFixedRateTask(new FixedRateTask(runnable, fixedRate, delayToUse)));
 				}
 			}
 
-			// Check whether we had any attribute set
-			Assert.isTrue(processedSchedule, errorMessage);
+			if (!processedSchedule) {
+				if (initialDelay.isNegative()) {
+					throw new IllegalArgumentException("One-time task only supported with specified initial delay");
+				}
+				tasks.add(this.registrar.scheduleOneTimeTask(new OneTimeTask(runnable, delayToUse)));
+			}
 
 			// Finally register the scheduled tasks
 			synchronized (this.scheduledTasks) {
@@ -542,30 +548,24 @@ public class ScheduledAnnotationBeanPostProcessor
 	 * @deprecated in favor of {@link #createRunnable(Object, Method, String)}
 	 */
 	@Deprecated(since = "6.1")
-	@Nullable
-	protected Runnable createRunnable(Object target, Method method) {
+	protected @Nullable Runnable createRunnable(Object target, Method method) {
 		return null;
 	}
 
 	private static Duration toDuration(long value, TimeUnit timeUnit) {
-		return Duration.of(value, timeUnit.toChronoUnit());
+		try {
+			return Duration.of(value, timeUnit.toChronoUnit());
+		}
+		catch (Exception ex) {
+			throw new IllegalArgumentException(
+					"Unsupported unit " + timeUnit + " for value \"" + value + "\": " + ex.getMessage());
+		}
 	}
 
 	private static Duration toDuration(String value, TimeUnit timeUnit) {
-		if (isDurationString(value)) {
-			return Duration.parse(value);
-		}
-		return toDuration(Long.parseLong(value), timeUnit);
+		DurationFormat.Unit unit = DurationFormat.Unit.fromChronoUnit(timeUnit.toChronoUnit());
+		return DurationFormatterUtils.detectAndParse(value, unit); // interpreting as long as fallback already
 	}
-
-	private static boolean isDurationString(String value) {
-		return (value.length() > 1 && (isP(value.charAt(0)) || isP(value.charAt(1))));
-	}
-
-	private static boolean isP(char ch) {
-		return (ch == 'P' || ch == 'p');
-	}
-
 
 	/**
 	 * Return all currently scheduled tasks, from {@link Scheduled} methods
@@ -589,6 +589,18 @@ public class ScheduledAnnotationBeanPostProcessor
 
 	@Override
 	public void postProcessBeforeDestruction(Object bean, String beanName) {
+		cancelScheduledTasks(bean);
+		this.manualCancellationOnContextClose.remove(bean);
+	}
+
+	@Override
+	public boolean requiresDestruction(Object bean) {
+		synchronized (this.scheduledTasks) {
+			return (this.scheduledTasks.containsKey(bean) || this.reactiveSubscriptions.containsKey(bean));
+		}
+	}
+
+	private void cancelScheduledTasks(Object bean) {
 		Set<ScheduledTask> tasks;
 		List<Runnable> liveSubscriptions;
 		synchronized (this.scheduledTasks) {
@@ -597,7 +609,7 @@ public class ScheduledAnnotationBeanPostProcessor
 		}
 		if (tasks != null) {
 			for (ScheduledTask task : tasks) {
-				task.cancel();
+				task.cancel(false);
 			}
 		}
 		if (liveSubscriptions != null) {
@@ -608,19 +620,12 @@ public class ScheduledAnnotationBeanPostProcessor
 	}
 
 	@Override
-	public boolean requiresDestruction(Object bean) {
-		synchronized (this.scheduledTasks) {
-			return (this.scheduledTasks.containsKey(bean) || this.reactiveSubscriptions.containsKey(bean));
-		}
-	}
-
-	@Override
 	public void destroy() {
 		synchronized (this.scheduledTasks) {
 			Collection<Set<ScheduledTask>> allTasks = this.scheduledTasks.values();
 			for (Set<ScheduledTask> tasks : allTasks) {
 				for (ScheduledTask task : tasks) {
-					task.cancel();
+					task.cancel(false);
 				}
 			}
 			this.scheduledTasks.clear();
@@ -630,7 +635,10 @@ public class ScheduledAnnotationBeanPostProcessor
 					liveSubscription.run();  // equivalent to cancelling the subscription
 				}
 			}
+			this.reactiveSubscriptions.clear();
+			this.manualCancellationOnContextClose.clear();
 		}
+
 		this.registrar.destroy();
 		if (this.localScheduler != null) {
 			this.localScheduler.destroy();
@@ -649,19 +657,14 @@ public class ScheduledAnnotationBeanPostProcessor
 			if (event instanceof ContextRefreshedEvent) {
 				// Running in an ApplicationContext -> register tasks this late...
 				// giving other ContextRefreshedEvent listeners a chance to perform
-				// their work at the same time (e.g. Spring Batch's job registration).
+				// their work at the same time (for example, Spring Batch's job registration).
 				finishRegistration();
 			}
 			else if (event instanceof ContextClosedEvent) {
-				synchronized (this.scheduledTasks) {
-					Collection<Set<ScheduledTask>> allTasks = this.scheduledTasks.values();
-					for (Set<ScheduledTask> tasks : allTasks) {
-						for (ScheduledTask task : tasks) {
-							// At this early point, let in-progress tasks complete still
-							task.cancel(false);
-						}
-					}
+				for (Object bean : this.manualCancellationOnContextClose) {
+					cancelScheduledTasks(bean);
 				}
+				this.manualCancellationOnContextClose.clear();
 			}
 		}
 	}

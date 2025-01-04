@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aot.hint.ExecutableHint;
 import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.aot.hint.MemberCategory;
@@ -34,7 +36,6 @@ import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.TypeHint;
 import org.springframework.aot.hint.TypeReference;
 import org.springframework.core.MethodIntrospector;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ReflectionUtils;
 
@@ -194,6 +195,7 @@ public class ReflectionHintsPredicates {
 		return new FieldHintPredicate(field);
 	}
 
+
 	public static class TypeHintPredicate implements Predicate<RuntimeHints> {
 
 		private final TypeReference type;
@@ -202,8 +204,7 @@ public class ReflectionHintsPredicates {
 			this.type = type;
 		}
 
-		@Nullable
-		private TypeHint getTypeHint(RuntimeHints hints) {
+		private @Nullable TypeHint getTypeHint(RuntimeHints hints) {
 			return hints.reflection().getTypeHint(this.type);
 		}
 
@@ -212,7 +213,6 @@ public class ReflectionHintsPredicates {
 			return getTypeHint(hints) != null;
 		}
 
-
 		/**
 		 * Refine the current predicate to only match if the given {@link MemberCategory} is present.
 		 * @param memberCategory the member category
@@ -220,7 +220,10 @@ public class ReflectionHintsPredicates {
 		 */
 		public Predicate<RuntimeHints> withMemberCategory(MemberCategory memberCategory) {
 			Assert.notNull(memberCategory, "'memberCategory' must not be null");
-			return this.and(hints -> getTypeHint(hints).getMemberCategories().contains(memberCategory));
+			return and(hints -> {
+				TypeHint hint = getTypeHint(hints);
+				return (hint != null && hint.getMemberCategories().contains(memberCategory));
+			});
 		}
 
 		/**
@@ -230,7 +233,10 @@ public class ReflectionHintsPredicates {
 		 */
 		public Predicate<RuntimeHints> withMemberCategories(MemberCategory... memberCategories) {
 			Assert.notEmpty(memberCategories, "'memberCategories' must not be empty");
-			return this.and(hints -> getTypeHint(hints).getMemberCategories().containsAll(Arrays.asList(memberCategories)));
+			return and(hints -> {
+				TypeHint hint = getTypeHint(hints);
+				return (hint != null && hint.getMemberCategories().containsAll(Arrays.asList(memberCategories)));
+			});
 		}
 
 		/**
@@ -240,12 +246,16 @@ public class ReflectionHintsPredicates {
 		 */
 		public Predicate<RuntimeHints> withAnyMemberCategory(MemberCategory... memberCategories) {
 			Assert.notEmpty(memberCategories, "'memberCategories' must not be empty");
-			return this.and(hints -> Arrays.stream(memberCategories)
-					.anyMatch(memberCategory -> getTypeHint(hints).getMemberCategories().contains(memberCategory)));
+			return and(hints -> {
+				TypeHint hint = getTypeHint(hints);
+				return (hint != null && Arrays.stream(memberCategories)
+						.anyMatch(memberCategory -> hint.getMemberCategories().contains(memberCategory)));
+			});
 		}
-
 	}
 
+
+	@SuppressWarnings("removal")
 	public abstract static class ExecutableHintPredicate<T extends Executable> implements Predicate<RuntimeHints> {
 
 		protected final T executable;
@@ -274,19 +284,6 @@ public class ReflectionHintsPredicates {
 			return this;
 		}
 
-		@Override
-		public boolean test(RuntimeHints runtimeHints) {
-			return (new TypeHintPredicate(TypeReference.of(this.executable.getDeclaringClass()))
-					.withAnyMemberCategory(getPublicMemberCategories())
-					.and(hints -> Modifier.isPublic(this.executable.getModifiers())))
-					.or(new TypeHintPredicate(TypeReference.of(this.executable.getDeclaringClass())).withAnyMemberCategory(getDeclaredMemberCategories()))
-					.or(exactMatch()).test(runtimeHints);
-		}
-
-		abstract MemberCategory[] getPublicMemberCategories();
-
-		abstract MemberCategory[] getDeclaredMemberCategories();
-
 		abstract Predicate<RuntimeHints> exactMatch();
 
 		/**
@@ -302,6 +299,8 @@ public class ReflectionHintsPredicates {
 		}
 	}
 
+
+	@SuppressWarnings("removal")
 	public static class ConstructorHintPredicate extends ExecutableHintPredicate<Constructor<?>> {
 
 		ConstructorHintPredicate(Constructor<?> constructor) {
@@ -309,34 +308,33 @@ public class ReflectionHintsPredicates {
 		}
 
 		@Override
-		MemberCategory[] getPublicMemberCategories() {
-			if (this.executableMode == ExecutableMode.INTROSPECT) {
-				return new MemberCategory[] { MemberCategory.INTROSPECT_PUBLIC_CONSTRUCTORS,
-						MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS };
-			}
-			return new MemberCategory[] { MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS };
-		}
-
-		@Override
-		MemberCategory[] getDeclaredMemberCategories() {
-			if (this.executableMode == ExecutableMode.INTROSPECT) {
-				return new MemberCategory[] { MemberCategory.INTROSPECT_DECLARED_CONSTRUCTORS,
-						MemberCategory.INVOKE_DECLARED_CONSTRUCTORS };
-			}
-			return new MemberCategory[] { MemberCategory.INVOKE_DECLARED_CONSTRUCTORS };
+		public boolean test(RuntimeHints runtimeHints) {
+			return (new TypeHintPredicate(TypeReference.of(this.executable.getDeclaringClass()))
+					.and(hints -> this.executableMode == ExecutableMode.INTROSPECT))
+					.or(new TypeHintPredicate(TypeReference.of(this.executable.getDeclaringClass()))
+							.withMemberCategory(MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
+							.and(hints -> Modifier.isPublic(this.executable.getModifiers()))
+							.and(hints -> this.executableMode == ExecutableMode.INVOKE))
+					.or(new TypeHintPredicate(TypeReference.of(this.executable.getDeclaringClass()))
+							.withMemberCategory(MemberCategory.INVOKE_DECLARED_CONSTRUCTORS)
+							.and(hints -> this.executableMode == ExecutableMode.INVOKE))
+					.or(exactMatch()).test(runtimeHints);
 		}
 
 		@Override
 		Predicate<RuntimeHints> exactMatch() {
-			return hints -> (hints.reflection().getTypeHint(this.executable.getDeclaringClass()) != null) &&
-					hints.reflection().getTypeHint(this.executable.getDeclaringClass()).constructors().anyMatch(executableHint -> {
-						List<TypeReference> parameters = TypeReference.listOf(this.executable.getParameterTypes());
-						return includes(executableHint, "<init>", parameters, this.executableMode);
-					});
+			return hints -> {
+				TypeHint hint = hints.reflection().getTypeHint(this.executable.getDeclaringClass());
+				return (hint != null && hint.constructors().anyMatch(executableHint -> {
+					List<TypeReference> parameters = TypeReference.listOf(this.executable.getParameterTypes());
+					return includes(executableHint, "<init>", parameters, this.executableMode);
+				}));
+			};
 		}
-
 	}
 
+
+	@SuppressWarnings("removal")
 	public static class MethodHintPredicate extends ExecutableHintPredicate<Method> {
 
 		MethodHintPredicate(Method method) {
@@ -344,67 +342,71 @@ public class ReflectionHintsPredicates {
 		}
 
 		@Override
-		MemberCategory[] getPublicMemberCategories() {
-			if (this.executableMode == ExecutableMode.INTROSPECT) {
-				return new MemberCategory[] { MemberCategory.INTROSPECT_PUBLIC_METHODS,
-						MemberCategory.INVOKE_PUBLIC_METHODS };
-			}
-			return new MemberCategory[] { MemberCategory.INVOKE_PUBLIC_METHODS };
-		}
-
-		@Override
-		MemberCategory[] getDeclaredMemberCategories() {
-
-			if (this.executableMode == ExecutableMode.INTROSPECT) {
-				return new MemberCategory[] { MemberCategory.INTROSPECT_DECLARED_METHODS,
-						MemberCategory.INVOKE_DECLARED_METHODS };
-			}
-			return new MemberCategory[] { MemberCategory.INVOKE_DECLARED_METHODS };
+		public boolean test(RuntimeHints runtimeHints) {
+			return (new TypeHintPredicate(TypeReference.of(this.executable.getDeclaringClass()))
+					.and(hints -> this.executableMode == ExecutableMode.INTROSPECT))
+					.or((new TypeHintPredicate(TypeReference.of(this.executable.getDeclaringClass()))
+							.withMemberCategory(MemberCategory.INVOKE_PUBLIC_METHODS)
+							.and(hints -> Modifier.isPublic(this.executable.getModifiers()))
+							.and(hints -> this.executableMode == ExecutableMode.INVOKE)))
+					.or((new TypeHintPredicate(TypeReference.of(this.executable.getDeclaringClass()))
+							.withMemberCategory(MemberCategory.INVOKE_DECLARED_METHODS)
+							.and(hints -> !Modifier.isPublic(this.executable.getModifiers()))
+							.and(hints -> this.executableMode == ExecutableMode.INVOKE)))
+					.or(exactMatch()).test(runtimeHints);
 		}
 
 		@Override
 		Predicate<RuntimeHints> exactMatch() {
-			return hints -> (hints.reflection().getTypeHint(this.executable.getDeclaringClass()) != null) &&
-					hints.reflection().getTypeHint(this.executable.getDeclaringClass()).methods().anyMatch(executableHint -> {
-						List<TypeReference> parameters = TypeReference.listOf(this.executable.getParameterTypes());
-						return includes(executableHint, this.executable.getName(), parameters, this.executableMode);
-					});
+			return hints -> {
+				TypeHint hint = hints.reflection().getTypeHint(this.executable.getDeclaringClass());
+				return (hint != null && hint.methods().anyMatch(executableHint -> {
+					List<TypeReference> parameters = TypeReference.listOf(this.executable.getParameterTypes());
+					return includes(executableHint, this.executable.getName(), parameters, this.executableMode);
+				}));
+			};
 		}
-
 	}
+
 
 	public static class FieldHintPredicate implements Predicate<RuntimeHints> {
 
 		private final Field field;
 
+		private @Nullable ExecutableMode executableMode;
+
 		FieldHintPredicate(Field field) {
 			this.field = field;
+		}
+
+		/**
+		 * Refine the current predicate to only match if an invocation hint is registered for this field.
+		 * @return the refined {@link RuntimeHints} predicate
+		 * @since 7.0
+		 */
+		public FieldHintPredicate invocation() {
+			this.executableMode = ExecutableMode.INVOKE;
+			return this;
 		}
 
 		@Override
 		public boolean test(RuntimeHints runtimeHints) {
 			TypeHint typeHint = runtimeHints.reflection().getTypeHint(this.field.getDeclaringClass());
-			if (typeHint == null) {
-				return false;
+			if (typeHint != null) {
+				if (this.executableMode == ExecutableMode.INVOKE) {
+					if (Modifier.isPublic(this.field.getModifiers())) {
+						return typeHint.getMemberCategories().contains(MemberCategory.INVOKE_PUBLIC_FIELDS);
+					}
+					else {
+						return typeHint.getMemberCategories().contains(MemberCategory.INVOKE_DECLARED_FIELDS);
+					}
+				}
+				else {
+					return true;
+				}
 			}
-			return memberCategoryMatch(typeHint) || exactMatch(typeHint);
+			return false;
 		}
-
-		private boolean memberCategoryMatch(TypeHint typeHint) {
-			if (Modifier.isPublic(this.field.getModifiers())) {
-				return typeHint.getMemberCategories().contains(MemberCategory.PUBLIC_FIELDS) ||
-						typeHint.getMemberCategories().contains(MemberCategory.DECLARED_FIELDS);
-			}
-			else {
-				return typeHint.getMemberCategories().contains(MemberCategory.DECLARED_FIELDS);
-			}
-		}
-
-		private boolean exactMatch(TypeHint typeHint) {
-			return typeHint.fields().anyMatch(fieldHint ->
-					this.field.getName().equals(fieldHint.getName()));
-		}
-
 	}
 
 }

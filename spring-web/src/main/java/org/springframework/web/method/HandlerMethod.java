@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,13 @@
 package org.springframework.web.method;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedParameterizedType;
+import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.StringJoiner;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -25,6 +31,7 @@ import java.util.stream.IntStream;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.context.MessageSource;
@@ -37,7 +44,6 @@ import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.core.annotation.MergedAnnotationPredicates;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
@@ -51,7 +57,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * method annotations, etc.
  *
  * <p>The class may be created with a bean instance or with a bean name
- * (e.g. lazy-init bean, prototype bean). Use {@link #createWithResolvedBean()}
+ * (for example, lazy-init bean, prototype bean). Use {@link #createWithResolvedBean()}
  * to obtain a {@code HandlerMethod} instance with a bean instance resolved
  * through the associated {@link BeanFactory}.
  *
@@ -66,13 +72,12 @@ public class HandlerMethod extends AnnotatedMethod {
 	/** Logger that is available to subclasses. */
 	protected static final Log logger = LogFactory.getLog(HandlerMethod.class);
 
+
 	private final Object bean;
 
-	@Nullable
-	private final BeanFactory beanFactory;
+	private final @Nullable BeanFactory beanFactory;
 
-	@Nullable
-	private final MessageSource messageSource;
+	private final @Nullable MessageSource messageSource;
 
 	private final Class<?> beanType;
 
@@ -80,14 +85,11 @@ public class HandlerMethod extends AnnotatedMethod {
 
 	private final boolean validateReturnValue;
 
-	@Nullable
-	private HttpStatusCode responseStatus;
+	private @Nullable HttpStatusCode responseStatus;
 
-	@Nullable
-	private String responseStatusReason;
+	private @Nullable String responseStatusReason;
 
-	@Nullable
-	private HandlerMethod resolvedFromHandlerMethod;
+	private @Nullable HandlerMethod resolvedFromHandlerMethod;
 
 	private final String description;
 
@@ -110,8 +112,8 @@ public class HandlerMethod extends AnnotatedMethod {
 		this.beanFactory = null;
 		this.messageSource = messageSource;
 		this.beanType = ClassUtils.getUserClass(bean);
-		this.validateArguments = MethodValidationInitializer.checkArguments(this.beanType, getMethodParameters());
-		this.validateReturnValue = MethodValidationInitializer.checkReturnValue(this.beanType, getBridgedMethod());
+		this.validateArguments = false;
+		this.validateReturnValue = false;
 		evaluateResponseStatus();
 		this.description = initDescription(this.beanType, method);
 	}
@@ -126,8 +128,8 @@ public class HandlerMethod extends AnnotatedMethod {
 		this.beanFactory = null;
 		this.messageSource = null;
 		this.beanType = ClassUtils.getUserClass(bean);
-		this.validateArguments = MethodValidationInitializer.checkArguments(this.beanType, getMethodParameters());
-		this.validateReturnValue = MethodValidationInitializer.checkReturnValue(this.beanType, getBridgedMethod());
+		this.validateArguments = false;
+		this.validateReturnValue = false;
 		evaluateResponseStatus();
 		this.description = initDescription(this.beanType, getMethod());
 	}
@@ -160,8 +162,8 @@ public class HandlerMethod extends AnnotatedMethod {
 			throw new IllegalStateException("Cannot resolve bean type for bean with name '" + beanName + "'");
 		}
 		this.beanType = ClassUtils.getUserClass(beanType);
-		this.validateArguments = MethodValidationInitializer.checkArguments(this.beanType, getMethodParameters());
-		this.validateReturnValue = MethodValidationInitializer.checkReturnValue(this.beanType, getBridgedMethod());
+		this.validateArguments = false;
+		this.validateReturnValue = false;
 		evaluateResponseStatus();
 		this.description = initDescription(this.beanType, method);
 	}
@@ -170,35 +172,28 @@ public class HandlerMethod extends AnnotatedMethod {
 	 * Copy constructor for use in subclasses.
 	 */
 	protected HandlerMethod(HandlerMethod handlerMethod) {
-		super(handlerMethod);
-		this.bean = handlerMethod.bean;
-		this.beanFactory = handlerMethod.beanFactory;
-		this.messageSource = handlerMethod.messageSource;
-		this.beanType = handlerMethod.beanType;
-		this.validateArguments = handlerMethod.validateArguments;
-		this.validateReturnValue = handlerMethod.validateReturnValue;
-		this.responseStatus = handlerMethod.responseStatus;
-		this.responseStatusReason = handlerMethod.responseStatusReason;
-		this.description = handlerMethod.description;
-		this.resolvedFromHandlerMethod = handlerMethod.resolvedFromHandlerMethod;
+		this(handlerMethod, null, false);
 	}
 
 	/**
-	 * Re-create HandlerMethod with the resolved handler.
+	 * Re-create HandlerMethod with additional input.
 	 */
-	private HandlerMethod(HandlerMethod handlerMethod, Object handler) {
+	private HandlerMethod(HandlerMethod handlerMethod, @Nullable Object handler, boolean initValidateFlags) {
 		super(handlerMethod);
-		Assert.notNull(handler, "Handler object is required");
-		this.bean = handler;
+		this.bean = (handler != null ? handler : handlerMethod.bean);
 		this.beanFactory = handlerMethod.beanFactory;
 		this.messageSource = handlerMethod.messageSource;
 		this.beanType = handlerMethod.beanType;
-		this.validateArguments = handlerMethod.validateArguments;
-		this.validateReturnValue = handlerMethod.validateReturnValue;
+		this.validateArguments = (initValidateFlags ?
+				MethodValidationInitializer.checkArguments(this.beanType, getMethodParameters()) :
+				handlerMethod.validateArguments);
+		this.validateReturnValue = (initValidateFlags ?
+				MethodValidationInitializer.checkReturnValue(this.beanType, getBridgedMethod()) :
+				handlerMethod.validateReturnValue);
 		this.responseStatus = handlerMethod.responseStatus;
 		this.responseStatusReason = handlerMethod.responseStatusReason;
 		this.resolvedFromHandlerMethod = handlerMethod;
-		this.description = handlerMethod.description;
+		this.description = handlerMethod.toString();
 	}
 
 
@@ -215,6 +210,9 @@ public class HandlerMethod extends AnnotatedMethod {
 
 			this.responseStatus = annotation.code();
 			this.responseStatusReason = resolvedReason;
+			if (StringUtils.hasText(this.responseStatusReason) && getMethod().getReturnType() != void.class) {
+				logger.warn("Return value of [" + getMethod() + "] will be ignored since @ResponseStatus 'reason' attribute is set.");
+			}
 		}
 	}
 
@@ -280,8 +278,7 @@ public class HandlerMethod extends AnnotatedMethod {
 	 * @since 4.3.8
 	 * @see ResponseStatus#code()
 	 */
-	@Nullable
-	protected HttpStatusCode getResponseStatus() {
+	protected @Nullable HttpStatusCode getResponseStatus() {
 		return this.responseStatus;
 	}
 
@@ -290,8 +287,7 @@ public class HandlerMethod extends AnnotatedMethod {
 	 * @since 4.3.8
 	 * @see ResponseStatus#reason()
 	 */
-	@Nullable
-	protected String getResponseStatusReason() {
+	protected @Nullable String getResponseStatusReason() {
 		return this.responseStatusReason;
 	}
 
@@ -299,9 +295,17 @@ public class HandlerMethod extends AnnotatedMethod {
 	 * Return the HandlerMethod from which this HandlerMethod instance was
 	 * resolved via {@link #createWithResolvedBean()}.
 	 */
-	@Nullable
-	public HandlerMethod getResolvedFromHandlerMethod() {
+	public @Nullable HandlerMethod getResolvedFromHandlerMethod() {
 		return this.resolvedFromHandlerMethod;
+	}
+
+	/**
+	 * Re-create the HandlerMethod and initialize
+	 * {@link #shouldValidateArguments()} and {@link #shouldValidateReturnValue()}.
+	 * @since 6.1.3
+	 */
+	public HandlerMethod createWithValidateFlags() {
+		return new HandlerMethod(this, null, true);
 	}
 
 	/**
@@ -314,7 +318,8 @@ public class HandlerMethod extends AnnotatedMethod {
 			Assert.state(this.beanFactory != null, "Cannot resolve bean name without BeanFactory");
 			handler = this.beanFactory.getBean(beanName);
 		}
-		return new HandlerMethod(this, handler);
+		Assert.notNull(handler, "No handler instance");
+		return new HandlerMethod(this, handler, false);
 	}
 
 	/**
@@ -329,7 +334,7 @@ public class HandlerMethod extends AnnotatedMethod {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		return (this == other || (super.equals(other) && this.bean.equals(((HandlerMethod) other).bean)));
+		return (this == other || (super.equals(other) && other instanceof HandlerMethod otherMethod && this.bean.equals(otherMethod.bean)));
 	}
 
 	@Override
@@ -359,7 +364,7 @@ public class HandlerMethod extends AnnotatedMethod {
 			String text = "The mapped handler method class '" + methodDeclaringClass.getName() +
 					"' is not an instance of the actual controller bean class '" +
 					targetBeanClass.getName() + "'. If the controller requires proxying " +
-					"(e.g. due to @Transactional), please use class-based proxying.";
+					"(for example, due to @Transactional), please use class-based proxying.";
 			throw new IllegalStateException(formatInvokeError(text, args));
 		}
 	}
@@ -383,17 +388,28 @@ public class HandlerMethod extends AnnotatedMethod {
 	 */
 	private static class MethodValidationInitializer {
 
-		private static final Predicate<MergedAnnotation<? extends Annotation>> INPUT_PREDICATE =
+		private static final boolean BEAN_VALIDATION_PRESENT =
+				ClassUtils.isPresent("jakarta.validation.Validator", HandlerMethod.class.getClassLoader());
+
+		private static final Predicate<MergedAnnotation<? extends Annotation>> CONSTRAINT_PREDICATE =
 				MergedAnnotationPredicates.typeIn("jakarta.validation.Constraint");
 
-		private static final Predicate<MergedAnnotation<? extends Annotation>> OUTPUT_PREDICATE =
-				MergedAnnotationPredicates.typeIn("jakarta.validation.Valid", "jakarta.validation.Constraint");
+		private static final Predicate<MergedAnnotation<? extends Annotation>> VALID_PREDICATE =
+				MergedAnnotationPredicates.typeIn("jakarta.validation.Valid");
 
 		public static boolean checkArguments(Class<?> beanType, MethodParameter[] parameters) {
-			if (AnnotationUtils.findAnnotation(beanType, Validated.class) == null) {
-				for (MethodParameter parameter : parameters) {
-					MergedAnnotations merged = MergedAnnotations.from(parameter.getParameterAnnotations());
-					if (merged.stream().anyMatch(INPUT_PREDICATE)) {
+			if (BEAN_VALIDATION_PRESENT && AnnotationUtils.findAnnotation(beanType, Validated.class) == null) {
+				for (MethodParameter param : parameters) {
+					MergedAnnotations merged = MergedAnnotations.from(param.getParameterAnnotations());
+					if (merged.stream().anyMatch(CONSTRAINT_PREDICATE)) {
+						return true;
+					}
+					Class<?> type = param.getParameterType();
+					if (merged.stream().anyMatch(VALID_PREDICATE) && isIndexOrKeyBasedContainer(type)) {
+						return true;
+					}
+					merged = MergedAnnotations.from(getContainerElementAnnotations(param));
+					if (merged.stream().anyMatch(CONSTRAINT_PREDICATE.or(VALID_PREDICATE))) {
 						return true;
 					}
 				}
@@ -402,12 +418,41 @@ public class HandlerMethod extends AnnotatedMethod {
 		}
 
 		public static boolean checkReturnValue(Class<?> beanType, Method method) {
-			if (AnnotationUtils.findAnnotation(beanType, Validated.class) == null) {
+			if (BEAN_VALIDATION_PRESENT && AnnotationUtils.findAnnotation(beanType, Validated.class) == null) {
 				MergedAnnotations merged = MergedAnnotations.from(method, MergedAnnotations.SearchStrategy.TYPE_HIERARCHY);
-				return merged.stream().anyMatch(OUTPUT_PREDICATE);
+				return merged.stream().anyMatch(CONSTRAINT_PREDICATE.or(VALID_PREDICATE));
 			}
 			return false;
 		}
+
+		private static boolean isIndexOrKeyBasedContainer(Class<?> type) {
+
+			// Index or key-based containers only, or MethodValidationAdapter cannot access
+			// the element given what is exposed in ConstraintViolation.
+
+			return (List.class.isAssignableFrom(type) || Object[].class.isAssignableFrom(type) ||
+					Map.class.isAssignableFrom(type));
+		}
+
+		/**
+		 * There may be constraints on elements of a container (list, map).
+		 */
+		private static Annotation[] getContainerElementAnnotations(MethodParameter param) {
+			List<Annotation> result = null;
+			int i = param.getParameterIndex();
+			Method method = param.getMethod();
+			if (method != null && method.getAnnotatedParameterTypes()[i] instanceof AnnotatedParameterizedType apt) {
+				for (AnnotatedType type : apt.getAnnotatedActualTypeArguments()) {
+					for (Annotation annot : type.getAnnotations()) {
+						result = (result != null ? result : new ArrayList<>());
+						result.add(annot);
+					}
+				}
+			}
+			result = (result != null ? result : Collections.emptyList());
+			return result.toArray(new Annotation[0]);
+		}
+
 	}
 
 }

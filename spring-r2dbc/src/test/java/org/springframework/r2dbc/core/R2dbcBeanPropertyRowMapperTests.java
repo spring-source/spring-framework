@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mockito;
 
 import org.springframework.beans.TypeMismatchException;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -37,6 +36,8 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 /**
  * Tests for R2DBC-based {@link BeanPropertyRowMapper}.
  *
+ * @author Simon Baslé
+ * @author Juergen Hoeller
  * @since 6.1
  */
 class R2dbcBeanPropertyRowMapperTests {
@@ -56,10 +57,9 @@ class R2dbcBeanPropertyRowMapperTests {
 
 	@Test
 	void mappingRowSimpleObject() {
-		MockRow mockRow = SIMPLE_PERSON_ROW;
 		BeanPropertyRowMapper<Person> mapper = new BeanPropertyRowMapper<>(Person.class);
 
-		Person result = mapper.apply(mockRow);
+		Person result = mapper.apply(SIMPLE_PERSON_ROW);
 
 		assertThat(result.firstName).as("firstName").isEqualTo("John");
 		assertThat(result.lastName).as("lastName").isEqualTo("Doe");
@@ -68,10 +68,9 @@ class R2dbcBeanPropertyRowMapperTests {
 
 	@Test
 	void mappingRowMissingAttributeAccepted() {
-		MockRow mockRow = SIMPLE_PERSON_ROW;
 		BeanPropertyRowMapper<ExtendedPerson> mapper = new BeanPropertyRowMapper<>(ExtendedPerson.class);
 
-		ExtendedPerson result = mapper.apply(mockRow);
+		ExtendedPerson result = mapper.apply(SIMPLE_PERSON_ROW);
 
 		assertThat(result.firstName).as("firstName").isEqualTo("John");
 		assertThat(result.lastName).as("lastName").isEqualTo("Doe");
@@ -81,10 +80,9 @@ class R2dbcBeanPropertyRowMapperTests {
 
 	@Test
 	void mappingRowWithDifferentName() {
-		MockRow mockRow = EMAIL_PERSON_ROW;
 		BeanPropertyRowMapper<EmailPerson> mapper = new BeanPropertyRowMapper<>(EmailPerson.class);
 
-		EmailPerson result = mapper.apply(mockRow);
+		EmailPerson result = mapper.apply(EMAIL_PERSON_ROW);
 
 		assertThat(result.firstName).as("firstName").isEqualTo("John");
 		assertThat(result.lastName).as("lastName").isEqualTo("Doe");
@@ -93,49 +91,13 @@ class R2dbcBeanPropertyRowMapperTests {
 	}
 
 	@Test
-	void mappingRowMissingAttributeRejected() {
-		Class<ExtendedPerson> mappedClass = ExtendedPerson.class;
-		MockRow mockRow = SIMPLE_PERSON_ROW;
-		BeanPropertyRowMapper<ExtendedPerson> mapper = new BeanPropertyRowMapper<>(mappedClass, true);
-
-		assertThatExceptionOfType(InvalidDataAccessApiUsageException.class)
-				.isThrownBy(() -> mapper.apply(mockRow))
-				.withMessage("Given readable does not contain all items necessary to populate object of %s"
-						+ ": [firstName, lastName, address, age]", mappedClass);
-	}
-
-	// TODO cannot trigger a mapping of a read-only property, as mappedProperties don't include properties without a setter.
-
-	@Test
 	void rowTypeAndMappingTypeMisaligned() {
-		MockRow mockRow = EXTENDED_PERSON_ROW;
 		BeanPropertyRowMapper<TypeMismatchExtendedPerson> mapper = new BeanPropertyRowMapper<>(TypeMismatchExtendedPerson.class);
 
 		assertThatExceptionOfType(TypeMismatchException.class)
-				.isThrownBy(() -> mapper.apply(mockRow))
+				.isThrownBy(() -> mapper.apply(EXTENDED_PERSON_ROW))
 				.withMessage("Failed to convert property value of type 'java.lang.String' to required type "
 						+ "'java.lang.String' for property 'address'; simulating type mismatch for address");
-	}
-
-	@Test
-	void usePrimitiveDefaultWithNullValueFromRow() {
-		MockRow mockRow = MockRow.builder()
-				.metadata(MockRowMetadata.builder()
-						.columnMetadata(MockColumnMetadata.builder().name("firstName").javaType(String.class).build())
-						.columnMetadata(MockColumnMetadata.builder().name("lastName").javaType(String.class).build())
-						.columnMetadata(MockColumnMetadata.builder().name("age").javaType(Integer.class).build())
-						.build())
-				.identified(0, String.class, "John")
-				.identified(1, String.class, "Doe")
-				.identified(2, int.class, null)
-				.identified(3, String.class, "123 Sesame Street")
-				.build();
-		BeanPropertyRowMapper<Person> mapper = new BeanPropertyRowMapper<>(Person.class);
-		mapper.setPrimitivesDefaultedForNullValue(true);
-
-		Person result = mapper.apply(mockRow);
-
-		assertThat(result.getAge()).isZero();
 	}
 
 	@ParameterizedTest

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package org.springframework.jms.listener;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -37,7 +39,6 @@ import org.springframework.util.backoff.FixedBackOff;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -160,16 +161,45 @@ class DefaultMessageListenerContainerTests {
 	@Test
 	void setCacheLevelNameToAllSupportedValues() {
 		DefaultMessageListenerContainer container = new DefaultMessageListenerContainer();
+		Set<Integer> uniqueValues = new HashSet<>();
 		streamCacheConstants()
-				.map(Field::getName)
-				.forEach(name -> assertThatNoException().isThrownBy(() -> container.setCacheLevelName(name)));
+				.forEach(name -> {
+					container.setCacheLevelName(name);
+					int cacheLevel = container.getCacheLevel();
+					assertThat(cacheLevel).isBetween(0, 4);
+					uniqueValues.add(cacheLevel);
+				});
+		assertThat(uniqueValues).hasSize(5);
+	}
+
+	@Test
+	void setCacheLevel() {
+		DefaultMessageListenerContainer container = new DefaultMessageListenerContainer();
+
+		assertThatIllegalArgumentException().isThrownBy(() -> container.setCacheLevel(999));
+
+		container.setCacheLevel(DefaultMessageListenerContainer.CACHE_NONE);
+		assertThat(container.getCacheLevel()).isEqualTo(DefaultMessageListenerContainer.CACHE_NONE);
+
+		container.setCacheLevel(DefaultMessageListenerContainer.CACHE_CONNECTION);
+		assertThat(container.getCacheLevel()).isEqualTo(DefaultMessageListenerContainer.CACHE_CONNECTION);
+
+		container.setCacheLevel(DefaultMessageListenerContainer.CACHE_SESSION);
+		assertThat(container.getCacheLevel()).isEqualTo(DefaultMessageListenerContainer.CACHE_SESSION);
+
+		container.setCacheLevel(DefaultMessageListenerContainer.CACHE_CONSUMER);
+		assertThat(container.getCacheLevel()).isEqualTo(DefaultMessageListenerContainer.CACHE_CONSUMER);
+
+		container.setCacheLevel(DefaultMessageListenerContainer.CACHE_AUTO);
+		assertThat(container.getCacheLevel()).isEqualTo(DefaultMessageListenerContainer.CACHE_AUTO);
 	}
 
 
-	private static Stream<Field> streamCacheConstants() {
+	private static Stream<String> streamCacheConstants() {
 		return Arrays.stream(DefaultMessageListenerContainer.class.getFields())
 				.filter(ReflectionUtils::isPublicStaticFinal)
-				.filter(field -> field.getName().startsWith("CACHE_"));
+				.filter(field -> field.getName().startsWith("CACHE_"))
+				.map(Field::getName);
 	}
 
 	private static DefaultMessageListenerContainer createRunningContainer() {
@@ -218,7 +248,7 @@ class DefaultMessageListenerContainerTests {
 	private static ConnectionFactory createRecoverableContainerFactory(final int failingAttempts) {
 		try {
 			ConnectionFactory connectionFactory = mock();
-			given(connectionFactory.createConnection()).will(new Answer<Object>() {
+			given(connectionFactory.createConnection()).will(new Answer<>() {
 				int currentAttempts = 0;
 				@Override
 				public Object answer(InvocationOnMock invocation) throws Throwable {

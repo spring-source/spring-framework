@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -37,7 +38,6 @@ import org.springframework.core.CoroutinesUtils;
 import org.springframework.core.KotlinDetector;
 import org.springframework.core.ReactiveAdapter;
 import org.springframework.core.ReactiveAdapterRegistry;
-import org.springframework.lang.Nullable;
 import org.springframework.scheduling.SchedulingAwareRunnable;
 import org.springframework.scheduling.support.DefaultScheduledTaskObservationConvention;
 import org.springframework.scheduling.support.ScheduledTaskObservationContext;
@@ -123,8 +123,9 @@ abstract class ScheduledAnnotationReactiveSupport {
 		Publisher<?> publisher = getPublisherFor(method, targetBean);
 		Supplier<ScheduledTaskObservationContext> contextSupplier =
 				() -> new ScheduledTaskObservationContext(targetBean, method);
+		String displayName = targetBean.getClass().getName() + "." + method.getName();
 		return new SubscribingRunnable(publisher, shouldBlock, scheduled.scheduler(),
-				subscriptionTrackerRegistry, observationRegistrySupplier, contextSupplier);
+				subscriptionTrackerRegistry, displayName, observationRegistrySupplier, contextSupplier);
 	}
 
 	/**
@@ -192,8 +193,9 @@ abstract class ScheduledAnnotationReactiveSupport {
 
 		final boolean shouldBlock;
 
-		@Nullable
-		private final String qualifier;
+		final String displayName;
+
+		private final @Nullable String qualifier;
 
 		private final List<Runnable> subscriptionTrackerRegistry;
 
@@ -202,12 +204,13 @@ abstract class ScheduledAnnotationReactiveSupport {
 		final Supplier<ScheduledTaskObservationContext> contextSupplier;
 
 		SubscribingRunnable(Publisher<?> publisher, boolean shouldBlock,
-				@Nullable String qualifier, List<Runnable> subscriptionTrackerRegistry,
-				Supplier<ObservationRegistry> observationRegistrySupplier,
-				Supplier<ScheduledTaskObservationContext> contextSupplier) {
+							@Nullable String qualifier, List<Runnable> subscriptionTrackerRegistry,
+							String displayName, Supplier<ObservationRegistry> observationRegistrySupplier,
+							Supplier<ScheduledTaskObservationContext> contextSupplier) {
 
 			this.publisher = publisher;
 			this.shouldBlock = shouldBlock;
+			this.displayName = displayName;
 			this.qualifier = qualifier;
 			this.subscriptionTrackerRegistry = subscriptionTrackerRegistry;
 			this.observationRegistrySupplier = observationRegistrySupplier;
@@ -215,8 +218,7 @@ abstract class ScheduledAnnotationReactiveSupport {
 		}
 
 		@Override
-		@Nullable
-		public String getQualifier() {
+		public @Nullable String getQualifier() {
 			return this.qualifier;
 		}
 
@@ -244,6 +246,7 @@ abstract class ScheduledAnnotationReactiveSupport {
 		private void subscribe(TrackingSubscriber subscriber, Observation observation) {
 			this.subscriptionTrackerRegistry.add(subscriber);
 			if (reactorPresent) {
+				observation.start();
 				Flux.from(this.publisher)
 						.contextWrite(context -> context.put(ObservationThreadLocalAccessor.KEY, observation))
 						.subscribe(subscriber);
@@ -251,6 +254,11 @@ abstract class ScheduledAnnotationReactiveSupport {
 			else {
 				this.publisher.subscribe(subscriber);
 			}
+		}
+
+		@Override
+		public String toString() {
+			return this.displayName;
 		}
 	}
 
@@ -266,15 +274,13 @@ abstract class ScheduledAnnotationReactiveSupport {
 
 		private final Observation observation;
 
-		@Nullable
-		private final CountDownLatch blockingLatch;
+		private final @Nullable CountDownLatch blockingLatch;
 
 		// Implementation note: since this is created last-minute when subscribing,
 		// there shouldn't be a way to cancel the tracker externally from the
 		// ScheduledAnnotationBeanProcessor before the #setSubscription(Subscription)
 		// method is called.
-		@Nullable
-		private Subscription subscription;
+		private @Nullable Subscription subscription;
 
 		TrackingSubscriber(List<Runnable> subscriptionTrackerRegistry, Observation observation) {
 			this(subscriptionTrackerRegistry, observation, null);
@@ -300,7 +306,6 @@ abstract class ScheduledAnnotationReactiveSupport {
 		@Override
 		public void onSubscribe(Subscription subscription) {
 			this.subscription = subscription;
-			this.observation.start();
 			subscription.request(Integer.MAX_VALUE);
 		}
 

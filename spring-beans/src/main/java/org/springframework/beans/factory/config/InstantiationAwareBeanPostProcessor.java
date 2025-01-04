@@ -16,9 +16,10 @@
 
 package org.springframework.beans.factory.config;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeansException;
 import org.springframework.beans.PropertyValues;
-import org.springframework.lang.Nullable;
 
 /**
  * InstantiationAwareBeanPostProcessor接口继承BeanPostProcessor接口，它内部提供了3个方法，再加上BeanPostProcessor接口内部的2个方法，
@@ -75,8 +76,7 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 	 * @see org.springframework.beans.factory.support.AbstractBeanDefinition#getBeanClass()
 	 * @see org.springframework.beans.factory.support.AbstractBeanDefinition#getFactoryMethodName()
 	 */
-	@Nullable
-	default Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
+	default @Nullable Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
 		return null;
 	}
 
@@ -114,8 +114,7 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 	 * @throws org.springframework.beans.BeansException in case of errors
 	 * @since 5.1
 	 */
-	@Nullable
-	default PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName)
+	default @Nullable PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName)
 			throws BeansException {
 
 		return pvs;

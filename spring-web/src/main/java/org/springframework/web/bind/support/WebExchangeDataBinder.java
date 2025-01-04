@@ -18,14 +18,16 @@ package org.springframework.web.bind.support;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
 import org.springframework.beans.MutablePropertyValues;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.codec.multipart.FormFieldPart;
 import org.springframework.http.codec.multipart.Part;
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.WebDataBinder;
@@ -87,12 +89,21 @@ public class WebExchangeDataBinder extends WebDataBinder {
 				.then();
 	}
 
+	@Override
+	protected boolean shouldConstructArgument(MethodParameter param) {
+		Class<?> type = param.nestedIfOptional().getNestedParameterType();
+		return (super.shouldConstructArgument(param) && !Part.class.isAssignableFrom(type));
+	}
+
 	/**
 	 * Bind query parameters, form data, or multipart form data to the binder target.
 	 * @param exchange the current exchange
 	 * @return a {@code Mono<Void>} that completes when binding is complete
 	 */
 	public Mono<Void> bind(ServerWebExchange exchange) {
+		if (shouldNotBindPropertyValues()) {
+			return Mono.empty();
+		}
 		return getValuesToBind(exchange)
 				.doOnNext(map -> doBind(new MutablePropertyValues(map)))
 				.then();
@@ -137,11 +148,17 @@ public class WebExchangeDataBinder extends WebDataBinder {
 
 	protected static void addBindValue(Map<String, Object> params, String key, List<?> values) {
 		if (!CollectionUtils.isEmpty(values)) {
-			values = values.stream()
-					.map(value -> value instanceof FormFieldPart formFieldPart ? formFieldPart.value() : value)
-					.toList();
-			params.put(key, values.size() == 1 ? values.get(0) : values);
+			if (values.size() == 1) {
+				params.put(key, adaptBindValue(values.get(0)));
+			}
+			else {
+				params.put(key, values.stream().map(WebExchangeDataBinder::adaptBindValue).toList());
+			}
 		}
+	}
+
+	private static Object adaptBindValue(Object value) {
+		return (value instanceof FormFieldPart part ? part.value() : value);
 	}
 
 
@@ -151,8 +168,13 @@ public class WebExchangeDataBinder extends WebDataBinder {
 	private record MapValueResolver(Map<String, Object> map) implements ValueResolver {
 
 		@Override
-		public Object resolveValue(String name, Class<?> type) {
+		public @Nullable Object resolveValue(String name, Class<?> type) {
 			return this.map.get(name);
+		}
+
+		@Override
+		public Set<String> getNames() {
+			return this.map.keySet();
 		}
 	}
 

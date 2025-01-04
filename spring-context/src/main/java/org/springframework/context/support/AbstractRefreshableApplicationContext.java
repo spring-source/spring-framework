@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,13 @@ package org.springframework.context.support;
 
 import java.io.IOException;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextException;
-import org.springframework.lang.Nullable;
 
 /**
  * Base class for {@link org.springframework.context.ApplicationContext}
@@ -64,18 +65,15 @@ import org.springframework.lang.Nullable;
  */
 public abstract class AbstractRefreshableApplicationContext extends AbstractApplicationContext {
 
-	@Nullable
-	private Boolean allowBeanDefinitionOverriding;
+	private @Nullable Boolean allowBeanDefinitionOverriding;
 
-	@Nullable
-	private Boolean allowCircularReferences;
+	private @Nullable Boolean allowCircularReferences;
 
 	/** Bean factory for this context.
 	 * 初始化beanfactory时在线程安全的情况下，返回this.beanFactory，这个beanFactory是谁呢，原来就是刚刚refreshBeanFactory()
 	 * 方法赋值的那个AbstractRefreshableApplicationContext.java中的DefaultListableBeanFactory beanFactory
 	 **/
-	@Nullable
-	private volatile DefaultListableBeanFactory beanFactory;
+	private volatile @Nullable DefaultListableBeanFactory beanFactory;
 
 
 	/**
@@ -134,6 +132,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 			DefaultListableBeanFactory beanFactory = createBeanFactory();
 			//为容器设置一个序列化ID
 			beanFactory.setSerializationId(getId());
+			beanFactory.setApplicationStartup(getApplicationStartup());
 			customizeBeanFactory(beanFactory);
 			//加载我们的bean定义(最最最主要的作用就是保存我们的传递进去的配置类)
 			loadBeanDefinitions(beanFactory);
@@ -145,7 +144,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 	}
 
 	@Override
-	protected void cancelRefresh(BeansException ex) {
+	protected void cancelRefresh(Throwable ex) {
 		DefaultListableBeanFactory beanFactory = this.beanFactory;
 		if (beanFactory != null) {
 			beanFactory.setSerializationId(null);

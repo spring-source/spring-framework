@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.Conventions;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ResolvableType;
@@ -32,8 +34,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.http.server.ServletServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.accept.ContentNegotiationManager;
@@ -99,13 +101,27 @@ public class RequestResponseBodyMethodProcessor extends AbstractMessageConverter
 	}
 
 	/**
-	 * Complete constructor for resolving {@code @RequestBody} and handling
-	 * {@code @ResponseBody}.
+	 * Variant of {@link #RequestResponseBodyMethodProcessor(List, List)}
+	 * with an additional {@link ContentNegotiationManager} argument, for return
+	 * value handling.
 	 */
 	public RequestResponseBodyMethodProcessor(List<HttpMessageConverter<?>> converters,
 			@Nullable ContentNegotiationManager manager, @Nullable List<Object> requestResponseBodyAdvice) {
 
 		super(converters, manager, requestResponseBodyAdvice);
+	}
+
+	/**
+	 * Variant of{@link #RequestResponseBodyMethodProcessor(List, ContentNegotiationManager, List)}
+	 * with an additional {@link ErrorResponse.Interceptor} argument for return
+	 * value handling.
+	 * @since 6.2
+	 */
+	public RequestResponseBodyMethodProcessor(List<HttpMessageConverter<?>> converters,
+			@Nullable ContentNegotiationManager manager, List<Object> requestResponseBodyAdvice,
+			List<ErrorResponse.Interceptor> interceptors) {
+
+		super(converters, manager, requestResponseBodyAdvice, interceptors);
 	}
 
 
@@ -127,14 +143,14 @@ public class RequestResponseBodyMethodProcessor extends AbstractMessageConverter
 	 * converter to read the content with.
 	 */
 	@Override
-	public Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer mavContainer,
+	public @Nullable Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer mavContainer,
 			NativeWebRequest webRequest, @Nullable WebDataBinderFactory binderFactory) throws Exception {
 
 		parameter = parameter.nestedIfOptional();
 		Object arg = readWithMessageConverters(webRequest, parameter, parameter.getNestedGenericParameterType());
-		String name = Conventions.getVariableNameForParameter(parameter);
 
 		if (binderFactory != null) {
+			String name = Conventions.getVariableNameForParameter(parameter);
 			ResolvableType type = ResolvableType.forMethodParameter(parameter);
 			WebDataBinder binder = binderFactory.createBinder(webRequest, arg, name, type);
 			if (arg != null) {
@@ -152,7 +168,7 @@ public class RequestResponseBodyMethodProcessor extends AbstractMessageConverter
 	}
 
 	@Override
-	protected <T> Object readWithMessageConverters(NativeWebRequest webRequest, MethodParameter parameter,
+	protected @Nullable Object readWithMessageConverters(NativeWebRequest webRequest, MethodParameter parameter,
 			Type paramType) throws IOException, HttpMediaTypeNotSupportedException, HttpMessageNotReadableException {
 
 		ServletServerHttpRequest inputMessage = createInputMessage(webRequest);
@@ -184,6 +200,7 @@ public class RequestResponseBodyMethodProcessor extends AbstractMessageConverter
 				URI path = URI.create(inputMessage.getServletRequest().getRequestURI());
 				detail.setInstance(path);
 			}
+			invokeErrorResponseInterceptors(detail, null);
 		}
 
 		// Try even with null return value. ResponseBodyAdvice could get involved.

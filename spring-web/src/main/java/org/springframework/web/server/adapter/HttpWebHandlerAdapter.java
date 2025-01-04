@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,19 @@
 
 package org.springframework.web.server.adapter;
 
-import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.reactivestreams.Publisher;
+import org.jspecify.annotations.Nullable;
+import reactor.core.observability.DefaultSignalListener;
 import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
 import org.springframework.context.ApplicationContext;
-import org.springframework.core.NestedExceptionUtils;
 import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -41,7 +42,6 @@ import org.springframework.http.server.reactive.observation.DefaultServerRequest
 import org.springframework.http.server.reactive.observation.ServerHttpObservationDocumentation;
 import org.springframework.http.server.reactive.observation.ServerRequestObservationContext;
 import org.springframework.http.server.reactive.observation.ServerRequestObservationConvention;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
@@ -52,6 +52,7 @@ import org.springframework.web.server.i18n.AcceptHeaderLocaleContextResolver;
 import org.springframework.web.server.i18n.LocaleContextResolver;
 import org.springframework.web.server.session.DefaultWebSessionManager;
 import org.springframework.web.server.session.WebSessionManager;
+import org.springframework.web.util.DisconnectedClientHelper;
 
 /**
  * Default adapter of {@link WebHandler} to the {@link HttpHandler} contract.
@@ -67,20 +68,14 @@ import org.springframework.web.server.session.WebSessionManager;
 public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHandler {
 
 	/**
-	 * Dedicated log category for disconnected client exceptions.
-	 * <p>Servlet containers don't expose a client disconnected callback; see
-	 * <a href="https://github.com/eclipse-ee4j/servlet-api/issues/44">eclipse-ee4j/servlet-api#44</a>.
-	 * <p>To avoid filling logs with unnecessary stack traces, we make an
-	 * effort to identify such network failures on a per-server basis, and then
-	 * log under a separate log category a simple one-line message at DEBUG level
-	 * or a full stack trace only at TRACE level.
+	 * Log category to use for network failure after a client has gone away.
+	 * @see DisconnectedClientHelper
 	 */
 	private static final String DISCONNECTED_CLIENT_LOG_CATEGORY =
 			"org.springframework.web.server.DisconnectedClient";
 
-	 // Similar declaration exists in AbstractSockJsSession.
-	private static final Set<String> DISCONNECTED_CLIENT_EXCEPTIONS =
-			Set.of("AbortedException", "ClientAbortException", "EOFException", "EofException");
+	private static final DisconnectedClientHelper disconnectedClientHelper =
+			new DisconnectedClientHelper(DISCONNECTED_CLIENT_LOG_CATEGORY);
 
 	private static final ServerRequestObservationConvention DEFAULT_OBSERVATION_CONVENTION =
 			new DefaultServerRequestObservationConvention();
@@ -88,25 +83,21 @@ public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHa
 
 	private static final Log logger = LogFactory.getLog(HttpWebHandlerAdapter.class);
 
-	private static final Log lostClientLogger = LogFactory.getLog(DISCONNECTED_CLIENT_LOG_CATEGORY);
-
 
 	private WebSessionManager sessionManager = new DefaultWebSessionManager();
 
-	@Nullable
+	@SuppressWarnings("NullAway.Init")
 	private ServerCodecConfigurer codecConfigurer;
 
 	private LocaleContextResolver localeContextResolver = new AcceptHeaderLocaleContextResolver();
 
-	@Nullable
-	private ForwardedHeaderTransformer forwardedHeaderTransformer;
+	private @Nullable ForwardedHeaderTransformer forwardedHeaderTransformer;
 
 	private ObservationRegistry observationRegistry = ObservationRegistry.NOOP;
 
 	private ServerRequestObservationConvention observationConvention = DEFAULT_OBSERVATION_CONVENTION;
 
-	@Nullable
-	private ApplicationContext applicationContext;
+	private @Nullable ApplicationContext applicationContext;
 
 	/** Whether to log potentially sensitive info (form data at DEBUG, headers at TRACE). */
 	private boolean enableLoggingRequestDetails = false;
@@ -200,8 +191,7 @@ public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHa
 	 * Return the configured {@link ForwardedHeaderTransformer}.
 	 * @since 5.1
 	 */
-	@Nullable
-	public ForwardedHeaderTransformer getForwardedHeaderTransformer() {
+	public @Nullable ForwardedHeaderTransformer getForwardedHeaderTransformer() {
 		return this.forwardedHeaderTransformer;
 	}
 
@@ -256,8 +246,7 @@ public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHa
 	 * Return the configured {@code ApplicationContext}, if any.
 	 * @since 5.0.3
 	 */
-	@Nullable
-	public ApplicationContext getApplicationContext() {
+	public @Nullable ApplicationContext getApplicationContext() {
 		return this.applicationContext;
 	}
 
@@ -302,7 +291,9 @@ public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHa
 				ServerRequestObservationContext.CURRENT_OBSERVATION_CONTEXT_ATTRIBUTE, observationContext);
 
 		return getDelegate().handle(exchange)
-				.transformDeferred(call -> transform(exchange, observationContext, call))
+				.doOnSuccess(aVoid -> logResponse(exchange))
+				.onErrorResume(ex -> handleUnresolvedError(exchange, observationContext, ex))
+				.tap(() -> new ObservationSignalListener(observationContext))
 				.then(exchange.cleanupMultipart())
 				.then(Mono.defer(response::setComplete));
 	}
@@ -324,42 +315,6 @@ public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHa
 		return "HTTP " + request.getMethod() + " \"" + request.getPath() + query + "\"";
 	}
 
-	private Publisher<Void> transform(ServerWebExchange exchange, ServerRequestObservationContext observationContext, Mono<Void> call) {
-		Observation observation = ServerHttpObservationDocumentation.HTTP_REACTIVE_SERVER_REQUESTS.observation(
-				this.observationConvention, DEFAULT_OBSERVATION_CONVENTION, () -> observationContext, this.observationRegistry);
-		observation.start();
-		return call
-				.doOnSuccess(aVoid -> {
-					logResponse(exchange);
-					stopObservation(observation, exchange);
-				})
-				.onErrorResume(ex -> handleUnresolvedError(exchange, observationContext, ex))
-				.doOnCancel(() -> cancelObservation(observationContext, observation))
-				.contextWrite(context -> context.put(ObservationThreadLocalAccessor.KEY, observation));
-	}
-
-	private void stopObservation(Observation observation, ServerWebExchange exchange) {
-		Throwable throwable = exchange.getAttribute(ExceptionHandlingWebHandler.HANDLED_WEB_EXCEPTION);
-		if (throwable != null) {
-			observation.error(throwable);
-		}
-		ServerHttpResponse response = exchange.getResponse();
-		if (response.isCommitted()) {
-			observation.stop();
-		}
-		else {
-			response.beforeCommit(() -> {
-				observation.stop();
-				return Mono.empty();
-			});
-		}
-	}
-
-	private void cancelObservation(ServerRequestObservationContext observationContext, Observation observation) {
-		observationContext.setConnectionAborted(true);
-		observation.stop();
-	}
-
 	private void logResponse(ServerWebExchange exchange) {
 		LogFormatUtils.traceDebug(logger, traceOn -> {
 			HttpStatusCode status = exchange.getResponse().getStatusCode();
@@ -373,7 +328,9 @@ public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHa
 				responseHeaders.toString() : responseHeaders.isEmpty() ? "{}" : "{masked}";
 	}
 
-	private Mono<Void> handleUnresolvedError(ServerWebExchange exchange, ServerRequestObservationContext observationContext, Throwable ex) {
+	private Mono<Void> handleUnresolvedError(
+			ServerWebExchange exchange, ServerRequestObservationContext observationContext, Throwable ex) {
+
 		ServerHttpRequest request = exchange.getRequest();
 		ServerHttpResponse response = exchange.getResponse();
 		String logPrefix = exchange.getLogPrefix();
@@ -385,14 +342,7 @@ public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHa
 			logger.error(logPrefix + "500 Server Error for " + formatRequest(request), ex);
 			return Mono.empty();
 		}
-		else if (isDisconnectedClientError(ex)) {
-			if (lostClientLogger.isTraceEnabled()) {
-				lostClientLogger.trace(logPrefix + "Client went away", ex);
-			}
-			else if (lostClientLogger.isDebugEnabled()) {
-				lostClientLogger.debug(logPrefix + "Client went away: " + ex +
-						" (stacktrace at TRACE level for '" + DISCONNECTED_CLIENT_LOG_CATEGORY + "')");
-			}
+		else if (disconnectedClientHelper.checkAndLogClientDisconnectedException(ex)) {
 			observationContext.setConnectionAborted(true);
 			return Mono.empty();
 		}
@@ -404,15 +354,74 @@ public class HttpWebHandlerAdapter extends WebHandlerDecorator implements HttpHa
 		}
 	}
 
-	private boolean isDisconnectedClientError(Throwable ex) {
-		String message = NestedExceptionUtils.getMostSpecificCause(ex).getMessage();
-		if (message != null) {
-			String text = message.toLowerCase();
-			if (text.contains("broken pipe") || text.contains("connection reset by peer")) {
-				return true;
+
+	private final class ObservationSignalListener extends DefaultSignalListener<Void> {
+
+		private final ServerRequestObservationContext observationContext;
+
+		private final Observation observation;
+
+		private final AtomicBoolean observationRecorded = new AtomicBoolean();
+
+		ObservationSignalListener(ServerRequestObservationContext observationContext) {
+			this.observationContext = observationContext;
+			this.observation = ServerHttpObservationDocumentation.HTTP_REACTIVE_SERVER_REQUESTS.observation(observationConvention,
+					DEFAULT_OBSERVATION_CONVENTION, () -> observationContext, observationRegistry);
+		}
+
+		@Override
+		public Context addToContext(Context originalContext) {
+			return originalContext.put(ObservationThreadLocalAccessor.KEY, this.observation);
+		}
+
+		@Override
+		public void doFirst() throws Throwable {
+			this.observation.start();
+		}
+
+		@Override
+		public void doOnCancel() throws Throwable {
+			if (this.observationRecorded.compareAndSet(false, true)) {
+				this.observationContext.setConnectionAborted(true);
+				this.observation.stop();
 			}
 		}
-		return DISCONNECTED_CLIENT_EXCEPTIONS.contains(ex.getClass().getSimpleName());
+
+		@Override
+		public void doOnComplete() throws Throwable {
+			if (this.observationRecorded.compareAndSet(false, true)) {
+				Throwable throwable = (Throwable) this.observationContext.getAttributes()
+						.get(ExceptionHandlingWebHandler.HANDLED_WEB_EXCEPTION);
+				if (throwable != null) {
+					this.observation.error(throwable);
+				}
+				doOnTerminate(this.observationContext);
+			}
+		}
+
+		@Override
+		public void doOnError(Throwable error) throws Throwable {
+			if (this.observationRecorded.compareAndSet(false, true)) {
+				this.observationContext.setError(error);
+				doOnTerminate(this.observationContext);
+			}
+		}
+
+
+		private void doOnTerminate(ServerRequestObservationContext context) {
+			ServerHttpResponse response = context.getResponse();
+			if (response != null) {
+				if (response.isCommitted()) {
+					this.observation.stop();
+				}
+				else {
+					response.beforeCommit(() -> {
+						this.observation.stop();
+						return Mono.empty();
+					});
+				}
+			}
+		}
 	}
 
 }

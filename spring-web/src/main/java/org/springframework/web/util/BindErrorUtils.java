@@ -22,6 +22,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.context.support.StaticMessageSource;
@@ -37,7 +39,7 @@ import org.springframework.validation.FieldError;
  */
 public abstract class BindErrorUtils {
 
-	private final static MessageSource defaultMessageSource = new MethodArgumentErrorMessageSource();
+	private static final MessageSource defaultMessageSource = new MethodArgumentErrorMessageSource();
 
 
 	/**
@@ -114,7 +116,7 @@ public abstract class BindErrorUtils {
 		}
 
 		@Override
-		protected String getDefaultMessage(MessageSourceResolvable resolvable, Locale locale) {
+		protected @Nullable String getDefaultMessage(MessageSourceResolvable resolvable, Locale locale) {
 			String message = super.getDefaultMessage(resolvable, locale);
 			return (resolvable instanceof FieldError error ? error.getField() + ": " + message : message);
 		}
